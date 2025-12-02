@@ -3,7 +3,7 @@
  * Reference: classes/prom_spell.php, spells/*.php
  */
 
-import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire } from '../types';
+import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire, TurnStopReason } from '../types';
 import { SPELLS, ECONOMY, COMBAT } from './constants';
 import {
   getModifier,
@@ -647,10 +647,13 @@ export function castSelfSpell(
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(empire);
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -660,6 +663,37 @@ export function castSelfSpell(
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions - cancel spell if emergency occurs
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
+  }
+
+  // If stopped early due to emergency, cancel spell (no rune cost, no effect)
+  if (stoppedEarly) {
+    empire.networth = calculateNetworth(empire);
+    return {
+      success: false,
+      turnsSpent: turnsActuallySpent,
+      turnsRemaining: turnsRemaining - turnsActuallySpent,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes,
+      troopsProduced: {},
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      stoppedEarly,
+      empire,
+    };
   }
 
   // Deduct rune cost
@@ -753,10 +787,13 @@ export function castEnemySpell(
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(caster);
     const extras = applyEconomyResult(caster, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -766,6 +803,37 @@ export function castEnemySpell(
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions - cancel spell if emergency occurs
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
+  }
+
+  // If stopped early due to emergency, cancel spell (no rune cost, no effect, no health cost)
+  if (stoppedEarly) {
+    caster.networth = calculateNetworth(caster);
+    return {
+      success: false,
+      turnsSpent: turnsActuallySpent,
+      turnsRemaining: turnsRemaining - turnsActuallySpent,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes,
+      troopsProduced: {},
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      stoppedEarly,
+      empire: caster,
+    };
   }
 
   // Deduct rune cost
