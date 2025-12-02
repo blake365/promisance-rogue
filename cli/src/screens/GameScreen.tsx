@@ -100,7 +100,7 @@ export function GameScreen({
 
   // Handle global keys
   useInput((input, key) => {
-    if (key.escape && view === 'action_result') {
+    if (key.return && view === 'action_result') {
       setLastResult(null);
       // Return to attack view if we still have a target, otherwise main
       if (selectedTargetId) {
@@ -751,7 +751,7 @@ export function GameScreen({
 
             <Box marginTop={1}>
               <Text color="gray">
-                [Esc] {selectedTargetId ? 'attack again' : 'continue'}
+                [Enter] {selectedTargetId ? 'attack again' : 'continue'}
               </Text>
             </Box>
           </Box>
