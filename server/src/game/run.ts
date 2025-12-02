@@ -1,5 +1,5 @@
 import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason } from '../types';
-import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT } from './constants';
+import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT, SHOP } from './constants';
 import { createEmpire, calculateNetworth, hasAdvisorEffect } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
 import { isLoanEmergency } from './bank';
@@ -427,8 +427,8 @@ export function endPlayerPhase(run: GameRun): void {
   run.shopStock = generateShopStock(run.playerEmpire, run.marketPrices);
   run.draftOptions = generateDraftOptions(phaseSeed + 500, run.playerEmpire);
 
-  // Lock reroll cost at 20% of current gold (prevents gaming by spending gold first)
-  run.rerollCost = calculateRerollCost(run.playerEmpire);
+  // Lock reroll cost at 20% of liquidation value (paid in gold, prevents gaming by selling assets first)
+  run.rerollCost = calculateRerollCost(run.playerEmpire, run.marketPrices);
   run.rerollCount = 0;
 
   run.updatedAt = Date.now();
@@ -469,6 +469,11 @@ export function rerollDraft(run: GameRun): { success: boolean; error?: string; c
     return { success: false, error: 'Reroll cost not set' };
   }
 
+  // Check if player has reached the reroll limit
+  if (run.rerollCount >= SHOP.maxRerolls) {
+    return { success: false, error: `Maximum rerolls reached (${SHOP.maxRerolls} per shop)` };
+  }
+
   // Check if player can afford the reroll
   if (run.playerEmpire.resources.gold < run.rerollCost) {
     return { success: false, error: `Not enough gold. Need ${run.rerollCost.toLocaleString()}` };
@@ -487,11 +492,14 @@ export function rerollDraft(run: GameRun): { success: boolean; error?: string; c
   return { success: true, cost: run.rerollCost };
 }
 
-export function getRerollInfo(run: GameRun): { cost: number | null; canAfford: boolean; rerollCount: number } {
+export function getRerollInfo(run: GameRun): { cost: number | null; canAfford: boolean; rerollCount: number; maxRerolls: number; rerollsRemaining: number } {
+  const rerollsRemaining = Math.max(0, SHOP.maxRerolls - run.rerollCount);
   return {
     cost: run.rerollCost,
-    canAfford: run.rerollCost !== null && run.playerEmpire.resources.gold >= run.rerollCost,
+    canAfford: run.rerollCost !== null && run.playerEmpire.resources.gold >= run.rerollCost && rerollsRemaining > 0,
     rerollCount: run.rerollCount,
+    maxRerolls: SHOP.maxRerolls,
+    rerollsRemaining,
   };
 }
 

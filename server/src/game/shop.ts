@@ -341,8 +341,40 @@ export function generateDraftOptions(
 // REROLL COST CALCULATION
 // ============================================
 
-export function calculateRerollCost(empire: Empire): number {
-  return Math.floor(empire.resources.gold * SHOP.rerollCostPercent);
+/**
+ * Calculate the liquidation value of an empire at current market prices.
+ * This represents the total gold the player would have if they sold all assets.
+ */
+export function calculateLiquidationValue(empire: Empire, prices: MarketPrices): number {
+  let value = 0;
+
+  // Current gold
+  value += empire.resources.gold;
+
+  // Bank savings (fully withdrawable)
+  value += empire.bank;
+
+  // Subtract loan debt
+  value -= empire.loan;
+
+  // Food sold at market price
+  value += empire.resources.food * prices.foodSellPrice;
+
+  // Runes sold at market price
+  value += empire.resources.runes * prices.runeSellPrice;
+
+  // Troops sold at market price (base cost * sell multiplier)
+  value += empire.troops.trparm * UNIT_COSTS.trparm.buyPrice * prices.troopSellMultiplier;
+  value += empire.troops.trplnd * UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultiplier;
+  value += empire.troops.trpfly * UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultiplier;
+  value += empire.troops.trpsea * UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultiplier;
+
+  return Math.max(0, Math.floor(value));
+}
+
+export function calculateRerollCost(empire: Empire, prices: MarketPrices): number {
+  const liquidationValue = calculateLiquidationValue(empire, prices);
+  return Math.floor(liquidationValue * SHOP.rerollCostPercent);
 }
 
 // ============================================
