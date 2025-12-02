@@ -19,13 +19,14 @@ const TROOP_TYPES: TroopTypeInfo[] = [
 interface Props {
   currentAllocation: IndustryAllocation;
   maxTurns: number;
+  techBonus?: number;
   onConfirm: (allocation: IndustryAllocation, turns: number) => void;
   onCancel: () => void;
 }
 
 type Mode = 'turns' | 'allocation';
 
-export function IndustryAllocationSelector({ currentAllocation, maxTurns, onConfirm, onCancel }: Props) {
+export function IndustryAllocationSelector({ currentAllocation, maxTurns, techBonus = 0, onConfirm, onCancel }: Props) {
   const [turns, setTurns] = useState(1);
   const [mode, setMode] = useState<Mode>('turns');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -166,7 +167,7 @@ export function IndustryAllocationSelector({ currentAllocation, maxTurns, onConf
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Text bold color="cyan">
-        Industry - Produce Troops
+        Industry{techBonus > 0 ? ` (+${techBonus}% troops)` : ''} - Produce Troops
       </Text>
 
       {/* Turns input - primary */}

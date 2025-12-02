@@ -4,11 +4,12 @@ import { Box, Text, useInput } from 'ink';
 interface Props {
   currentRate: number;
   maxTurns: number;
+  techBonus?: number;
   onConfirm: (taxRate: number, turns: number) => void;
   onCancel: () => void;
 }
 
-export function TaxRateInput({ currentRate, maxTurns, onConfirm, onCancel }: Props) {
+export function TaxRateInput({ currentRate, maxTurns, techBonus = 0, onConfirm, onCancel }: Props) {
   const [taxRate, setTaxRate] = useState(currentRate);
   const [turns, setTurns] = useState(1);
   const [mode, setMode] = useState<'tax' | 'turns'>('turns');
@@ -96,7 +97,7 @@ export function TaxRateInput({ currentRate, maxTurns, onConfirm, onCancel }: Pro
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
       <Text bold color="yellow">
-        Cash - Set Tax Rate
+        Cash{techBonus > 0 ? ` (+${techBonus}% income)` : ''} - Set Tax Rate
       </Text>
 
       <Box marginTop={1} flexDirection="column">
