@@ -1,0 +1,439 @@
+// Game types (mirrored from server for CLI independence)
+
+export type Era = 'past' | 'present' | 'future';
+export type Race = 'human' | 'elf' | 'dwarf' | 'troll' | 'gnome' | 'gremlin' | 'orc' | 'drow' | 'goblin';
+export type TurnAction = 'explore' | 'farm' | 'cash' | 'meditate' | 'industry' | 'build' | 'attack' | 'spell';
+export type SpellType = 'shield' | 'food' | 'cash' | 'runes' | 'blast' | 'steal' | 'storm' | 'struct' | 'advance' | 'regress' | 'gate' | 'spy' | 'fight';
+export type AttackType = 'standard' | 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
+export type BonusRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+export type BonusType = 'advisor' | 'tech' | 'edict' | 'policy';
+export type GamePhase = 'player' | 'shop' | 'bot' | 'complete';
+
+export interface Resources {
+  gold: number;
+  food: number;
+  runes: number;
+  land: number;
+  freeland: number;
+}
+
+export interface Buildings {
+  bldpop: number;
+  bldcash: number;
+  bldtrp: number;
+  bldcost: number;
+  bldfood: number;
+  bldwiz: number;
+  blddef: number;
+}
+
+export interface Troops {
+  trparm: number;
+  trplnd: number;
+  trpfly: number;
+  trpsea: number;
+  trpwiz: number;
+}
+
+export interface IndustryAllocation {
+  trparm: number;
+  trplnd: number;
+  trpfly: number;
+  trpsea: number;
+}
+
+export interface AdvisorEffect {
+  type: string;
+  modifier: number;
+  condition?: string;
+}
+
+export interface Advisor {
+  id: string;
+  name: string;
+  description: string;
+  rarity: BonusRarity;
+  effect: AdvisorEffect;
+}
+
+export interface Empire {
+  id: string;
+  name: string;
+  race: Race;
+  era: Era;
+  eraChangedRound: number;
+  resources: Resources;
+  buildings: Buildings;
+  troops: Troops;
+  industryAllocation: IndustryAllocation;
+  peasants: number;
+  health: number;
+  taxRate: number;
+  bank: number;
+  loan: number;
+  networth: number;
+  offTotal: number;
+  offSucc: number;
+  defTotal: number;
+  defSucc: number;
+  kills: number;
+  shieldExpiresRound: number | null;
+  gateExpiresRound: number | null;
+  advisors: Advisor[];
+  techs: Record<string, number>;
+  policies: string[];
+}
+
+export interface GameRound {
+  number: number;
+  turnsRemaining: number;
+  phase: GamePhase;
+}
+
+export interface MarketPrices {
+  foodBuyPrice: number;
+  foodSellPrice: number;
+  troopBuyMultiplier: number;
+  troopSellMultiplier: number;
+  runeBuyPrice: number;
+  runeSellPrice: number;
+}
+
+export interface ShopStock {
+  food: number;
+  trparm: number;
+  trplnd: number;
+  trpfly: number;
+  trpsea: number;
+  runes: number;
+}
+
+export interface DraftOption {
+  type: BonusType;
+  item: Advisor | { id: string; name: string; description?: string; rarity?: BonusRarity; level?: number };
+}
+
+export interface CombatResult {
+  won: boolean;
+  attackerLosses: Partial<Troops>;
+  defenderLosses: Partial<Troops>;
+  landGained: number;
+  buildingsGained: Partial<Buildings>;
+  buildingsDestroyed: Partial<Buildings>;
+  offpower: number;
+  defpower: number;
+}
+
+export interface SpellResult {
+  success: boolean;
+  spell: SpellType;
+  resourcesGained?: Partial<Resources>;
+  effectApplied?: string;
+  effectDuration?: number;
+  castCount?: number;
+  troopsDestroyed?: Partial<Troops>;
+  goldStolen?: number;
+  foodDestroyed?: number;
+  cashDestroyed?: number;
+  buildingsDestroyed?: Partial<Buildings>;
+  wizardsLost?: number;
+}
+
+export interface TurnActionRequest {
+  action: TurnAction;
+  turns: number;
+  buildingAllocation?: Partial<Buildings>;
+  industryAllocation?: IndustryAllocation;
+  taxRate?: number;
+  targetId?: string;
+  attackType?: AttackType;
+  spell?: SpellType;
+  spellTargetId?: string;
+}
+
+export interface TurnActionResult {
+  success: boolean;
+  turnsSpent: number;
+  turnsRemaining: number;
+  income: number;
+  expenses: number;
+  foodProduction: number;
+  foodConsumption: number;
+  runeChange: number;
+  troopsProduced: Partial<Troops>;
+  landGained?: number;
+  buildingsConstructed?: Partial<Buildings>;
+  combatResult?: CombatResult;
+  spellResult?: SpellResult;
+  empire: Empire;
+}
+
+export interface ShopTransaction {
+  type: 'buy' | 'sell';
+  resource: 'food' | 'troops' | 'runes';
+  amount: number;
+  troopType?: keyof Troops;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  playerId: string;
+  playerName: string;
+  race: Race;
+  finalNetworth: number;
+  roundsCompleted: number;
+  modifiers: string[];
+  createdAt: number;
+}
+
+// API Response types
+interface AuthResponse {
+  playerId: string;
+  sessionId: string;
+  expiresAt: number;
+}
+
+interface PlayerResponse {
+  id: string;
+  displayName: string;
+  createdAt: number;
+}
+
+interface GameSummary {
+  round: number;
+  turnsRemaining: number;
+  phase: string;
+  networth: number;
+  land: number;
+  gold: number;
+}
+
+export interface BotSummary {
+  id: string;
+  name: string;
+  race: Race;
+  era: string;
+  networth: number;
+  land: number;
+  troops?: Troops;
+}
+
+interface CurrentGameResponse {
+  hasActiveGame: boolean;
+  game?: {
+    id: string;
+    round: GameRound;
+    playerEmpire: Empire;
+    botEmpires: BotSummary[];
+    marketPrices: MarketPrices;
+    shopStock: ShopStock | null;
+    draftOptions: DraftOption[] | null;
+  };
+}
+
+interface NewGameResponse {
+  gameId: string;
+  summary: GameSummary;
+}
+
+interface ActionResponse {
+  result: TurnActionResult;
+  summary: GameSummary;
+}
+
+interface CombatPreviewResponse {
+  canAttack: boolean;
+  reason?: string;
+  estimatedOffense: number;
+  estimatedDefense: number;
+  winChance: number;
+  turnsRequired: number;
+}
+
+interface MarketResponse {
+  result: { success: boolean; error?: string };
+  empire: Empire;
+  shopStock: ShopStock | null;
+}
+
+interface DraftResponse {
+  success: boolean;
+  empire: Empire;
+  draftOptions: DraftOption[] | null;
+}
+
+export interface BotPhaseResponse {
+  botsAttacked: string[];
+  round: GameRound;
+  playerEmpire: Empire;
+  botEmpires: BotSummary[];
+  isComplete: boolean;
+}
+
+interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+}
+
+// API Client
+export class PromisanceClient {
+  private baseUrl: string;
+  private sessionId: string | null = null;
+
+  constructor(baseUrl: string = 'http://localhost:8787') {
+    this.baseUrl = baseUrl;
+  }
+
+  setSession(sessionId: string) {
+    this.sessionId = sessionId;
+  }
+
+  getSession(): string | null {
+    return this.sessionId;
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.sessionId) {
+      headers['Authorization'] = `Bearer ${this.sessionId}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        (error as { error?: string }).error || `HTTP ${response.status}`
+      );
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  // Auth
+  async createPlayer(displayName: string): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>(
+      'POST',
+      '/api/auth/anonymous',
+      { displayName }
+    );
+    this.sessionId = response.sessionId;
+    return response;
+  }
+
+  async getMe(): Promise<PlayerResponse> {
+    return this.request<PlayerResponse>('GET', '/api/auth/me');
+  }
+
+  // Game
+  async newGame(empireName: string, race: Race): Promise<NewGameResponse> {
+    return this.request<NewGameResponse>('POST', '/api/game/new', {
+      empireName,
+      race,
+    });
+  }
+
+  async getCurrentGame(): Promise<CurrentGameResponse> {
+    return this.request<CurrentGameResponse>('GET', '/api/game/current');
+  }
+
+  async getGame(gameId: string): Promise<{ game: CurrentGameResponse['game'] }> {
+    return this.request('GET', `/api/game/${gameId}`);
+  }
+
+  // Actions
+  async executeAction(
+    gameId: string,
+    action: TurnActionRequest
+  ): Promise<ActionResponse> {
+    return this.request<ActionResponse>('POST', `/api/game/${gameId}/action`, action);
+  }
+
+  async getCombatPreview(
+    gameId: string,
+    targetId: string
+  ): Promise<CombatPreviewResponse> {
+    return this.request<CombatPreviewResponse>(
+      'GET',
+      `/api/game/${gameId}/combat-preview/${targetId}`
+    );
+  }
+
+  async endPlayerPhase(gameId: string): Promise<{
+    phase: string;
+    marketPrices: MarketPrices;
+    shopStock: ShopStock | null;
+    draftOptions: DraftOption[] | null;
+  }> {
+    return this.request('POST', `/api/game/${gameId}/end-player-phase`);
+  }
+
+  // Shop
+  async marketTransaction(
+    gameId: string,
+    transaction: ShopTransaction
+  ): Promise<MarketResponse> {
+    return this.request<MarketResponse>(
+      'POST',
+      `/api/game/${gameId}/market`,
+      transaction
+    );
+  }
+
+  async selectDraft(gameId: string, optionIndex: number): Promise<DraftResponse> {
+    return this.request<DraftResponse>('POST', `/api/game/${gameId}/draft`, {
+      optionIndex,
+    });
+  }
+
+  async endShopPhase(gameId: string): Promise<{ phase: string }> {
+    return this.request('POST', `/api/game/${gameId}/end-shop-phase`);
+  }
+
+  // Bot phase
+  async executeBotPhase(gameId: string): Promise<BotPhaseResponse> {
+    return this.request<BotPhaseResponse>('POST', `/api/game/${gameId}/bot-phase`);
+  }
+
+  // Leaderboard
+  async getLeaderboard(options?: {
+    timeframe?: 'all' | 'daily' | 'weekly';
+    race?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<LeaderboardResponse> {
+    const params = new URLSearchParams();
+    if (options?.timeframe) params.set('timeframe', options.timeframe);
+    if (options?.race) params.set('race', options.race);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.offset) params.set('offset', String(options.offset));
+
+    const query = params.toString();
+    return this.request<LeaderboardResponse>(
+      'GET',
+      `/api/leaderboard${query ? `?${query}` : ''}`
+    );
+  }
+
+  async getMyRank(): Promise<{ rank: number | null; score: number | null }> {
+    return this.request('GET', '/api/leaderboard/rank');
+  }
+
+  // Health
+  async health(): Promise<{ status: string; timestamp: number }> {
+    return this.request('GET', '/health');
+  }
+}
+
+// Singleton for convenience
+export const client = new PromisanceClient();
