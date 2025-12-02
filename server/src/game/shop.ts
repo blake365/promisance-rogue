@@ -6,17 +6,13 @@ import type {
   Advisor,
   Tech,
   Edict,
-  Policy,
   BonusRarity,
-  BonusType,
   ShopTransaction,
-  Troops,
 } from '../types';
 import { SHOP, UNIT_COSTS } from './constants';
 import { calculateNetworth, addTroops } from './empire';
 import { ADVISORS } from './bonuses/advisors';
 import { TECHS } from './bonuses/techs';
-import { POLICIES } from './bonuses/policies';
 import { EDICTS } from './bonuses/edicts';
 
 // ============================================
@@ -266,7 +262,7 @@ function generateAdvisorOption(empire: Empire, rng: number): { option: DraftOpti
   return { option: null, rng };
 }
 
-// Helper to generate a single non-advisor option (tech, edict, policy)
+// Helper to generate a single non-advisor option (tech or edict)
 function generateOtherOption(empire: Empire, rng: number): { option: DraftOption; rng: number } {
   rng = (rng * 1103515245 + 12345) & 0x7fffffff;
   const rarity = selectRarity(rng);
@@ -276,8 +272,8 @@ function generateOtherOption(empire: Empire, rng: number): { option: DraftOption
 
   let option: DraftOption;
 
-  if (typeRoll < 40) {
-    // Tech (40%)
+  if (typeRoll < 50) {
+    // Tech (50%)
     const availableTechs = TECHS.filter(
       (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
     );
@@ -288,24 +284,11 @@ function generateOtherOption(empire: Empire, rng: number): { option: DraftOption
       rng = (rng * 1103515245 + 12345) & 0x7fffffff;
       option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
     }
-  } else if (typeRoll < 80) {
-    // Edict (40%)
+  } else {
+    // Edict (50%)
     const edicts = getItemsByRarity(EDICTS, rarity);
     rng = (rng * 1103515245 + 12345) & 0x7fffffff;
     option = { type: 'edict', item: selectRandomItem(edicts.length > 0 ? edicts : EDICTS, rng) };
-  } else {
-    // Policy (20%)
-    const policies = getItemsByRarity(POLICIES, rarity);
-    const availablePolicies = policies.filter(
-      (p) => !empire.policies.includes(p.id)
-    );
-    if (availablePolicies.length > 0) {
-      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-      option = { type: 'policy', item: selectRandomItem(availablePolicies, rng) };
-    } else {
-      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-      option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
-    }
   }
 
   return { option, rng };
@@ -344,7 +327,7 @@ export function generateDraftOptions(
     }
   }
 
-  // Generate other options (tech, edict, policy)
+  // Generate other options (tech or edict)
   for (let i = 0; i < otherSlots; i++) {
     const result = generateOtherOption(empire, rng);
     rng = result.rng;
@@ -391,12 +374,6 @@ export function applyDraftSelection(
     case 'edict': {
       const edict = option.item as Edict;
       applyEdictEffect(empire, edict, bots);
-      break;
-    }
-
-    case 'policy': {
-      const policy = option.item as Policy;
-      empire.policies.push(policy.id);
       break;
     }
   }
@@ -524,9 +501,15 @@ export function getAdvisorBonus(empire: Empire, effectType: string): number {
 
 export function getTechBonus(empire: Empire, action: string): number {
   const level = empire.techs[action] ?? 0;
-  // Each level gives the cumulative bonus
-  const tech = TECHS.find((t) => t.action === action && t.level === level);
-  return tech ? (tech.bonus * level) / 100 : 0;
-}
+  if (level === 0) return 0;
 
-// hasPolicy is now exported from empire.ts
+  // Sum all bonuses up to current level (since bonuses vary per level)
+  let totalBonus = 0;
+  for (let i = 1; i <= level; i++) {
+    const tech = TECHS.find((t) => t.action === action && t.level === i);
+    if (tech) {
+      totalBonus += tech.bonus;
+    }
+  }
+  return totalBonus / 100;
+}

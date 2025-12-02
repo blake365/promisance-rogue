@@ -134,8 +134,9 @@ export function executeTurn(
         };
       }
 
-      // Check attack limit per round
-      if (empire.attacksThisRound >= COMBAT.attacksPerRound) {
+      // Check attack limit per round (Warmaster advisor grants +1 attack)
+      const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
+      if (empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks) {
         return {
           success: false,
           turnsSpent: 0,
@@ -305,8 +306,9 @@ export function executeTurn(
 
         // Fight spell uses attack counter, other offensive spells use spell counter
         const isFightSpell = request.spell === 'fight';
+        const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
         const limitReached = isFightSpell
-          ? empire.attacksThisRound >= COMBAT.attacksPerRound
+          ? empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks
           : empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound;
 
         if (limitReached) {

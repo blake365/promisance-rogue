@@ -22,6 +22,7 @@ import {
   PVTM_FOOD,
   ECONOMY,
 } from './constants';
+import { TECHS } from './bonuses/techs';
 
 // ============================================
 // EMPIRE CREATION
@@ -143,8 +144,15 @@ function getTechBonusForStat(empire: Empire, stat: string): number {
     if (mappedStat === stat) {
       const level = empire.techs[action] ?? 0;
       if (level > 0) {
-        // Each level gives 15% cumulative bonus
-        return (level * 15) / 100;
+        // Sum all bonuses up to current level (since bonuses vary per level)
+        let totalBonus = 0;
+        for (let i = 1; i <= level; i++) {
+          const tech = TECHS.find((t) => t.action === action && t.level === i);
+          if (tech) {
+            totalBonus += tech.bonus;
+          }
+        }
+        return totalBonus / 100;
       }
     }
   }
@@ -325,8 +333,8 @@ export function hasPolicy(empire: Empire, policyId: string): boolean {
 }
 
 export function hasActiveShield(empire: Empire, currentRound?: number): boolean {
-  // Check for permanent shield policy (magical_immunity)
-  if (hasPolicy(empire, 'magical_immunity')) {
+  // Check for permanent shield advisor (Arcane Ward)
+  if (hasAdvisorEffect(empire, 'permanent_shield')) {
     return true;
   }
   if (empire.shieldExpiresRound === null) return false;
