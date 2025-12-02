@@ -185,7 +185,9 @@ export function resolveCombat(
   const buildingsGained: Partial<Buildings> = {};
   const buildingsDestroyed: Partial<Buildings> = {};
 
-  if (won) {
+  // Only standard attacks capture buildings and land
+  // Single-unit attacks (trparm, trplnd, trpfly, trpsea) only cause troop losses
+  if (won && attackType === 'standard') {
     // Process building destruction and capture
     const buildingTypes = ['bldcash', 'bldpop', 'bldtrp', 'bldcost', 'bldfood', 'bldwiz', 'blddef'] as const;
 
