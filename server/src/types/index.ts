@@ -296,6 +296,9 @@ export interface GameRun {
   shopStock: ShopStock | null; // Available during shop phase only
   draftOptions: DraftOption[] | null;
 
+  // Spy intel gathered on bots (keyed by bot id)
+  intel: Record<string, SpyIntel>;
+
   modifiers: RunModifier[];
 
   createdAt: number;
@@ -347,6 +350,29 @@ export interface CombatResult {
 }
 
 // ============================================
+// SPY INTEL
+// ============================================
+
+export interface SpyIntel {
+  targetId: string;
+  targetName: string;
+  round: number;              // Round when intel was gathered
+
+  // Revealed stats (matching QM Promisance printMainStats)
+  era: Era;
+  race: Race;
+  land: number;
+  networth: number;
+  peasants: number;
+  health: number;
+  taxRate: number;
+  gold: number;
+  food: number;
+  runes: number;
+  troops: Troops;
+}
+
+// ============================================
 // SPELL RESULTS
 // ============================================
 
@@ -371,6 +397,9 @@ export interface SpellResult {
 
   // On failure
   wizardsLost?: number;
+
+  // For spy spell
+  intel?: SpyIntel;
 }
 
 // ============================================

@@ -13,6 +13,7 @@ import {
   type BotPhaseResponse,
   type BankTransaction,
   type BankInfo,
+  type SpyIntel,
 } from '../api/client.js';
 
 interface GameState {
@@ -20,6 +21,7 @@ interface GameState {
   round: GameRound | null;
   playerEmpire: Empire | null;
   botEmpires: BotSummary[];
+  intel: Record<string, SpyIntel>;
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
   draftOptions: DraftOption[] | null;
@@ -44,6 +46,7 @@ export function useGame() {
     round: null,
     playerEmpire: null,
     botEmpires: [],
+    intel: {},
     marketPrices: null,
     shopStock: null,
     draftOptions: null,
@@ -93,6 +96,7 @@ export function useGame() {
           round: response.game.round,
           playerEmpire: response.game.playerEmpire,
           botEmpires: response.game.botEmpires,
+          intel: response.game.intel,
           marketPrices: response.game.marketPrices,
           shopStock: response.game.shopStock,
           draftOptions: response.game.draftOptions,
@@ -122,6 +126,7 @@ export function useGame() {
           round: gameResponse.game.round,
           playerEmpire: gameResponse.game.playerEmpire,
           botEmpires: gameResponse.game.botEmpires,
+          intel: gameResponse.game.intel,
           marketPrices: gameResponse.game.marketPrices,
           shopStock: gameResponse.game.shopStock,
           draftOptions: gameResponse.game.draftOptions,
@@ -146,16 +151,24 @@ export function useGame() {
       try {
         const response = await client.executeAction(game.gameId, action);
         if (response.result.success) {
-          setGame((prev) => ({
-            ...prev,
-            playerEmpire: response.result.empire,
-            round: prev.round
-              ? {
-                  ...prev.round,
-                  turnsRemaining: response.result.turnsRemaining,
-                }
-              : null,
-          }));
+          setGame((prev) => {
+            // If spy spell succeeded, add intel to state
+            const newIntel = response.result.spellResult?.intel
+              ? { ...prev.intel, [response.result.spellResult.intel.targetId]: response.result.spellResult.intel }
+              : prev.intel;
+
+            return {
+              ...prev,
+              playerEmpire: response.result.empire,
+              intel: newIntel,
+              round: prev.round
+                ? {
+                    ...prev.round,
+                    turnsRemaining: response.result.turnsRemaining,
+                  }
+                : null,
+            };
+          });
         }
         return response.result;
       } catch (err) {
@@ -323,6 +336,7 @@ export function useGame() {
         round: response.round,
         playerEmpire: response.playerEmpire,
         botEmpires: response.botEmpires,
+        intel: response.intel,
         isComplete: response.isComplete,
       }));
       return response;

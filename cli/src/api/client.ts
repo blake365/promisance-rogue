@@ -124,6 +124,23 @@ export interface CombatResult {
   defpower: number;
 }
 
+export interface SpyIntel {
+  targetId: string;
+  targetName: string;
+  round: number;              // Round when intel was gathered
+  era: Era;
+  race: Race;
+  land: number;
+  networth: number;
+  peasants: number;
+  health: number;
+  taxRate: number;
+  gold: number;
+  food: number;
+  runes: number;
+  troops: Troops;
+}
+
 export interface SpellResult {
   success: boolean;
   spell: SpellType;
@@ -137,6 +154,7 @@ export interface SpellResult {
   cashDestroyed?: number;
   buildingsDestroyed?: Partial<Buildings>;
   wizardsLost?: number;
+  intel?: SpyIntel;
 }
 
 export interface TurnActionRequest {
@@ -255,6 +273,7 @@ interface CurrentGameResponse {
     round: GameRound;
     playerEmpire: Empire;
     botEmpires: BotSummary[];
+    intel: Record<string, SpyIntel>;
     marketPrices: MarketPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
@@ -303,6 +322,7 @@ export interface BotPhaseResponse {
   round: GameRound;
   playerEmpire: Empire;
   botEmpires: BotSummary[];
+  intel: Record<string, SpyIntel>;
   isComplete: boolean;
 }
 

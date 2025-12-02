@@ -47,6 +47,8 @@ export function createGameRun(
     shopStock: null,
     draftOptions: null,
 
+    intel: {},
+
     modifiers: [],
 
     createdAt: Date.now(),
@@ -350,12 +352,17 @@ export function executeTurn(
           };
         }
 
-        result = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining);
+        result = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining, run.round.number);
 
         // Update bot's memory and increment spell counter on success
         if (result.success) {
           updateBotMemoryAfterSpell(target, empire.id, run.round.number);
           empire.offensiveSpellsThisRound++;
+
+          // Store spy intel if this was a successful spy spell
+          if (result.spellResult?.spell === 'spy' && result.spellResult.intel) {
+            run.intel[target.id] = result.spellResult.intel;
+          }
         }
       }
       break;

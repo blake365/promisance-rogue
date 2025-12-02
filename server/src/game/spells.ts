@@ -3,7 +3,7 @@
  * Reference: classes/prom_spell.php, spells/*.php
  */
 
-import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings } from '../types';
+import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire } from '../types';
 import { SPELLS, ECONOMY } from './constants';
 import {
   getModifier,
@@ -472,9 +472,9 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
 /**
  * Spy spell - reveals enemy stats
  * From spy.php: threshold 1.0 (very easy)
- * In roguelike: already can see bot stats, but spell could reveal hidden info
+ * Captures a snapshot of target's stats for strategic planning
  */
-function castSpy(caster: Empire, target: Empire): SpellResult {
+function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: number): SpellResult {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.spy) {
@@ -488,12 +488,30 @@ function castSpy(caster: Empire, target: Empire): SpellResult {
     };
   }
 
-  // Success - in roguelike, bot stats are visible but this could
-  // reveal additional info or provide a combat advantage
-  // For now, just mark as successful
+  // Success - capture intel snapshot (matching QM Promisance printMainStats)
+  const targetName = 'personality' in target ? target.personality.name : target.name;
+
+  const intel: SpyIntel = {
+    targetId: target.id,
+    targetName,
+    round: currentRound,
+    era: target.era,
+    race: target.race,
+    land: target.resources.land,
+    networth: target.networth,
+    peasants: target.peasants,
+    health: target.health,
+    taxRate: target.taxRate,
+    gold: target.resources.gold,
+    food: target.resources.food,
+    runes: target.resources.runes,
+    troops: { ...target.troops },
+  };
+
   return {
     success: true,
     spell: 'spy',
+    intel,
   };
 }
 
@@ -700,7 +718,8 @@ export function castEnemySpell(
   caster: Empire,
   target: Empire,
   spell: SpellType,
-  turnsRemaining: number
+  turnsRemaining: number,
+  currentRound: number = 1
 ): TurnActionResult {
   const turnsNeeded = SPELLS.turnsPerSpell;
   const cost = getSpellCost(caster, spell);
@@ -769,7 +788,7 @@ export function castEnemySpell(
       spellResult = castStruct(caster, target);
       break;
     case 'spy':
-      spellResult = castSpy(caster, target);
+      spellResult = castSpy(caster, target, currentRound);
       break;
     case 'fight':
       spellResult = castFight(caster, target);

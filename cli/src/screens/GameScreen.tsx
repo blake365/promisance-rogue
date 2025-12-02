@@ -16,6 +16,7 @@ import type {
   ShopStock,
   BankTransaction,
   BankInfo,
+  SpyIntel,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -101,6 +102,7 @@ interface Props {
   empire: Empire;
   round: GameRound;
   bots: BotSummary[];
+  intel: Record<string, SpyIntel>;
   draftOptions: DraftOption[] | null;
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
@@ -121,6 +123,7 @@ export function GameScreen({
   empire,
   round,
   bots,
+  intel,
   draftOptions,
   marketPrices,
   shopStock,
@@ -451,7 +454,12 @@ export function GameScreen({
 
         {view === 'bots' && (
           <Box marginTop={1}>
-            <BotList bots={bots} onClose={() => setView('main')} />
+            <BotList
+              bots={bots}
+              intel={intel}
+              currentRound={round.number}
+              onClose={() => setView('main')}
+            />
           </Box>
         )}
 
@@ -459,6 +467,8 @@ export function GameScreen({
           <Box marginTop={1}>
             <BotList
               bots={bots}
+              intel={intel}
+              currentRound={round.number}
               selectable
               onSelect={handleTargetSelect}
               onClose={() => {
@@ -500,6 +510,8 @@ export function GameScreen({
           <Box marginTop={1}>
             <BotList
               bots={bots}
+              intel={intel}
+              currentRound={round.number}
               selectable
               onSelect={handleSpellTargetSelect}
               onClose={() => {
@@ -793,6 +805,24 @@ export function GameScreen({
                     {lastResult.spellResult.buildingsDestroyed.bldwiz !== undefined && lastResult.spellResult.buildingsDestroyed.bldwiz > 0 && (
                       <Text color="red">  Towers: -{lastResult.spellResult.buildingsDestroyed.bldwiz}</Text>
                     )}
+                  </Box>
+                )}
+                {lastResult.spellResult.intel && (
+                  <Box flexDirection="column" marginTop={1}>
+                    <Text color="magenta" bold>Intel gathered on {lastResult.spellResult.intel.targetName}:</Text>
+                    <Box gap={3}>
+                      <Box flexDirection="column">
+                        <Text color="cyan">  Era: <Text color="white">{lastResult.spellResult.intel.era}</Text></Text>
+                        <Text color="cyan">  Health: <Text color={lastResult.spellResult.intel.health < 50 ? 'red' : 'white'}>{lastResult.spellResult.intel.health}%</Text></Text>
+                      </Box>
+                      <Box flexDirection="column">
+                        <Text color="yellow">  Gold: <Text color="white">{lastResult.spellResult.intel.gold.toLocaleString()}</Text></Text>
+                        <Text color="green">  Food: <Text color="white">{lastResult.spellResult.intel.food.toLocaleString()}</Text></Text>
+                      </Box>
+                    </Box>
+                    <Text color="red" bold>  Military:</Text>
+                    <Text color="white">    Soldiers: {lastResult.spellResult.intel.troops.trparm.toLocaleString()} | Tanks: {lastResult.spellResult.intel.troops.trplnd.toLocaleString()} | Jets: {lastResult.spellResult.intel.troops.trpfly.toLocaleString()} | Ships: {lastResult.spellResult.intel.troops.trpsea.toLocaleString()}</Text>
+                    <Text color="gray" dimColor>  View full intel in Enemy Empires [e] menu</Text>
                   </Box>
                 )}
               </Box>
