@@ -102,6 +102,7 @@ const ADVISOR_EFFECT_TO_STAT: Record<string, string | string[]> = {
   build_cost: 'building', // Note: this is inverted (negative = cheaper)
   military: ['offense', 'defense'], // Applies to both
   magic: 'magic',
+  rune_production: 'runepro', // Methuselah - +50% rune production
 };
 
 // Map tech actions to stat names
@@ -304,6 +305,18 @@ export function getMaxPeasants(empire: Empire): number {
 // Check if empire has a specific advisor effect
 export function hasAdvisorEffect(empire: Empire, effectType: string): boolean {
   return empire.advisors.some((a) => a.effect.type === effectType);
+}
+
+// Get the total modifier for a specific advisor effect type
+// Used for special effects like health_regen, peasant_density, etc.
+export function getAdvisorEffectModifier(empire: Empire, effectType: string): number {
+  let total = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === effectType) {
+      total += advisor.effect.modifier;
+    }
+  }
+  return total;
 }
 
 // Check if empire has a specific policy

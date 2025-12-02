@@ -12,6 +12,7 @@ import {
   addBuildings,
   subtractBuildings,
   canAttackEra,
+  getAdvisorEffectModifier,
 } from './empire';
 import { processEconomy, applyEconomyResult } from './turns';
 
@@ -26,6 +27,11 @@ export function calculateOffensePower(empire: Empire): number {
   const offenseModifier = getModifier(empire, 'offense');
   const healthModifier = empire.health / 100;
 
+  // Martin the Warrior: dynamic_offense scales with attacks this round
+  // +5% offense per attack already made this round
+  const dynamicOffensePerAttack = getAdvisorEffectModifier(empire, 'dynamic_offense');
+  const dynamicOffenseBonus = 1 + (dynamicOffensePerAttack * empire.attacksThisRound);
+
   let power = 0;
   power += empire.troops.trparm * stats.trparm[0];
   power += empire.troops.trplnd * stats.trplnd[0];
@@ -33,7 +39,7 @@ export function calculateOffensePower(empire: Empire): number {
   power += empire.troops.trpsea * stats.trpsea[0];
   power += empire.troops.trpwiz * WIZARD_POWER;
 
-  return Math.round(power * offenseModifier * healthModifier);
+  return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus);
 }
 
 export function calculateDefensePower(empire: Empire): number {
@@ -139,6 +145,10 @@ export function resolveCombat(
   const omod = Math.sqrt((defpower - towerDef) / (offpower + 1));
   const dmod = Math.sqrt(offpower / (defpower + 1));
 
+  // Perigord the Protector: casualty_reduction reduces attacker losses
+  const casualtyReduction = getAdvisorEffectModifier(attacker, 'casualty_reduction');
+  const casualtyMultiplier = Math.max(0, 1 - casualtyReduction); // 0.50 reduction = 0.50 multiplier
+
   const attackerLosses: Partial<Troops> = {};
   const defenderLosses: Partial<Troops> = {};
 
@@ -158,7 +168,8 @@ export function resolveCombat(
       omod,
       dmod
     );
-    attackerLosses[unitType] = attackLoss;
+    // Apply casualty reduction to attacker losses
+    attackerLosses[unitType] = Math.floor(attackLoss * casualtyMultiplier);
     defenderLosses[unitType] = defendLoss;
   } else {
     // Standard attack: uses all unit types with standard loss rates
@@ -173,7 +184,8 @@ export function resolveCombat(
         omod,
         dmod
       );
-      attackerLosses[unitType] = attackLoss;
+      // Apply casualty reduction to attacker losses
+      attackerLosses[unitType] = Math.floor(attackLoss * casualtyMultiplier);
       defenderLosses[unitType] = defendLoss;
     }
   }

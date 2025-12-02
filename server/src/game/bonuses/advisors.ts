@@ -126,4 +126,78 @@ export const ADVISORS: Advisor[] = [
     rarity: 'legendary',
     effect: { type: 'extra_turns', modifier: 5 },
   },
+
+  // ============================================
+  // FROSTNFLAME HEROES
+  // Inspired by the Frostnflame Promisance hero system
+  // ============================================
+
+  // WAR HEROES
+  {
+    id: 'matthias',
+    name: 'Matthias the Warrior',
+    description: '+25% attack power',
+    rarity: 'rare',
+    effect: { type: 'offense', modifier: 0.25 },
+  },
+  {
+    id: 'cregga',
+    name: 'Cregga Rose Eyes',
+    description: '+25% defense power',
+    rarity: 'rare',
+    effect: { type: 'defense', modifier: 0.25 },
+  },
+  {
+    id: 'mactalon',
+    name: 'Mactalon the Spymaster',
+    description: '-25% wizard ratio needed for spells',
+    rarity: 'uncommon',
+    effect: { type: 'spy_ratio', modifier: -0.25 },
+  },
+
+  // PEACE HEROES
+  {
+    id: 'grumm',
+    name: 'Grumm the Farmer',
+    description: '+50% food production',
+    rarity: 'rare',
+    effect: { type: 'food_production', modifier: 0.50 },
+  },
+  {
+    id: 'methuselah',
+    name: 'Methuselah the Wise',
+    description: '+50% rune production',
+    rarity: 'rare',
+    effect: { type: 'rune_production', modifier: 0.50 },
+  },
+  {
+    id: 'bella',
+    name: 'Bella of Doublehomes',
+    description: '3x more peasants per acre of land',
+    rarity: 'uncommon',
+    effect: { type: 'peasant_density', modifier: 3.0 },
+  },
+
+  // SPECIAL HEROES
+  {
+    id: 'brome',
+    name: 'Brome the Healer',
+    description: '+2 health restored per turn',
+    rarity: 'rare',
+    effect: { type: 'health_regen', modifier: 2 },
+  },
+  {
+    id: 'martin',
+    name: 'Martin the Warrior',
+    description: 'Offense scales with attacks this round (+5% per attack)',
+    rarity: 'legendary',
+    effect: { type: 'dynamic_offense', modifier: 0.05 },
+  },
+  {
+    id: 'perigord',
+    name: 'Perigord the Protector',
+    description: '-50% troop losses in combat',
+    rarity: 'rare',
+    effect: { type: 'casualty_reduction', modifier: 0.50 },
+  },
 ];

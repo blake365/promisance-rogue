@@ -424,18 +424,26 @@ export function endPlayerPhase(run: GameRun): void {
   run.updatedAt = Date.now();
 }
 
-export function selectDraft(run: GameRun, optionIndex: number): boolean {
-  if (run.round.phase !== 'shop' || !run.draftOptions) return false;
+export function selectDraft(run: GameRun, optionIndex: number): { success: boolean; error?: string } {
+  if (run.round.phase !== 'shop' || !run.draftOptions) {
+    return { success: false, error: 'Not in shop phase' };
+  }
 
-  if (optionIndex < 0 || optionIndex >= run.draftOptions.length) return false;
+  if (optionIndex < 0 || optionIndex >= run.draftOptions.length) {
+    return { success: false, error: 'Invalid option index' };
+  }
 
   const option = run.draftOptions[optionIndex];
-  applyDraftSelection(run.playerEmpire, option, run.botEmpires);
+  const result = applyDraftSelection(run.playerEmpire, option, run.botEmpires);
+
+  if (!result.success) {
+    return result;
+  }
 
   run.draftOptions = null;
   run.updatedAt = Date.now();
 
-  return true;
+  return { success: true };
 }
 
 export function endShopPhase(run: GameRun): void {

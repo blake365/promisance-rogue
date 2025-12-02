@@ -463,6 +463,7 @@ export const SPELLS = {
 
 export const SHOP = {
   draftOptionsCount: 3,
+  maxAdvisors: 3, // Maximum number of advisors an empire can have
 
   rarityWeights: {
     common: 60,
