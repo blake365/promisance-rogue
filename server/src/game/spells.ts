@@ -613,6 +613,9 @@ export function castSelfSpell(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire,
     };
   }
@@ -623,16 +626,22 @@ export function castSelfSpell(
   let totalFoodPro = 0;
   let totalFoodCon = 0;
   let totalRunes = 0;
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(empire);
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   // Deduct rune cost
@@ -679,6 +688,9 @@ export function castSelfSpell(
     foodConsumption: totalFoodCon,
     runeChange: totalRunes - cost,
     troopsProduced: {},
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     spellResult,
     empire,
   };
@@ -706,6 +718,9 @@ export function castEnemySpell(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire: caster,
     };
   }
@@ -716,16 +731,22 @@ export function castEnemySpell(
   let totalFoodPro = 0;
   let totalFoodCon = 0;
   let totalRunes = 0;
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(caster);
-    applyEconomyResult(caster, economyResult);
+    const extras = applyEconomyResult(caster, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   // Deduct rune cost
@@ -769,6 +790,9 @@ export function castEnemySpell(
     foodConsumption: totalFoodCon,
     runeChange: totalRunes - cost,
     troopsProduced: {},
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     spellResult,
     empire: caster,
   };

@@ -73,6 +73,9 @@ export function executeTurn(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire: run.playerEmpire,
     };
   }
@@ -92,6 +95,9 @@ export function executeTurn(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire,
     };
   }
@@ -111,6 +117,9 @@ export function executeTurn(
           foodConsumption: 0,
           runeChange: 0,
           troopsProduced: {},
+          loanPayment: 0,
+          bankInterest: 0,
+          loanInterest: 0,
           empire,
         };
       }
@@ -127,6 +136,9 @@ export function executeTurn(
           foodConsumption: 0,
           runeChange: 0,
           troopsProduced: {},
+          loanPayment: 0,
+          bankInterest: 0,
+          loanInterest: 0,
           empire,
         };
       }
@@ -152,6 +164,9 @@ export function executeTurn(
           foodConsumption: 0,
           runeChange: 0,
           troopsProduced: {},
+          loanPayment: 0,
+          bankInterest: 0,
+          loanInterest: 0,
           empire,
         };
       }
@@ -167,6 +182,9 @@ export function executeTurn(
         let totalFoodPro = 0;
         let totalFoodCon = 0;
         let totalRuneChange = 0;
+        let totalLoanPayment = 0;
+        let totalBankInterest = 0;
+        let totalLoanInterest = 0;
         let lastSpellResult: SpellResult | undefined;
         let castCount = 0;
 
@@ -191,6 +209,9 @@ export function executeTurn(
           totalFoodPro += singleResult.foodProduction;
           totalFoodCon += singleResult.foodConsumption;
           totalRuneChange += singleResult.runeChange;
+          totalLoanPayment += singleResult.loanPayment;
+          totalBankInterest += singleResult.bankInterest;
+          totalLoanInterest += singleResult.loanInterest;
           lastSpellResult = singleResult.spellResult;
         }
 
@@ -204,6 +225,9 @@ export function executeTurn(
           foodConsumption: totalFoodCon,
           runeChange: totalRuneChange,
           troopsProduced: {},
+          loanPayment: totalLoanPayment,
+          bankInterest: totalBankInterest,
+          loanInterest: totalLoanInterest,
           spellResult: lastSpellResult ? {
             ...lastSpellResult,
             // Add cast count to the result message
@@ -224,6 +248,9 @@ export function executeTurn(
             foodConsumption: 0,
             runeChange: 0,
             troopsProduced: {},
+            loanPayment: 0,
+            bankInterest: 0,
+            loanInterest: 0,
             empire,
           };
         }
@@ -240,6 +267,9 @@ export function executeTurn(
             foodConsumption: 0,
             runeChange: 0,
             troopsProduced: {},
+            loanPayment: 0,
+            bankInterest: 0,
+            loanInterest: 0,
             empire,
           };
         }

@@ -399,6 +399,11 @@ export interface TurnActionResult {
   runeChange: number;
   troopsProduced: Partial<Troops>;
 
+  // Bank/loan changes
+  loanPayment: number;
+  bankInterest: number;
+  loanInterest: number;
+
   // Action-specific results
   landGained?: number;
   buildingsConstructed?: Partial<Buildings>;
@@ -414,6 +419,23 @@ export interface ShopTransaction {
   resource: 'food' | 'troops' | 'runes';
   amount: number;
   troopType?: keyof Troops;
+}
+
+export type BankOperation = 'deposit' | 'withdraw' | 'take_loan' | 'pay_loan';
+
+export interface BankTransaction {
+  operation: BankOperation;
+  amount: number;
+}
+
+export interface BankTransactionResult {
+  success: boolean;
+  error?: string;
+  operation: BankOperation;
+  amount: number;
+  newBankBalance: number;
+  newLoanBalance: number;
+  newGoldBalance: number;
 }
 
 export interface DraftSelection {

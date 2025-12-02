@@ -45,6 +45,7 @@ function App() {
   const {
     player,
     game,
+    bankInfo,
     loading,
     error,
     clearError,
@@ -57,6 +58,7 @@ function App() {
     selectDraft,
     endShopPhase,
     marketTransaction,
+    bankTransaction,
     executeBotPhase,
   } = useGame();
 
@@ -163,6 +165,7 @@ function App() {
         draftOptions={game.draftOptions}
         marketPrices={game.marketPrices}
         shopStock={game.shopStock}
+        bankInfo={bankInfo}
         loading={loading}
         error={error}
         onAction={executeAction}
@@ -170,6 +173,7 @@ function App() {
         onSelectDraft={selectDraft}
         onEndShopPhase={endShopPhase}
         onMarketTransaction={marketTransaction}
+        onBankTransaction={bankTransaction}
         onExecuteBotPhase={executeBotPhase}
         onQuit={handleQuit}
       />

@@ -8,6 +8,7 @@ import {
   ECONOMY,
   UNIT_COSTS,
   RACE_MODIFIERS,
+  TURNS_PER_ROUND,
 } from './constants';
 import {
   calculateNetworth,
@@ -17,6 +18,7 @@ import {
   hasPolicy,
   hasAdvisorEffect,
 } from './empire';
+import { applyBankInterest, applyLoanInterest } from './bank';
 
 // ============================================
 // SIZE BONUS (from prom_empire.php calcSizeBonus)
@@ -226,6 +228,11 @@ export interface EconomyResult {
   starvation: boolean;
 }
 
+export interface ApplyEconomyExtra {
+  bankInterest: number;
+  loanInterest: number;
+}
+
 export function processEconomy(empire: Empire, actionBonus?: TurnAction): EconomyResult {
   // Apply action bonus multiplier (25% bonus for matching action)
   const bonusMultiplier = 1.25;
@@ -286,7 +293,7 @@ export function processEconomy(empire: Empire, actionBonus?: TurnAction): Econom
   };
 }
 
-export function applyEconomyResult(empire: Empire, result: EconomyResult): void {
+export function applyEconomyResult(empire: Empire, result: EconomyResult): ApplyEconomyExtra {
   // Apply gold change
   empire.resources.gold += result.netGold;
 
@@ -295,6 +302,13 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): void 
     empire.loan -= empire.resources.gold;
     empire.resources.gold = 0;
   }
+
+  // Apply per-turn bank interest (rate is per-round APR / turns per round)
+  const hasDoubleInterest = hasPolicy(empire, 'bank_charter');
+  const bankInterest = applyBankInterest(empire, TURNS_PER_ROUND, hasDoubleInterest);
+
+  // Apply per-turn loan interest
+  const loanInterest = applyLoanInterest(empire, TURNS_PER_ROUND);
 
   // Apply food change
   empire.resources.food += result.netFood;
@@ -362,6 +376,8 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): void 
 
   // Recalculate networth
   empire.networth = calculateNetworth(empire);
+
+  return { bankInterest, loanInterest };
 }
 
 // ============================================
@@ -372,7 +388,8 @@ function createTurnResult(
   empire: Empire,
   turnsSpent: number,
   turnsRemaining: number,
-  economyResult: EconomyResult
+  economyResult: EconomyResult,
+  extras?: ApplyEconomyExtra
 ): TurnActionResult {
   return {
     success: true,
@@ -384,6 +401,9 @@ function createTurnResult(
     foodConsumption: economyResult.foodConsumption,
     runeChange: economyResult.runeProduction,
     troopsProduced: economyResult.troopsProduced,
+    loanPayment: economyResult.loanPayment,
+    bankInterest: extras?.bankInterest ?? 0,
+    loanInterest: extras?.loanInterest ?? 0,
     empire,
   };
 }
@@ -400,6 +420,9 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
   let totalRunes = 0;
   let totalTroops: Partial<Troops> = {};
   let totalLand = 0;
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   // Check for open_borders policy (double_explore)
   const exploreMultiplier = hasPolicy(empire, 'open_borders') ? 2 : 1;
@@ -407,13 +430,16 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
   for (let i = 0; i < turns; i++) {
     // Process economy (no bonus for explore)
     const economyResult = processEconomy(empire);
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
 
     // Gain land (doubled with open_borders policy)
     const landGain = calcLandGain(empire) * exploreMultiplier;
@@ -434,6 +460,9 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: totalTroops,
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     landGained: totalLand,
     empire,
   };
@@ -446,19 +475,25 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
   let totalFoodCon = 0;
   let totalRunes = 0;
   let totalTroops: Partial<Troops> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   // Check for war_economy policy (farm_industry) - produces troops while farming
   const producesTroops = hasPolicy(empire, 'war_economy');
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'farm');
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
 
     // With war_economy, also produce troops (at 50% rate)
     if (producesTroops) {
@@ -490,6 +525,9 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: totalTroops,
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     empire,
   };
 }
@@ -501,16 +539,22 @@ export function processCash(empire: Empire, turns: number): TurnActionResult {
   let totalFoodCon = 0;
   let totalRunes = 0;
   let totalTroops: Partial<Troops> = {};
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'cash');
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   return {
@@ -523,6 +567,9 @@ export function processCash(empire: Empire, turns: number): TurnActionResult {
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: totalTroops,
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     empire,
   };
 }
@@ -534,16 +581,22 @@ export function processMeditate(empire: Empire, turns: number): TurnActionResult
   let totalFoodCon = 0;
   let totalRunes = 0;
   let totalTroops: Partial<Troops> = {};
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'meditate');
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   return {
@@ -556,6 +609,9 @@ export function processMeditate(empire: Empire, turns: number): TurnActionResult
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: totalTroops,
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     empire,
   };
 }
@@ -567,16 +623,22 @@ export function processIndustry(empire: Empire, turns: number): TurnActionResult
   let totalFoodCon = 0;
   let totalRunes = 0;
   let totalTroops: Partial<Troops> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'industry');
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
 
     totalTroops.trparm! += economyResult.troopsProduced.trparm ?? 0;
     totalTroops.trplnd! += economyResult.troopsProduced.trplnd ?? 0;
@@ -594,6 +656,9 @@ export function processIndustry(empire: Empire, turns: number): TurnActionResult
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: totalTroops,
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     empire,
   };
 }
@@ -624,6 +689,9 @@ export function processBuild(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire,
     };
   }
@@ -646,6 +714,9 @@ export function processBuild(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire,
     };
   }
@@ -660,16 +731,22 @@ export function processBuild(
   let totalFoodPro = 0;
   let totalFoodCon = 0;
   let totalRunes = 0;
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(empire);
-    applyEconomyResult(empire, economyResult);
+    const extras = applyEconomyResult(empire, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   // Apply building construction
@@ -697,6 +774,9 @@ export function processBuild(
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: {},
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     buildingsConstructed: allocation,
     empire,
   };
@@ -737,6 +817,9 @@ export function executeTurnAction(
           foodConsumption: 0,
           runeChange: 0,
           troopsProduced: {},
+          loanPayment: 0,
+          bankInterest: 0,
+          loanInterest: 0,
           empire,
         };
       }
@@ -752,6 +835,9 @@ export function executeTurnAction(
         foodConsumption: 0,
         runeChange: 0,
         troopsProduced: {},
+        loanPayment: 0,
+        bankInterest: 0,
+        loanInterest: 0,
         empire,
       };
   }

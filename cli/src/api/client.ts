@@ -161,6 +161,9 @@ export interface TurnActionResult {
   foodConsumption: number;
   runeChange: number;
   troopsProduced: Partial<Troops>;
+  loanPayment: number;
+  bankInterest: number;
+  loanInterest: number;
   landGained?: number;
   buildingsConstructed?: Partial<Buildings>;
   combatResult?: CombatResult;
@@ -173,6 +176,33 @@ export interface ShopTransaction {
   resource: 'food' | 'troops' | 'runes';
   amount: number;
   troopType?: keyof Troops;
+}
+
+export type BankOperation = 'deposit' | 'withdraw' | 'take_loan' | 'pay_loan';
+
+export interface BankTransaction {
+  operation: BankOperation;
+  amount: number;
+}
+
+export interface BankInfo {
+  savings: number;
+  loan: number;
+  gold: number;
+  maxLoan: number;
+  availableLoan: number;
+  savingsRate: number;
+  loanRate: number;
+}
+
+export interface BankTransactionResult {
+  success: boolean;
+  error?: string;
+  operation: BankOperation;
+  amount: number;
+  newBankBalance: number;
+  newLoanBalance: number;
+  newGoldBalance: number;
 }
 
 export interface LeaderboardEntry {
@@ -260,6 +290,12 @@ interface DraftResponse {
   success: boolean;
   empire: Empire;
   draftOptions: DraftOption[] | null;
+}
+
+interface BankResponse {
+  result: BankTransactionResult;
+  empire: Empire;
+  bankInfo: BankInfo;
 }
 
 export interface BotPhaseResponse {
@@ -398,6 +434,22 @@ export class PromisanceClient {
 
   async endShopPhase(gameId: string): Promise<{ phase: string }> {
     return this.request('POST', `/api/game/${gameId}/end-shop-phase`);
+  }
+
+  // Bank
+  async getBankInfo(gameId: string): Promise<BankInfo> {
+    return this.request<BankInfo>('GET', `/api/game/${gameId}/bank`);
+  }
+
+  async bankTransaction(
+    gameId: string,
+    transaction: BankTransaction
+  ): Promise<BankResponse> {
+    return this.request<BankResponse>(
+      'POST',
+      `/api/game/${gameId}/bank`,
+      transaction
+    );
   }
 
   // Bot phase

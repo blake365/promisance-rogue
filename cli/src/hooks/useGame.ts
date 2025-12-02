@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   client,
   type Empire,
@@ -11,6 +11,8 @@ import {
   type ShopTransaction,
   type BotSummary,
   type BotPhaseResponse,
+  type BankTransaction,
+  type BankInfo,
 } from '../api/client.js';
 
 interface GameState {
@@ -50,6 +52,7 @@ export function useGame() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -261,6 +264,53 @@ export function useGame() {
     [game.gameId]
   );
 
+  // Bank - fetch bank info
+  const fetchBankInfo = useCallback(async () => {
+    if (!game.gameId) return;
+    try {
+      const info = await client.getBankInfo(game.gameId);
+      setBankInfo(info);
+    } catch (err) {
+      // Silently fail - bank info is optional
+    }
+  }, [game.gameId]);
+
+  // Bank transaction (deposit, withdraw, take loan, pay loan)
+  const bankTransaction = useCallback(
+    async (transaction: BankTransaction) => {
+      if (!game.gameId) return false;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await client.bankTransaction(game.gameId, transaction);
+        if (response.result.success) {
+          setGame((prev) => ({
+            ...prev,
+            playerEmpire: response.empire,
+          }));
+          setBankInfo(response.bankInfo);
+          return true;
+        } else {
+          setError(response.result.error || 'Transaction failed');
+          return false;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Bank transaction failed');
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [game.gameId]
+  );
+
+  // Fetch bank info when game starts or changes
+  useEffect(() => {
+    if (game.gameId && game.playerEmpire) {
+      fetchBankInfo();
+    }
+  }, [game.gameId, game.playerEmpire, fetchBankInfo]);
+
   // Bot phase
   const executeBotPhase = useCallback(async () => {
     if (!game.gameId) return null;
@@ -287,6 +337,7 @@ export function useGame() {
   return {
     player,
     game,
+    bankInfo,
     loading,
     error,
     clearError,
@@ -299,6 +350,7 @@ export function useGame() {
     selectDraft,
     endShopPhase,
     marketTransaction,
+    bankTransaction,
     executeBotPhase,
   };
 }
