@@ -162,6 +162,7 @@ function App() {
         empire={game.playerEmpire}
         round={game.round}
         bots={game.botEmpires}
+        intel={game.intel}
         draftOptions={game.draftOptions}
         marketPrices={game.marketPrices}
         shopStock={game.shopStock}

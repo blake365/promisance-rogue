@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction } from '../types';
+import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction, BotEmpire, SpyIntel } from '../types';
 import { createGameRun, executeTurn, endPlayerPhase, selectDraft, endShopPhase, executeBotPhase, getGameSummary, isGameComplete } from '../game/run';
 import { executeMarketTransaction } from '../game/shop';
 import { getCombatPreview } from '../game/combat';
@@ -11,6 +11,28 @@ import * as db from '../db/operations';
 type Variables = {
   playerId: string | null;
 };
+
+// Bot summary with optional intel (only included if spied)
+interface BotSummaryResponse {
+  id: string;
+  name: string;
+  race: string;
+  era: string;
+  networth: number;
+  land: number;
+}
+
+// Helper to map bot to limited summary (no troop/resource details)
+function mapBotToSummary(bot: BotEmpire): BotSummaryResponse {
+  return {
+    id: bot.id,
+    name: bot.personality.name,
+    race: bot.race,
+    era: bot.era,
+    networth: bot.networth,
+    land: bot.resources.land,
+  };
+}
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -146,14 +168,8 @@ app.get('/api/game/current', async (c) => {
       id: run.id,
       round: run.round,
       playerEmpire: run.playerEmpire,
-      botEmpires: run.botEmpires.map((bot) => ({
-        id: bot.id,
-        name: bot.personality.name,
-        race: bot.race,
-        era: bot.era,
-        networth: bot.networth,
-        land: bot.resources.land,
-      })),
+      botEmpires: run.botEmpires.map(mapBotToSummary),
+      intel: run.intel,
       marketPrices: run.marketPrices,
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
@@ -182,15 +198,8 @@ app.get('/api/game/:id', async (c) => {
       id: run.id,
       round: run.round,
       playerEmpire: run.playerEmpire,
-      botEmpires: run.botEmpires.map((bot) => ({
-        id: bot.id,
-        name: bot.personality.name,
-        race: bot.race,
-        era: bot.era,
-        networth: bot.networth,
-        land: bot.resources.land,
-        troops: bot.troops,
-      })),
+      botEmpires: run.botEmpires.map(mapBotToSummary),
+      intel: run.intel,
       marketPrices: run.marketPrices,
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
@@ -470,13 +479,8 @@ app.post('/api/game/:id/bot-phase', async (c) => {
     standings: result.standings,
     round: run.round,
     playerEmpire: run.playerEmpire,
-    botEmpires: run.botEmpires.map((bot) => ({
-      id: bot.id,
-      name: bot.personality.name,
-      networth: bot.networth,
-      race: bot.race,
-      era: bot.era,
-    })),
+    botEmpires: run.botEmpires.map(mapBotToSummary),
+    intel: run.intel,
     isComplete: isGameComplete(run),
   });
 });

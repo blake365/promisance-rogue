@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { BotSummary } from '../api/client.js';
+import type { BotSummary, SpyIntel } from '../api/client.js';
 
 interface Props {
   bots: BotSummary[];
+  intel?: Record<string, SpyIntel>;
+  currentRound?: number;
   selectable?: boolean;
   onSelect?: (botId: string) => void;
   onClose?: () => void;
@@ -21,6 +23,11 @@ const raceIcons: Record<string, string> = {
   dwarf: '⛏️',
   orc: '👹',
   undead: '💀',
+  troll: '🧌',
+  gnome: '🧙',
+  gremlin: '👺',
+  drow: '🖤',
+  goblin: '👽',
 };
 
 const eraColors: Record<string, string> = {
@@ -29,10 +36,19 @@ const eraColors: Record<string, string> = {
   future: 'green',
 };
 
-export function BotList({ bots, selectable, onSelect, onClose }: Props) {
+export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSelect, onClose }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [viewingIntel, setViewingIntel] = useState<string | null>(null);
 
   useInput((input, key) => {
+    if (viewingIntel) {
+      // Any key closes intel view
+      if (key.escape || key.return || input) {
+        setViewingIntel(null);
+      }
+      return;
+    }
+
     if (key.escape && onClose) {
       onClose();
     } else if (selectable) {
@@ -42,34 +58,126 @@ export function BotList({ bots, selectable, onSelect, onClose }: Props) {
         setSelectedIndex((i) => (i < bots.length - 1 ? i + 1 : 0));
       } else if (key.return && onSelect) {
         onSelect(bots[selectedIndex].id);
+      } else if (input === 'i' || input === 'I') {
+        // View intel for selected bot if available
+        const selectedBot = bots[selectedIndex];
+        if (intel[selectedBot.id]) {
+          setViewingIntel(selectedBot.id);
+        }
+      }
+    } else {
+      // Non-selectable mode - use up/down to browse, 'i' to view intel
+      if (key.upArrow) {
+        setSelectedIndex((i) => (i > 0 ? i - 1 : bots.length - 1));
+      } else if (key.downArrow) {
+        setSelectedIndex((i) => (i < bots.length - 1 ? i + 1 : 0));
+      } else if (input === 'i' || input === 'I') {
+        const selectedBot = bots[selectedIndex];
+        if (intel[selectedBot.id]) {
+          setViewingIntel(selectedBot.id);
+        }
       }
     }
   });
+
+  // Intel detail view
+  if (viewingIntel && intel[viewingIntel]) {
+    const botIntel = intel[viewingIntel];
+    const isStale = botIntel.round < currentRound;
+    const roundsOld = currentRound - botIntel.round;
+
+    return (
+      <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1}>
+        <Text bold color="magenta">
+          Intel: {botIntel.targetName} {isStale && <Text color="yellow">(Round {botIntel.round} - {roundsOld} round{roundsOld > 1 ? 's' : ''} old)</Text>}
+        </Text>
+
+        <Box marginTop={1} flexDirection="column">
+          <Box gap={2}>
+            <Box flexDirection="column" width={24}>
+              <Text color="cyan">Era: <Text color="white">{botIntel.era}</Text></Text>
+              <Text color="cyan">Race: <Text color="white">{botIntel.race}</Text></Text>
+              <Text color="cyan">Health: <Text color={botIntel.health < 50 ? 'red' : botIntel.health < 80 ? 'yellow' : 'green'}>{botIntel.health}%</Text></Text>
+              <Text color="cyan">Tax Rate: <Text color="white">{botIntel.taxRate}%</Text></Text>
+            </Box>
+            <Box flexDirection="column" width={24}>
+              <Text color="yellow">Land: <Text color="white">{formatNumber(botIntel.land)}</Text></Text>
+              <Text color="yellow">Networth: <Text color="white">{formatNumber(botIntel.networth)}</Text></Text>
+              <Text color="yellow">Peasants: <Text color="white">{formatNumber(botIntel.peasants)}</Text></Text>
+            </Box>
+          </Box>
+
+          <Box marginTop={1} flexDirection="column">
+            <Text bold color="green">Resources</Text>
+            <Box gap={2}>
+              <Text>Gold: <Text color="yellow">{formatNumber(botIntel.gold)}</Text></Text>
+              <Text>Food: <Text color="green">{formatNumber(botIntel.food)}</Text></Text>
+              <Text>Runes: <Text color="magenta">{formatNumber(botIntel.runes)}</Text></Text>
+            </Box>
+          </Box>
+
+          <Box marginTop={1} flexDirection="column">
+            <Text bold color="red">Military</Text>
+            <Box gap={2} flexWrap="wrap">
+              <Text>Soldiers: <Text color="white">{formatNumber(botIntel.troops.trparm)}</Text></Text>
+              <Text>Tanks: <Text color="white">{formatNumber(botIntel.troops.trplnd)}</Text></Text>
+              <Text>Jets: <Text color="white">{formatNumber(botIntel.troops.trpfly)}</Text></Text>
+              <Text>Ships: <Text color="white">{formatNumber(botIntel.troops.trpsea)}</Text></Text>
+              <Text>Wizards: <Text color="magenta">{formatNumber(botIntel.troops.trpwiz)}</Text></Text>
+            </Box>
+          </Box>
+        </Box>
+
+        <Box marginTop={1}>
+          <Text color="gray">[Any key] back to list</Text>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
       <Text bold color="red">Enemy Empires</Text>
       <Box flexDirection="column" marginTop={1}>
-        {bots.map((bot, index) => (
-          <Box key={bot.id} gap={1}>
-            {selectable && (
-              <Text color={selectedIndex === index ? 'cyan' : 'gray'}>
-                {selectedIndex === index ? '▶' : ' '}
+        {bots.map((bot, index) => {
+          const hasIntel = !!intel[bot.id];
+          const botIntel = intel[bot.id];
+          const isStale = botIntel && botIntel.round < currentRound;
+          const isSelected = selectedIndex === index;
+
+          return (
+            <Box key={bot.id} gap={1}>
+              {selectable && (
+                <Text color={isSelected ? 'cyan' : 'gray'}>
+                  {isSelected ? '▶' : ' '}
+                </Text>
+              )}
+              {!selectable && (
+                <Text color={isSelected ? 'cyan' : 'gray'}>
+                  {isSelected ? '▶' : ' '}
+                </Text>
+              )}
+              <Text>{raceIcons[bot.race] || '?'}</Text>
+              <Text bold color={isSelected ? 'white' : 'gray'}>
+                {bot.name}
               </Text>
-            )}
-            <Text>{raceIcons[bot.race] || '?'}</Text>
-            <Text bold color={selectedIndex === index && selectable ? 'white' : 'gray'}>
-              {bot.name}
-            </Text>
-            <Text color={eraColors[bot.era]}>[{bot.era}]</Text>
-            <Text color="yellow">NW: {formatNumber(bot.networth)}</Text>
-            <Text color="cyan">Land: {formatNumber(bot.land)}</Text>
-          </Box>
-        ))}
+              <Text color={eraColors[bot.era]}>[{bot.era}]</Text>
+              <Text color="yellow">NW: {formatNumber(bot.networth)}</Text>
+              <Text color="cyan">Land: {formatNumber(bot.land)}</Text>
+              {hasIntel && (
+                <Text color={isStale ? 'yellow' : 'magenta'}>
+                  {isStale ? '[intel:old]' : '[intel]'}
+                </Text>
+              )}
+            </Box>
+          );
+        })}
       </Box>
       <Box marginTop={1}>
         <Text color="gray">
-          {selectable ? '[Enter] select target • [Esc] cancel' : '[Esc] close'}
+          {selectable
+            ? '[Enter] select • [i] view intel • [Esc] cancel'
+            : '[↑↓] browse • [i] view intel • [Esc] close'}
         </Text>
       </Box>
     </Box>
