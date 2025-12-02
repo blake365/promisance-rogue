@@ -277,7 +277,7 @@ export function executeTurn(
           empire,
         };
       } else {
-        // Enemy spell - no offensive spells in round 1
+        // Enemy spell - no offensive spells/attacks in round 1
         if (run.round.number === 1) {
           return {
             success: false,
@@ -296,8 +296,13 @@ export function executeTurn(
           };
         }
 
-        // Check offensive spell limit per round
-        if (empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound) {
+        // Fight spell uses attack counter, other offensive spells use spell counter
+        const isFightSpell = request.spell === 'fight';
+        const limitReached = isFightSpell
+          ? empire.attacksThisRound >= COMBAT.attacksPerRound
+          : empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound;
+
+        if (limitReached) {
           return {
             success: false,
             turnsSpent: 0,
@@ -354,10 +359,16 @@ export function executeTurn(
 
         result = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining, run.round.number);
 
-        // Update bot's memory and increment spell counter on success
+        // Update bot's memory and increment counter on success
         if (result.success) {
           updateBotMemoryAfterSpell(target, empire.id, run.round.number);
-          empire.offensiveSpellsThisRound++;
+
+          // Fight spell uses attack counter, other offensive spells use spell counter
+          if (isFightSpell) {
+            empire.attacksThisRound++;
+          } else {
+            empire.offensiveSpellsThisRound++;
+          }
 
           // Store spy intel if this was a successful spy spell
           if (result.spellResult?.spell === 'spy' && result.spellResult.intel) {
