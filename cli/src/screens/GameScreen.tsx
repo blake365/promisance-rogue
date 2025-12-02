@@ -571,10 +571,16 @@ export function GameScreen({
         )}
 
         {view === 'action_result' && lastResult && (
-          <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="green" paddingX={1}>
-            <Text bold color="green">
-              Action Complete - {lastResult.turnsSpent} turn{lastResult.turnsSpent !== 1 ? 's' : ''} spent
+          <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor={lastResult.stoppedEarly ? "red" : "green"} paddingX={1}>
+            <Text bold color={lastResult.stoppedEarly ? "red" : "green"}>
+              {lastResult.stoppedEarly ? 'EMERGENCY' : 'Action Complete'} - {lastResult.turnsSpent} turn{lastResult.turnsSpent !== 1 ? 's' : ''} spent
             </Text>
+            {lastResult.stoppedEarly === 'food' && (
+              <Text bold color="red">Your empire ran out of food! 3% of troops and peasants deserted.</Text>
+            )}
+            {lastResult.stoppedEarly === 'loan' && (
+              <Text bold color="red">Your loan has exceeded the emergency limit! Pay down your debt.</Text>
+            )}
             <Text color="gray">Turns remaining: {lastResult.turnsRemaining}</Text>
 
             {/* Resources Section */}
