@@ -339,6 +339,7 @@ export const ECONOMY = {
 export const COMBAT = {
   winThreshold: 1.05,      // Attacker needs 5% more power to win
   turnsPerAttack: 2,
+  attacksPerRound: 10,     // Max attacks per round (no attacks allowed in round 1)
 
   // Standard attack loss rates per unit type [attacker, defender]
   // From military.php lines 162-165
