@@ -17,14 +17,14 @@ const LEFT_ACTIONS: ActionItem[] = [
   { key: 'b', action: 'build', label: 'Build', description: 'Construct', color: 'blue' },
   { key: 'f', action: 'farm', label: 'Farm', description: 'Produce food', color: 'yellow' },
   { key: 'c', action: 'cash', label: 'Cash', description: 'Get income', color: 'yellow' },
-  { key: 'i', action: 'industry', label: 'Industry', description: 'Make troops', color: 'cyan' },
-  { key: 'm', action: 'meditate', label: 'Meditate', description: 'Get runes', color: 'magenta' },
+  { key: 'i', action: 'industry', label: 'Industry', description: 'Make troops', color: 'yellow' },
+  { key: 'm', action: 'meditate', label: 'Meditate', description: 'Get runes', color: 'yellow' },
 ];
 
 // Right column actions
 const RIGHT_ACTIONS: ActionItem[] = [
-  { key: 'p', action: 'market', label: 'Market', description: 'Buy/sell', color: 'yellow' },
-  { key: 'k', action: 'bank', label: 'Bank', description: 'Savings', color: 'green' },
+  { key: 'p', action: 'market', label: 'Market', description: 'Buy/sell', color: 'cyan' },
+  { key: 'k', action: 'bank', label: 'Bank', description: 'Savings', color: 'cyan' },
   { key: 'a', action: 'attack', label: 'Attack', description: 'Attack enemy', color: 'red' },
   { key: 's', action: 'spell', label: 'Spell', description: 'Cast magic', color: 'magenta' },
   { key: 'v', action: 'bots', label: 'Enemies', description: 'See enemies', color: 'gray' },
