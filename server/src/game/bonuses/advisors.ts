@@ -200,4 +200,93 @@ export const ADVISORS: Advisor[] = [
     rarity: 'rare',
     effect: { type: 'casualty_reduction', modifier: 0.50 },
   },
+
+  // ============================================
+  // UNIT SPECIALIST ADVISORS
+  // Trade-off: boost offense for 2 unit types, reduce defense for 2 others
+  // ============================================
+  {
+    id: 'ground_commander',
+    name: 'Ground Commander',
+    description: '+1 offense (infantry/land), -2 defense (air/sea)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trparm', 'trplnd'],
+      nerfUnits: ['trpfly', 'trpsea'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
+  {
+    id: 'sky_marshal',
+    name: 'Sky Marshal',
+    description: '+1 offense (air/sea), -2 defense (infantry/land)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trpfly', 'trpsea'],
+      nerfUnits: ['trparm', 'trplnd'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
+  {
+    id: 'blitzkrieg_tactician',
+    name: 'Blitzkrieg Tactician',
+    description: '+1 offense (infantry/air), -2 defense (land/sea)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trparm', 'trpfly'],
+      nerfUnits: ['trplnd', 'trpsea'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
+  {
+    id: 'heavy_arms_dealer',
+    name: 'Heavy Arms Dealer',
+    description: '+1 offense (land/sea), -2 defense (infantry/air)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trplnd', 'trpsea'],
+      nerfUnits: ['trparm', 'trpfly'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
+  {
+    id: 'amphibious_admiral',
+    name: 'Amphibious Admiral',
+    description: '+1 offense (infantry/sea), -2 defense (land/air)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trparm', 'trpsea'],
+      nerfUnits: ['trplnd', 'trpfly'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
+  {
+    id: 'mechanized_general',
+    name: 'Mechanized General',
+    description: '+1 offense (land/air), -2 defense (infantry/sea)',
+    rarity: 'uncommon',
+    effect: {
+      type: 'unit_specialist',
+      modifier: 0,
+      boostUnits: ['trplnd', 'trpfly'],
+      nerfUnits: ['trparm', 'trpsea'],
+      offenseBonus: 1,
+      defensePenalty: 2,
+    },
+  },
 ];

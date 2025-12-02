@@ -153,6 +153,11 @@ export interface AdvisorEffect {
   type: string;
   modifier: number;
   condition?: string;
+  // For unit_specialist type: boost offense for some units, reduce defense for others
+  boostUnits?: ('trparm' | 'trplnd' | 'trpfly' | 'trpsea')[];
+  nerfUnits?: ('trparm' | 'trplnd' | 'trpfly' | 'trpsea')[];
+  offenseBonus?: number;    // Added to per-unit offense for boostUnits
+  defensePenalty?: number;  // Subtracted from per-unit defense for nerfUnits
 }
 
 export interface Tech {
