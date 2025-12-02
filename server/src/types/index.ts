@@ -124,6 +124,8 @@ export interface Empire {
   defTotal: number;       // Times attacked
   defSucc: number;        // Successful defenses
   kills: number;          // Empires killed
+  attacksThisRound: number; // Attacks made in current round (resets each round)
+  offensiveSpellsThisRound: number; // Offensive spells cast in current round (resets each round)
 
   // Effects (round-based for roguelike)
   shieldExpiresRound: number | null;  // Shield lasts until end of this round's bot phase

@@ -721,8 +721,8 @@ export function processBuild(
     };
   }
 
-  // Calculate turns needed (approximately 4 buildings per turn base)
-  const buildRate = 4;
+  // Calculate turns needed - build rate scales with land (1 building per 20 acres)
+  const buildRate = Math.max(1, Math.floor(empire.resources.land / 20));
   const turnsNeeded = Math.max(1, Math.ceil(totalToConstruct / buildRate));
 
   // Process economy for build turns

@@ -67,6 +67,8 @@ export function createEmpire(
     defTotal: 0,
     defSucc: 0,
     kills: 0,
+    attacksThisRound: 0,
+    offensiveSpellsThisRound: 0,
 
     shieldExpiresRound: null,
     gateExpiresRound: null,
