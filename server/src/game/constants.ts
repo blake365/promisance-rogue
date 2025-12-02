@@ -339,7 +339,8 @@ export const ECONOMY = {
 export const COMBAT = {
   winThreshold: 1.05,      // Attacker needs 5% more power to win
   turnsPerAttack: 2,
-  attackHealthCost: 3,     // Health lost per attack
+  attackHealthCost: 5,     // Health lost per attack (net -3 after turn regen)
+  offensiveSpellHealthCost: 5, // Health lost per offensive spell (net -3 after turn regen)
   attacksPerRound: 10,     // Max attacks per round (no attacks allowed in round 1)
   offensiveSpellsPerRound: 10, // Max offensive spells per round (no offensive spells in round 1)
 
