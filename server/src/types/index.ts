@@ -301,6 +301,9 @@ export interface GameRun {
 
   modifiers: RunModifier[];
 
+  // Game over state
+  playerDefeated: DefeatReason | null;
+
   createdAt: number;
   updatedAt: number;
 }
@@ -419,6 +422,9 @@ export interface TurnActionRequest {
 
 // Reason turns stopped early (matching QM Promisance TURNS_TROUBLE_* flags)
 export type TurnStopReason = 'food' | 'loan';
+
+// Reason player was defeated (game over conditions)
+export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan';
 
 export interface TurnActionResult {
   success: boolean;

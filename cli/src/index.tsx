@@ -167,6 +167,7 @@ function App() {
         marketPrices={game.marketPrices}
         shopStock={game.shopStock}
         bankInfo={bankInfo}
+        playerDefeated={game.playerDefeated}
         loading={loading}
         error={error}
         onAction={executeAction}

@@ -1,7 +1,8 @@
-import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult } from '../types';
+import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason } from '../types';
 import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT } from './constants';
 import { createEmpire, calculateNetworth, hasAdvisorEffect } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
+import { isLoanEmergency } from './bank';
 import { processAttack } from './combat';
 import { castSelfSpell, castEnemySpell } from './spells';
 import { generateBots, processBotPhase, updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './bot';
@@ -50,6 +51,8 @@ export function createGameRun(
     intel: {},
 
     modifiers: [],
+
+    playerDefeated: null,
 
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -389,6 +392,13 @@ export function executeTurn(
   run.round.turnsRemaining -= result.turnsSpent;
   result.turnsRemaining = run.round.turnsRemaining;
 
+  // Check for player defeat after turn processing
+  const defeatReason = checkPlayerDefeated(run.playerEmpire);
+  if (defeatReason) {
+    run.playerDefeated = defeatReason;
+    run.round.phase = 'complete';
+  }
+
   run.updatedAt = Date.now();
 
   return result;
@@ -465,7 +475,16 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
   run.playerEmpire = result.playerEmpire;
   run.seed = result.newSeed;
 
-  // Check if game is over
+  // Check for player defeat after bot attacks
+  const defeatReason = checkPlayerDefeated(run.playerEmpire);
+  if (defeatReason) {
+    run.playerDefeated = defeatReason;
+    run.round.phase = 'complete';
+    run.updatedAt = Date.now();
+    return result;
+  }
+
+  // Check if game is over (all rounds completed)
   if (run.round.number >= TOTAL_ROUNDS) {
     run.round.phase = 'complete';
   } else {
@@ -493,11 +512,39 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
 }
 
 // ============================================
+// PLAYER DEFEAT CHECKS
+// ============================================
+
+/**
+ * Check if player has been defeated (game over)
+ * Returns the defeat reason or null if player is still alive
+ */
+export function checkPlayerDefeated(empire: Empire): DefeatReason | null {
+  // No land = defeated (lost all territory)
+  if (empire.resources.land <= 0) {
+    return 'no_land';
+  }
+
+  // No peasants = defeated (no population to sustain empire)
+  if (empire.peasants <= 0) {
+    return 'no_peasants';
+  }
+
+  // Excessive loan = defeated (bankruptcy)
+  // Uses same threshold as emergency loan limit (loan > 2x max loan)
+  if (isLoanEmergency(empire)) {
+    return 'excessive_loan';
+  }
+
+  return null;
+}
+
+// ============================================
 // GAME STATE QUERIES
 // ============================================
 
 export function isGameComplete(run: GameRun): boolean {
-  return run.round.phase === 'complete';
+  return run.round.phase === 'complete' || run.playerDefeated !== null;
 }
 
 export function getFinalScore(run: GameRun): number {
