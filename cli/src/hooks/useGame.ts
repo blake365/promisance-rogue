@@ -14,6 +14,7 @@ import {
   type BankTransaction,
   type BankInfo,
   type SpyIntel,
+  type DefeatReason,
 } from '../api/client.js';
 
 interface GameState {
@@ -26,6 +27,7 @@ interface GameState {
   shopStock: ShopStock | null;
   draftOptions: DraftOption[] | null;
   isComplete: boolean;
+  playerDefeated: DefeatReason | null;
 }
 
 interface PlayerState {
@@ -51,6 +53,7 @@ export function useGame() {
     shopStock: null,
     draftOptions: null,
     isComplete: false,
+    playerDefeated: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -101,6 +104,7 @@ export function useGame() {
           shopStock: response.game.shopStock,
           draftOptions: response.game.draftOptions,
           isComplete: false,
+          playerDefeated: response.game.playerDefeated,
         });
         return true;
       }
@@ -131,6 +135,7 @@ export function useGame() {
           shopStock: gameResponse.game.shopStock,
           draftOptions: gameResponse.game.draftOptions,
           isComplete: false,
+          playerDefeated: gameResponse.game.playerDefeated,
         });
       }
       return true;
@@ -338,6 +343,7 @@ export function useGame() {
         botEmpires: response.botEmpires,
         intel: response.intel,
         isComplete: response.isComplete,
+        playerDefeated: response.playerDefeated,
       }));
       return response;
     } catch (err) {

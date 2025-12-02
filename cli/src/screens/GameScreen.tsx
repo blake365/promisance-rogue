@@ -17,6 +17,7 @@ import type {
   BankTransaction,
   BankInfo,
   SpyIntel,
+  DefeatReason,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -107,6 +108,7 @@ interface Props {
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
   bankInfo: BankInfo | null;
+  playerDefeated: DefeatReason | null;
   loading: boolean;
   error: string | null;
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
@@ -128,6 +130,7 @@ export function GameScreen({
   marketPrices,
   shopStock,
   bankInfo,
+  playerDefeated,
   loading,
   error,
   onAction,
@@ -571,10 +574,16 @@ export function GameScreen({
         )}
 
         {view === 'action_result' && lastResult && (
-          <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="green" paddingX={1}>
-            <Text bold color="green">
-              Action Complete - {lastResult.turnsSpent} turn{lastResult.turnsSpent !== 1 ? 's' : ''} spent
+          <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor={lastResult.stoppedEarly ? "red" : "green"} paddingX={1}>
+            <Text bold color={lastResult.stoppedEarly ? "red" : "green"}>
+              {lastResult.stoppedEarly ? 'EMERGENCY' : 'Action Complete'} - {lastResult.turnsSpent} turn{lastResult.turnsSpent !== 1 ? 's' : ''} spent
             </Text>
+            {lastResult.stoppedEarly === 'food' && (
+              <Text bold color="red">Your empire ran out of food! 3% of troops and peasants deserted.</Text>
+            )}
+            {lastResult.stoppedEarly === 'loan' && (
+              <Text bold color="red">Your loan has exceeded the emergency limit! Pay down your debt.</Text>
+            )}
             <Text color="gray">Turns remaining: {lastResult.turnsRemaining}</Text>
 
             {/* Resources Section */}
@@ -904,12 +913,64 @@ export function GameScreen({
     );
   }
 
-  // Complete phase
+  // Complete phase - show defeat or victory screen
+  const getDefeatMessage = (reason: DefeatReason): { title: string; description: string } => {
+    switch (reason) {
+      case 'no_land':
+        return {
+          title: 'EMPIRE DESTROYED',
+          description: 'Your empire has lost all its land. Without territory, your empire crumbles to dust.',
+        };
+      case 'no_peasants':
+        return {
+          title: 'POPULATION COLLAPSE',
+          description: 'Your empire has no peasants left. Without people, there is no empire.',
+        };
+      case 'excessive_loan':
+        return {
+          title: 'BANKRUPTCY',
+          description: 'Your debts have exceeded all reasonable limits. The banks have seized your empire.',
+        };
+    }
+  };
+
+  if (playerDefeated) {
+    const { title, description } = getDefeatMessage(playerDefeated);
+    return (
+      <Box flexDirection="column" padding={1} alignItems="center">
+        <Box borderStyle="double" borderColor="red" paddingX={3} paddingY={1}>
+          <Text bold color="red">GAME OVER</Text>
+        </Box>
+        <Box marginTop={1} flexDirection="column" alignItems="center">
+          <Text bold color="red">{title}</Text>
+          <Text color="gray">{description}</Text>
+        </Box>
+        <Box marginTop={1} flexDirection="column" alignItems="center">
+          <Text color="yellow">Survived {round.number} round{round.number !== 1 ? 's' : ''}</Text>
+          <Text color="gray">Final Networth: {empire.networth.toLocaleString()}</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color="gray">[q] to quit</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Victory - completed all rounds
   return (
     <Box flexDirection="column" padding={1} alignItems="center">
-      <Text bold color="yellow">Game Complete!</Text>
-      <Text>Final Networth: {empire.networth.toLocaleString()}</Text>
-      <Text color="gray">[q] to quit</Text>
+      <Box borderStyle="double" borderColor="yellow" paddingX={3} paddingY={1}>
+        <Text bold color="yellow">VICTORY!</Text>
+      </Box>
+      <Box marginTop={1} flexDirection="column" alignItems="center">
+        <Text color="green">Your empire has survived all {round.number} rounds!</Text>
+      </Box>
+      <Box marginTop={1} flexDirection="column" alignItems="center">
+        <Text bold color="yellow">Final Networth: {empire.networth.toLocaleString()}</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text color="gray">[q] to quit</Text>
+      </Box>
     </Box>
   );
 }

@@ -3,7 +3,7 @@
  * Reference: pages/military.php
  */
 
-import type { Empire, CombatResult, Troops, Buildings, TurnActionResult, AttackType } from '../types';
+import type { Empire, CombatResult, Troops, Buildings, TurnActionResult, AttackType, TurnStopReason } from '../types';
 import { UNIT_STATS, COMBAT, WIZARD_POWER, UnitType } from './constants';
 import {
   getModifier,
@@ -359,10 +359,13 @@ export function processAttack(
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(attacker);
     const extras = applyEconomyResult(attacker, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -372,6 +375,36 @@ export function processAttack(
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions - cancel attack if emergency occurs
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
+  }
+
+  // If stopped early due to emergency, cancel attack (no combat, no health cost)
+  if (stoppedEarly) {
+    return {
+      success: false,
+      turnsSpent: turnsActuallySpent,
+      turnsRemaining: turnsRemaining - turnsActuallySpent,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes,
+      troopsProduced: {},
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      stoppedEarly,
+      empire: attacker,
+    };
   }
 
   // Resolve combat

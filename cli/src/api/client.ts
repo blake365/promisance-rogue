@@ -169,6 +169,12 @@ export interface TurnActionRequest {
   spellTargetId?: string;
 }
 
+// Reason turns stopped early (matching QM Promisance TURNS_TROUBLE_* flags)
+export type TurnStopReason = 'food' | 'loan';
+
+// Reason player was defeated (game over conditions)
+export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan';
+
 export interface TurnActionResult {
   success: boolean;
   turnsSpent: number;
@@ -182,6 +188,7 @@ export interface TurnActionResult {
   loanPayment: number;
   bankInterest: number;
   loanInterest: number;
+  stoppedEarly?: TurnStopReason;
   landGained?: number;
   buildingsConstructed?: Partial<Buildings>;
   combatResult?: CombatResult;
@@ -277,6 +284,7 @@ interface CurrentGameResponse {
     marketPrices: MarketPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
+    playerDefeated: DefeatReason | null;
   };
 }
 
@@ -324,6 +332,7 @@ export interface BotPhaseResponse {
   botEmpires: BotSummary[];
   intel: Record<string, SpyIntel>;
   isComplete: boolean;
+  playerDefeated: DefeatReason | null;
 }
 
 interface LeaderboardResponse {

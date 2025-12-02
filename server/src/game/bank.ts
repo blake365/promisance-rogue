@@ -9,6 +9,12 @@ import { calculateNetworth } from './empire';
 const LOAN_LIMIT_MULTIPLIER = 0.5;
 
 /**
+ * Emergency loan limit multiplier (from QM Promisance)
+ * When loan exceeds 2x max loan, turns are interrupted
+ */
+const EMERGENCY_LOAN_MULTIPLIER = 2;
+
+/**
  * Minimum transaction amount
  */
 const MIN_TRANSACTION = 1;
@@ -123,6 +129,22 @@ function processPayLoan(empire: Empire, amount: number): BankTransactionResult {
  */
 export function calculateMaxLoan(empire: Empire): number {
   return Math.floor(empire.networth * LOAN_LIMIT_MULTIPLIER);
+}
+
+/**
+ * Calculate emergency loan limit (from QM Promisance)
+ * When loan exceeds this, turns are interrupted
+ */
+export function calculateEmergencyLoanLimit(empire: Empire): number {
+  return calculateMaxLoan(empire) * EMERGENCY_LOAN_MULTIPLIER;
+}
+
+/**
+ * Check if empire's loan exceeds emergency limit
+ * Used to stop turn processing early (QM Promisance TURNS_TROUBLE_LOAN)
+ */
+export function isLoanEmergency(empire: Empire): boolean {
+  return empire.loan > calculateEmergencyLoanLimit(empire);
 }
 
 /**
