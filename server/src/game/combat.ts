@@ -370,6 +370,9 @@ export function processAttack(
   const combatResult = resolveCombat(attacker, defender, attackType);
   applyCombatResult(attacker, defender, combatResult);
 
+  // Apply health cost for attacking
+  attacker.health = Math.max(0, attacker.health - COMBAT.attackHealthCost);
+
   return {
     success: true,
     turnsSpent: turnsNeeded,
