@@ -275,7 +275,44 @@ export function executeTurn(
           empire,
         };
       } else {
-        // Enemy spell
+        // Enemy spell - no offensive spells in round 1
+        if (run.round.number === 1) {
+          return {
+            success: false,
+            turnsSpent: 0,
+            turnsRemaining: run.round.turnsRemaining,
+            income: 0,
+            expenses: 0,
+            foodProduction: 0,
+            foodConsumption: 0,
+            runeChange: 0,
+            troopsProduced: {},
+            loanPayment: 0,
+            bankInterest: 0,
+            loanInterest: 0,
+            empire,
+          };
+        }
+
+        // Check offensive spell limit per round
+        if (empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound) {
+          return {
+            success: false,
+            turnsSpent: 0,
+            turnsRemaining: run.round.turnsRemaining,
+            income: 0,
+            expenses: 0,
+            foodProduction: 0,
+            foodConsumption: 0,
+            runeChange: 0,
+            troopsProduced: {},
+            loanPayment: 0,
+            bankInterest: 0,
+            loanInterest: 0,
+            empire,
+          };
+        }
+
         if (!request.spellTargetId) {
           return {
             success: false,
@@ -315,9 +352,10 @@ export function executeTurn(
 
         result = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining);
 
-        // Update bot's memory so it can retaliate
+        // Update bot's memory and increment spell counter on success
         if (result.success) {
           updateBotMemoryAfterSpell(target, empire.id, run.round.number);
+          empire.offensiveSpellsThisRound++;
         }
       }
       break;
@@ -416,8 +454,9 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
     // Move to next round
     run.round.number++;
 
-    // Reset attack counter for new round
+    // Reset attack and spell counters for new round
     run.playerEmpire.attacksThisRound = 0;
+    run.playerEmpire.offensiveSpellsThisRound = 0;
 
     // Base turns + extra_turns from empire_builder advisor
     let baseTurns = TURNS_PER_ROUND;
