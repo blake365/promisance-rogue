@@ -188,6 +188,7 @@ export function resolveCombat(
   if (won) {
     // Process building destruction and capture
     const buildingTypes = ['bldcash', 'bldpop', 'bldtrp', 'bldcost', 'bldfood', 'bldwiz', 'blddef'] as const;
+    const isStandardAttack = attackType === 'standard';
 
     for (const bldType of buildingTypes) {
       const captureRates = COMBAT.buildingCapture[bldType];
@@ -196,8 +197,15 @@ export function resolveCombat(
         const bldCount = defender.buildings[bldType];
         const { loss, gain } = destroyBuildings(bldCount, defender.resources.land, lossRate, gainRate);
         buildingsDestroyed[bldType] = loss;
-        buildingsGained[bldType] = gain;
-        landGained += gain;
+
+        if (isStandardAttack) {
+          // Standard attacks: capture buildings and gain land = buildings captured
+          buildingsGained[bldType] = gain;
+          landGained += gain;
+        } else {
+          // Single-unit attacks: raze buildings, gain land as freeland (no buildings captured)
+          landGained += loss;
+        }
       }
     }
 
@@ -369,6 +377,9 @@ export function processAttack(
   // Resolve combat
   const combatResult = resolveCombat(attacker, defender, attackType);
   applyCombatResult(attacker, defender, combatResult);
+
+  // Apply health cost for attacking
+  attacker.health = Math.max(0, attacker.health - COMBAT.attackHealthCost);
 
   return {
     success: true,

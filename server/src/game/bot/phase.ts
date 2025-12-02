@@ -245,8 +245,14 @@ function processSpell(
     };
   }
 
-  // Enemy spells - no offensive spells in round 1 or if limit reached
-  if (roundNumber === 1 || bot.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound) {
+  // Fight spell uses attack counter, other offensive spells use spell counter
+  const isFightSpell = spell === 'fight';
+  const limitReached = isFightSpell
+    ? bot.attacksThisRound >= COMBAT.attacksPerRound
+    : bot.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound;
+
+  // Enemy spells - no offensive spells/attacks in round 1 or if limit reached
+  if (roundNumber === 1 || limitReached) {
     return { turnsSpent: 0, success: false };
   }
 
@@ -264,7 +270,12 @@ function processSpell(
 
   // Update defender's memory and increment counter if spell was successful
   if (result.success) {
-    bot.offensiveSpellsThisRound++;
+    // Fight spell uses attack counter, other offensive spells use spell counter
+    if (isFightSpell) {
+      bot.attacksThisRound++;
+    } else {
+      bot.offensiveSpellsThisRound++;
+    }
     if ('isBot' in target && target.isBot) {
       updateBotMemoryAfterSpell(target as BotEmpire, bot.id, roundNumber);
     }

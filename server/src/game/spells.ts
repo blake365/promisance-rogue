@@ -4,7 +4,7 @@
  */
 
 import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire } from '../types';
-import { SPELLS, ECONOMY } from './constants';
+import { SPELLS, ECONOMY, COMBAT } from './constants';
 import {
   getModifier,
   calculateNetworth,
@@ -796,6 +796,9 @@ export function castEnemySpell(
     default:
       spellResult = { success: false, spell };
   }
+
+  // Apply health cost for offensive spells
+  caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
 
   caster.networth = calculateNetworth(caster);
 
