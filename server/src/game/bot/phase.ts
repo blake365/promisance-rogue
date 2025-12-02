@@ -14,7 +14,7 @@ import type {
   NewsItem,
 } from '../../types';
 import type { BotTurnResult } from './types';
-import { TURNS_PER_ROUND } from '../constants';
+import { TURNS_PER_ROUND, COMBAT } from '../constants';
 import { decideBotAction, advanceRng } from './decisions';
 import { updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './memory';
 import { executeTurnAction, applyEconomyResult } from '../turns';
@@ -45,6 +45,10 @@ export function processBotPhase(
   // Process each bot's turns
   for (const bot of bots) {
     if (bot.health <= 0) continue; // Skip eliminated bots
+
+    // Reset attack and spell counters for this round
+    bot.attacksThisRound = 0;
+    bot.offensiveSpellsThisRound = 0;
 
     let turnsRemaining = TURNS_PER_ROUND;
 
@@ -133,12 +137,18 @@ function processSingleBotTurn(
     }
 
     case 'attack': {
+      // No attacks in round 1 or if limit reached
+      if (roundNumber === 1 || bot.attacksThisRound >= COMBAT.attacksPerRound) {
+        break; // Skip attack, bot will choose another action next iteration
+      }
+
       if (decision.targetId) {
         const target = findTarget(decision.targetId, player, allBots);
         if (target) {
           const result = processAttack(bot, target, turnsRemaining, 'standard');
 
           if (result.success) {
+            bot.attacksThisRound++;
             const landGained = result.landGained ?? 0;
 
             // Update defender's memory
@@ -235,6 +245,11 @@ function processSpell(
     };
   }
 
+  // Enemy spells - no offensive spells in round 1 or if limit reached
+  if (roundNumber === 1 || bot.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound) {
+    return { turnsSpent: 0, success: false };
+  }
+
   // Enemy spells need a target
   if (!targetId) {
     return { turnsSpent: 2, success: false };
@@ -247,9 +262,12 @@ function processSpell(
 
   const result = castEnemySpell(bot, target, spell, turnsRemaining);
 
-  // Update defender's memory if spell was successful
-  if (result.success && 'isBot' in target && target.isBot) {
-    updateBotMemoryAfterSpell(target as BotEmpire, bot.id, roundNumber);
+  // Update defender's memory and increment counter if spell was successful
+  if (result.success) {
+    bot.offensiveSpellsThisRound++;
+    if ('isBot' in target && target.isBot) {
+      updateBotMemoryAfterSpell(target as BotEmpire, bot.id, roundNumber);
+    }
   }
 
   // Generate news for offensive spells
