@@ -462,8 +462,16 @@ export const SPELLS = {
 // ============================================
 
 export const SHOP = {
-  draftOptionsCount: 3,
+  // Draft composition: 1-2 advisors + 2-3 other options = ~4 total
+  advisorOptionsMin: 1,
+  advisorOptionsMax: 2,
+  otherOptionsMin: 2,
+  otherOptionsMax: 3,
+
   maxAdvisors: 3, // Maximum number of advisors an empire can have
+
+  // Reroll system - cost locked when shop phase starts to prevent gaming
+  rerollCostPercent: 0.20, // 20% of gold
 
   rarityWeights: {
     common: 60,

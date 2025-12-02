@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS game_runs (
   market_prices TEXT,
   shop_stock TEXT,
   draft_options TEXT,
+  reroll_cost INTEGER,
+  reroll_count INTEGER DEFAULT 0,
   intel TEXT DEFAULT '{}',
   modifiers TEXT DEFAULT '[]',
 

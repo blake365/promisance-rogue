@@ -296,6 +296,10 @@ export interface GameRun {
   shopStock: ShopStock | null; // Available during shop phase only
   draftOptions: DraftOption[] | null;
 
+  // Reroll system - cost locked when shop phase starts
+  rerollCost: number | null; // 20% of gold, locked at shop start
+  rerollCount: number; // Number of rerolls used this shop phase
+
   // Spy intel gathered on bots (keyed by bot id)
   intel: Record<string, SpyIntel>;
 
