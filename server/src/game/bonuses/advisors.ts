@@ -289,4 +289,44 @@ export const ADVISORS: Advisor[] = [
       defensePenalty: 2,
     },
   },
+
+  // ============================================
+  // POLICY-STYLE ADVISORS (formerly Policies)
+  // These provide special ability unlocks
+  // ============================================
+  {
+    id: 'frontier_scout',
+    name: 'Frontier Scout',
+    description: '2x land gained from exploring',
+    rarity: 'uncommon',
+    effect: { type: 'double_explore', modifier: 1.0 },
+  },
+  {
+    id: 'royal_banker',
+    name: 'Royal Banker',
+    description: '2x bank interest earned',
+    rarity: 'uncommon',
+    effect: { type: 'double_bank_interest', modifier: 1.0 },
+  },
+  {
+    id: 'warmaster',
+    name: 'Warmaster',
+    description: 'Can attack twice per round',
+    rarity: 'rare',
+    effect: { type: 'extra_attacks', modifier: 1 },
+  },
+  {
+    id: 'war_profiteer',
+    name: 'War Profiteer',
+    description: 'Troop production during farm action',
+    rarity: 'rare',
+    effect: { type: 'farm_industry', modifier: 1.0 },
+  },
+  {
+    id: 'arcane_ward',
+    name: 'Arcane Ward',
+    description: 'Permanent magic shield',
+    rarity: 'legendary',
+    effect: { type: 'permanent_shield', modifier: 1 },
+  },
 ];

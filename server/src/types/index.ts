@@ -44,7 +44,7 @@ export type AttackType =
 
 export type BonusRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
-export type BonusType = 'advisor' | 'tech' | 'edict' | 'policy';
+export type BonusType = 'advisor' | 'tech' | 'edict';
 
 export type GamePhase = 'player' | 'shop' | 'bot' | 'complete';
 
@@ -191,7 +191,7 @@ export interface Policy {
 
 export interface DraftOption {
   type: BonusType;
-  item: Advisor | Tech | Edict | Policy;
+  item: Advisor | Tech | Edict;
 }
 
 // ============================================
