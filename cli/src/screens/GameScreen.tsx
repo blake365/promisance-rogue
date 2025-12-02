@@ -50,6 +50,53 @@ type ViewMode =
   | 'draft'
   | 'bot_phase';
 
+// Tech bonus percentages per level
+const TECH_BONUS: Record<string, number> = {
+  farm: 15,      // +15% food production per level
+  cash: 15,      // +15% gold income per level
+  explore: 20,   // +20% land gain per level
+  industry: 15,  // +15% troop production per level
+  meditate: 15,  // +15% rune production per level
+};
+
+// Calculate tech bonus percentage for an action
+function getTechBonus(empire: Empire, action: string): number {
+  const level = empire.techs[action] || 0;
+  const bonusPerLevel = TECH_BONUS[action] || 0;
+  return level * bonusPerLevel;
+}
+
+// Estimate land gain per turn (simplified formula matching server)
+function estimateLandGain(empire: Empire): number {
+  const techBonus = 1 + getTechBonus(empire, 'explore') / 100;
+  const hasOpenBorders = empire.policies.includes('open_borders');
+  const policyBonus = hasOpenBorders ? 2 : 1;
+  const landFactor = empire.resources.land * 0.00022 + 0.25;
+  return Math.ceil((1 / landFactor) * 20 * techBonus * policyBonus);
+}
+
+// Get action label with bonus info
+function getActionLabel(empire: Empire, action: TurnAction): string {
+  const baseLabel = action.charAt(0).toUpperCase() + action.slice(1);
+
+  switch (action) {
+    case 'explore': {
+      const landPerTurn = estimateLandGain(empire);
+      return `${baseLabel} (+${landPerTurn} land/turn)`;
+    }
+    case 'farm': {
+      const bonus = getTechBonus(empire, 'farm');
+      return bonus > 0 ? `${baseLabel} (+${bonus}% food)` : baseLabel;
+    }
+    case 'meditate': {
+      const bonus = getTechBonus(empire, 'meditate');
+      return bonus > 0 ? `${baseLabel} (+${bonus}% runes)` : baseLabel;
+    }
+    default:
+      return baseLabel;
+  }
+}
+
 interface Props {
   empire: Empire;
   round: GameRound;
@@ -371,7 +418,7 @@ export function GameScreen({
               actionLabel={
                 pendingAction === 'spell' && selectedSpell
                   ? `Cast ${selectedSpell.charAt(0).toUpperCase()}${selectedSpell.slice(1)}`
-                  : `${pendingAction.charAt(0).toUpperCase()}${pendingAction.slice(1)}`
+                  : getActionLabel(empire, pendingAction)
               }
               countLabel={pendingAction === 'spell' ? 'Casts' : 'Actions'}
               onConfirm={handleTurnsConfirm}
@@ -468,6 +515,7 @@ export function GameScreen({
             <IndustryAllocationSelector
               currentAllocation={empire.industryAllocation}
               maxTurns={round.turnsRemaining}
+              techBonus={getTechBonus(empire, 'industry')}
               onConfirm={handleIndustryConfirm}
               onCancel={() => setView('main')}
             />
@@ -479,6 +527,7 @@ export function GameScreen({
             <TaxRateInput
               currentRate={empire.taxRate}
               maxTurns={round.turnsRemaining}
+              techBonus={getTechBonus(empire, 'cash')}
               onConfirm={handleTaxRateConfirm}
               onCancel={() => setView('main')}
             />
