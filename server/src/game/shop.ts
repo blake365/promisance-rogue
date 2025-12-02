@@ -249,6 +249,68 @@ function selectRandomItem<T>(items: T[], seed: number): T {
   return items[index];
 }
 
+// Helper to generate a single advisor option
+function generateAdvisorOption(empire: Empire, rng: number): { option: DraftOption | null; rng: number } {
+  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const rarity = selectRarity(rng);
+  const advisors = getItemsByRarity(ADVISORS, rarity);
+
+  if (advisors.length > 0) {
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    const advisor = selectRandomItem(advisors, rng);
+    // Don't offer advisors already owned
+    if (!empire.advisors.find((a) => a.id === advisor.id)) {
+      return { option: { type: 'advisor', item: advisor }, rng };
+    }
+  }
+  return { option: null, rng };
+}
+
+// Helper to generate a single non-advisor option (tech, edict, policy)
+function generateOtherOption(empire: Empire, rng: number): { option: DraftOption; rng: number } {
+  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const rarity = selectRarity(rng);
+
+  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const typeRoll = rng % 100;
+
+  let option: DraftOption;
+
+  if (typeRoll < 40) {
+    // Tech (40%)
+    const availableTechs = TECHS.filter(
+      (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
+    );
+    if (availableTechs.length > 0) {
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      option = { type: 'tech', item: selectRandomItem(availableTechs, rng) };
+    } else {
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+    }
+  } else if (typeRoll < 80) {
+    // Edict (40%)
+    const edicts = getItemsByRarity(EDICTS, rarity);
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    option = { type: 'edict', item: selectRandomItem(edicts.length > 0 ? edicts : EDICTS, rng) };
+  } else {
+    // Policy (20%)
+    const policies = getItemsByRarity(POLICIES, rarity);
+    const availablePolicies = policies.filter(
+      (p) => !empire.policies.includes(p.id)
+    );
+    if (availablePolicies.length > 0) {
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      option = { type: 'policy', item: selectRandomItem(availablePolicies, rng) };
+    } else {
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+    }
+  }
+
+  return { option, rng };
+}
+
 export function generateDraftOptions(
   seed: number,
   empire: Empire
@@ -256,72 +318,48 @@ export function generateDraftOptions(
   const options: DraftOption[] = [];
   let rng = seed;
 
-  for (let i = 0; i < SHOP.draftOptionsCount; i++) {
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    const rarity = selectRarity(rng);
+  // Determine number of advisor slots (1-2)
+  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const advisorSlots = SHOP.advisorOptionsMin +
+    (rng % (SHOP.advisorOptionsMax - SHOP.advisorOptionsMin + 1));
 
-    // Randomly select bonus type
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    const typeRoll = rng % 100;
+  // Determine number of other slots (2-3)
+  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const otherSlots = SHOP.otherOptionsMin +
+    (rng % (SHOP.otherOptionsMax - SHOP.otherOptionsMin + 1));
 
-    let option: DraftOption;
+  // Generate advisor options (may get fewer if not enough unique advisors available)
+  const usedAdvisorIds = new Set(empire.advisors.map(a => a.id));
+  for (let i = 0; i < advisorSlots; i++) {
+    const result = generateAdvisorOption(empire, rng);
+    rng = result.rng;
 
-    if (typeRoll < 40) {
-      // Advisor (40%) - always show advisors even at max so players can see upgrades
-      // and strategically dismiss to make room
-      const advisors = getItemsByRarity(ADVISORS, rarity);
-
-      if (advisors.length > 0) {
-        const advisor = selectRandomItem(advisors, rng);
-        // Don't offer advisors already owned
-        if (!empire.advisors.find((a) => a.id === advisor.id)) {
-          option = { type: 'advisor', item: advisor };
-        } else {
-          // Fallback to tech
-          const techs = TECHS.filter(
-            (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
-          );
-          if (techs.length > 0) {
-            option = { type: 'tech', item: selectRandomItem(techs, rng) };
-          } else {
-            option = { type: 'edict', item: selectRandomItem(getItemsByRarity(EDICTS, rarity), rng) };
-          }
-        }
-      } else {
-        option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
-      }
-    } else if (typeRoll < 65) {
-      // Tech (25%)
-      const availableTechs = TECHS.filter(
-        (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
-      );
-      if (availableTechs.length > 0) {
-        option = { type: 'tech', item: selectRandomItem(availableTechs, rng) };
-      } else {
-        option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
-      }
-    } else if (typeRoll < 90) {
-      // Edict (25%)
-      const edicts = getItemsByRarity(EDICTS, rarity);
-      option = { type: 'edict', item: selectRandomItem(edicts.length > 0 ? edicts : EDICTS, rng) };
-    } else {
-      // Policy (10%)
-      const policies = getItemsByRarity(POLICIES, rarity);
-      const availablePolicies = policies.filter(
-        (p) => !empire.policies.includes(p.id)
-      );
-      if (availablePolicies.length > 0) {
-        option = { type: 'policy', item: selectRandomItem(availablePolicies, rng) };
-      } else {
-        option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+    if (result.option) {
+      const advisorId = (result.option.item as Advisor).id;
+      // Avoid duplicate advisors in same draft
+      if (!usedAdvisorIds.has(advisorId)) {
+        options.push(result.option);
+        usedAdvisorIds.add(advisorId);
       }
     }
+  }
 
-    options.push(option!);
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  // Generate other options (tech, edict, policy)
+  for (let i = 0; i < otherSlots; i++) {
+    const result = generateOtherOption(empire, rng);
+    rng = result.rng;
+    options.push(result.option);
   }
 
   return options;
+}
+
+// ============================================
+// REROLL COST CALCULATION
+// ============================================
+
+export function calculateRerollCost(empire: Empire): number {
+  return Math.floor(empire.resources.gold * SHOP.rerollCostPercent);
 }
 
 // ============================================
