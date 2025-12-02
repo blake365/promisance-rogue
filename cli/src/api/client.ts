@@ -161,6 +161,9 @@ export interface TurnActionResult {
   foodConsumption: number;
   runeChange: number;
   troopsProduced: Partial<Troops>;
+  loanPayment: number;
+  bankInterest: number;
+  loanInterest: number;
   landGained?: number;
   buildingsConstructed?: Partial<Buildings>;
   combatResult?: CombatResult;

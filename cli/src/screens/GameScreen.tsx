@@ -549,6 +549,31 @@ export function GameScreen({
               )}
             </Box>
 
+            {/* Bank/Loan Section */}
+            {(lastResult.loanPayment > 0 || lastResult.bankInterest > 0 || lastResult.loanInterest > 0) && (
+              <Box marginTop={1} flexDirection="column">
+                <Text bold color="green">━━ Banking ━━</Text>
+                {lastResult.loanPayment > 0 && (
+                  <Box>
+                    <Text color="gray">Loan payment: </Text>
+                    <Text color="red">-{lastResult.loanPayment.toLocaleString()}</Text>
+                  </Box>
+                )}
+                {lastResult.bankInterest > 0 && (
+                  <Box>
+                    <Text color="gray">Savings interest: </Text>
+                    <Text color="green">+{lastResult.bankInterest.toLocaleString()}</Text>
+                  </Box>
+                )}
+                {lastResult.loanInterest > 0 && (
+                  <Box>
+                    <Text color="gray">Loan interest: </Text>
+                    <Text color="red">+{lastResult.loanInterest.toLocaleString()} debt</Text>
+                  </Box>
+                )}
+              </Box>
+            )}
+
             {/* Land Section */}
             {lastResult.landGained !== undefined && lastResult.landGained > 0 && (
               <Box marginTop={1} flexDirection="column">

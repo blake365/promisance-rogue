@@ -399,6 +399,11 @@ export interface TurnActionResult {
   runeChange: number;
   troopsProduced: Partial<Troops>;
 
+  // Bank/loan changes
+  loanPayment: number;
+  bankInterest: number;
+  loanInterest: number;
+
   // Action-specific results
   landGained?: number;
   buildingsConstructed?: Partial<Buildings>;

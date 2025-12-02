@@ -297,6 +297,9 @@ export function processAttack(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire: attacker,
     };
   }
@@ -313,6 +316,9 @@ export function processAttack(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire: attacker,
     };
   }
@@ -329,6 +335,9 @@ export function processAttack(
       foodConsumption: 0,
       runeChange: 0,
       troopsProduced: {},
+      loanPayment: 0,
+      bankInterest: 0,
+      loanInterest: 0,
       empire: attacker,
     };
   }
@@ -339,16 +348,22 @@ export function processAttack(
   let totalFoodPro = 0;
   let totalFoodCon = 0;
   let totalRunes = 0;
+  let totalLoanPayment = 0;
+  let totalBankInterest = 0;
+  let totalLoanInterest = 0;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(attacker);
-    applyEconomyResult(attacker, economyResult);
+    const extras = applyEconomyResult(attacker, economyResult);
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
     totalFoodPro += economyResult.foodProduction;
     totalFoodCon += economyResult.foodConsumption;
     totalRunes += economyResult.runeProduction;
+    totalLoanPayment += economyResult.loanPayment;
+    totalBankInterest += extras.bankInterest;
+    totalLoanInterest += extras.loanInterest;
   }
 
   // Resolve combat
@@ -365,6 +380,9 @@ export function processAttack(
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
     troopsProduced: {},
+    loanPayment: totalLoanPayment,
+    bankInterest: totalBankInterest,
+    loanInterest: totalLoanInterest,
     combatResult,
     empire: attacker,
   };
