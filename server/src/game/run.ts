@@ -1,12 +1,11 @@
 import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult } from '../types';
 import { TOTAL_ROUNDS, TURNS_PER_ROUND } from './constants';
-import { createEmpire, calculateNetworth, hasAdvisorEffect, hasPolicy } from './empire';
+import { createEmpire, calculateNetworth, hasAdvisorEffect } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
 import { processAttack } from './combat';
 import { castSelfSpell, castEnemySpell } from './spells';
 import { generateBots, processBotPhase, updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './bot';
 import { generateMarketPrices, generateShopStock, generateDraftOptions, applyDraftSelection, executeMarketTransaction } from './shop';
-import { applyBankInterest, applyLoanInterest } from './bank';
 
 // ============================================
 // GAME RUN CREATION
@@ -340,17 +339,6 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
   run.botEmpires = result.botEmpires;
   run.playerEmpire = result.playerEmpire;
   run.seed = result.newSeed;
-
-  // Apply end-of-round bank interest
-  // Savings earn 4% (doubled with bank_charter policy)
-  const hasDoubleInterest = hasPolicy(run.playerEmpire, 'bank_charter');
-  applyBankInterest(run.playerEmpire, hasDoubleInterest);
-
-  // Loan accrues 7.5% interest
-  applyLoanInterest(run.playerEmpire);
-
-  // Recalculate networth after interest
-  run.playerEmpire.networth = calculateNetworth(run.playerEmpire);
 
   // Check if game is over
   if (run.round.number >= TOTAL_ROUNDS) {

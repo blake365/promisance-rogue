@@ -8,6 +8,7 @@ import {
   ECONOMY,
   UNIT_COSTS,
   RACE_MODIFIERS,
+  TURNS_PER_ROUND,
 } from './constants';
 import {
   calculateNetworth,
@@ -17,6 +18,7 @@ import {
   hasPolicy,
   hasAdvisorEffect,
 } from './empire';
+import { applyBankInterest, applyLoanInterest } from './bank';
 
 // ============================================
 // SIZE BONUS (from prom_empire.php calcSizeBonus)
@@ -295,6 +297,13 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): void 
     empire.loan -= empire.resources.gold;
     empire.resources.gold = 0;
   }
+
+  // Apply per-turn bank interest (rate is per-round APR / turns per round)
+  const hasDoubleInterest = hasPolicy(empire, 'bank_charter');
+  applyBankInterest(empire, TURNS_PER_ROUND, hasDoubleInterest);
+
+  // Apply per-turn loan interest
+  applyLoanInterest(empire, TURNS_PER_ROUND);
 
   // Apply food change
   empire.resources.food += result.netFood;

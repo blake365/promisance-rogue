@@ -126,22 +126,30 @@ export function calculateMaxLoan(empire: Empire): number {
 }
 
 /**
- * Apply bank interest to savings (called at end of each round)
+ * Apply bank interest to savings (called each turn)
+ * Rate is per-round APR divided by turns per round
  * Returns the interest earned
  */
-export function applyBankInterest(empire: Empire, hasDoubleInterest: boolean = false): number {
-  const rate = hasDoubleInterest ? ECONOMY.savingsRate * 2 : ECONOMY.savingsRate;
-  const interest = Math.floor(empire.bank * rate);
+export function applyBankInterest(empire: Empire, turnsPerRound: number, hasDoubleInterest: boolean = false): number {
+  if (empire.bank <= 0) return 0;
+
+  const annualRate = hasDoubleInterest ? ECONOMY.savingsRate * 2 : ECONOMY.savingsRate;
+  const perTurnRate = annualRate / turnsPerRound;
+  const interest = Math.floor(empire.bank * perTurnRate);
   empire.bank += interest;
   return interest;
 }
 
 /**
- * Apply loan interest (called at end of each round)
+ * Apply loan interest (called each turn)
+ * Rate is per-round APR divided by turns per round
  * Returns the interest charged
  */
-export function applyLoanInterest(empire: Empire): number {
-  const interest = Math.floor(empire.loan * ECONOMY.loanRate);
+export function applyLoanInterest(empire: Empire, turnsPerRound: number): number {
+  if (empire.loan <= 0) return 0;
+
+  const perTurnRate = ECONOMY.loanRate / turnsPerRound;
+  const interest = Math.floor(empire.loan * perTurnRate);
   empire.loan += interest;
   return interest;
 }
