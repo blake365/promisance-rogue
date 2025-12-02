@@ -4,7 +4,7 @@ import type { TurnAction } from '../api/client.js';
 
 interface ActionItem {
   key: string;
-  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market';
+  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank';
   label: string;
   description: string;
   color: string;
@@ -18,6 +18,7 @@ const ACTIONS: ActionItem[] = [
   { key: 'i', action: 'industry', label: 'Industry', description: 'Produce troops', color: 'cyan' },
   { key: 'b', action: 'build', label: 'Build', description: 'Construct buildings', color: 'blue' },
   { key: 'p', action: 'market', label: 'Market', description: 'Buy/sell troops & food', color: 'yellow' },
+  { key: 'k', action: 'bank', label: 'Bank', description: 'Savings & loans', color: 'green' },
   { key: 'a', action: 'attack', label: 'Attack', description: 'Attack enemy', color: 'red' },
   { key: 's', action: 'spell', label: 'Spell', description: 'Cast magic', color: 'magenta' },
   { key: 'o', action: 'overview', label: 'Overview', description: 'View empire details', color: 'gray' },
@@ -26,7 +27,7 @@ const ACTIONS: ActionItem[] = [
 ];
 
 interface Props {
-  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market') => void;
+  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank') => void;
   disabled?: boolean;
 }
 

@@ -416,6 +416,23 @@ export interface ShopTransaction {
   troopType?: keyof Troops;
 }
 
+export type BankOperation = 'deposit' | 'withdraw' | 'take_loan' | 'pay_loan';
+
+export interface BankTransaction {
+  operation: BankOperation;
+  amount: number;
+}
+
+export interface BankTransactionResult {
+  success: boolean;
+  error?: string;
+  operation: BankOperation;
+  amount: number;
+  newBankBalance: number;
+  newLoanBalance: number;
+  newGoldBalance: number;
+}
+
 export interface DraftSelection {
   optionIndex: number;
 }

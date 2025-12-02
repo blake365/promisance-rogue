@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, Race, TurnActionRequest, ShopTransaction } from '../types';
+import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction } from '../types';
 import { createGameRun, executeTurn, endPlayerPhase, selectDraft, endShopPhase, executeBotPhase, getGameSummary, isGameComplete } from '../game/run';
 import { executeMarketTransaction } from '../game/shop';
 import { getCombatPreview } from '../game/combat';
+import { processBankTransaction, getBankInfo } from '../game/bank';
 import * as db from '../db/operations';
 
 // Custom context with auth
@@ -327,6 +328,58 @@ app.post('/api/game/:id/market', async (c) => {
     result,
     empire: run.playerEmpire,
     shopStock: run.shopStock,
+  });
+});
+
+// ============================================
+// BANK ENDPOINTS (available in player and shop phases)
+// ============================================
+
+// Get bank info
+app.get('/api/game/:id/bank', async (c) => {
+  const playerId = requireAuth(c);
+  if (typeof playerId !== 'string') return playerId;
+
+  const gameId = c.req.param('id');
+  const run = await db.getGameRun(c.env.DB, gameId);
+
+  if (!run || run.playerId !== playerId) {
+    return c.json({ error: 'Game not found' }, 404);
+  }
+
+  const bankInfo = getBankInfo(run.playerEmpire);
+  return c.json(bankInfo);
+});
+
+// Bank transaction - deposit, withdraw, take loan, pay loan (no turn cost)
+app.post('/api/game/:id/bank', async (c) => {
+  const playerId = requireAuth(c);
+  if (typeof playerId !== 'string') return playerId;
+
+  const gameId = c.req.param('id');
+  const run = await db.getGameRun(c.env.DB, gameId);
+
+  if (!run || run.playerId !== playerId) {
+    return c.json({ error: 'Game not found' }, 404);
+  }
+
+  // Allow bank transactions during both player and shop phases
+  if (run.round.phase !== 'player' && run.round.phase !== 'shop') {
+    return c.json({ error: 'Bank not available in this phase' }, 400);
+  }
+
+  const transaction = await c.req.json<BankTransaction>();
+
+  const result = processBankTransaction(run.playerEmpire, transaction);
+
+  if (result.success) {
+    await db.saveGameRun(c.env.DB, run);
+  }
+
+  return c.json({
+    result,
+    empire: run.playerEmpire,
+    bankInfo: getBankInfo(run.playerEmpire),
   });
 });
 

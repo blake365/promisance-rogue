@@ -14,6 +14,8 @@ import type {
   ShopTransaction,
   MarketPrices,
   ShopStock,
+  BankTransaction,
+  BankInfo,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -27,6 +29,7 @@ import { AttackTypeSelector, type AttackType, type CombatChoice } from '../compo
 import { IndustryAllocationSelector } from '../components/IndustryAllocationSelector.js';
 import { TaxRateInput } from '../components/TaxRateInput.js';
 import { MarketView } from '../components/MarketView.js';
+import { BankView } from '../components/BankView.js';
 
 type ViewMode =
   | 'main'
@@ -41,6 +44,7 @@ type ViewMode =
   | 'industry_allocation'
   | 'tax_rate'
   | 'market'
+  | 'bank'
   | 'action_result'
   | 'shop'
   | 'draft'
@@ -53,6 +57,7 @@ interface Props {
   draftOptions: DraftOption[] | null;
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
+  bankInfo: BankInfo | null;
   loading: boolean;
   error: string | null;
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
@@ -60,6 +65,7 @@ interface Props {
   onSelectDraft: (index: number) => Promise<boolean>;
   onEndShopPhase: () => Promise<boolean>;
   onMarketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
+  onBankTransaction: (transaction: BankTransaction) => Promise<boolean>;
   onExecuteBotPhase: () => Promise<any>;
   onQuit: () => void;
 }
@@ -71,6 +77,7 @@ export function GameScreen({
   draftOptions,
   marketPrices,
   shopStock,
+  bankInfo,
   loading,
   error,
   onAction,
@@ -78,6 +85,7 @@ export function GameScreen({
   onSelectDraft,
   onEndShopPhase,
   onMarketTransaction,
+  onBankTransaction,
   onExecuteBotPhase,
   onQuit,
 }: Props) {
@@ -108,13 +116,15 @@ export function GameScreen({
 
   // Handle action selection from menu
   const handleActionSelect = useCallback(
-    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market') => {
+    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank') => {
       if (action === 'overview') {
         setView('overview');
       } else if (action === 'bots') {
         setView('bots');
       } else if (action === 'market') {
         setView('market');
+      } else if (action === 'bank') {
+        setView('bank');
       } else if (action === 'end_phase') {
         await onEndPlayerPhase();
         if (round.phase === 'shop') {
@@ -483,6 +493,17 @@ export function GameScreen({
               marketPrices={marketPrices}
               shopStock={shopStock}
               onTransaction={onMarketTransaction}
+              onClose={() => setView('main')}
+            />
+          </Box>
+        )}
+
+        {view === 'bank' && bankInfo && (
+          <Box marginTop={1}>
+            <BankView
+              empire={empire}
+              bankInfo={bankInfo}
+              onTransaction={onBankTransaction}
               onClose={() => setView('main')}
             />
           </Box>
