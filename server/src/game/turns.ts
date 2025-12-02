@@ -15,7 +15,6 @@ import {
   getModifier,
   getEraModifier,
   getTotalBuildings,
-  hasPolicy,
   hasAdvisorEffect,
   getAdvisorEffectModifier,
 } from './empire';
@@ -313,7 +312,8 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   }
 
   // Apply per-turn bank interest (rate is per-round APR / turns per round)
-  const hasDoubleInterest = hasPolicy(empire, 'bank_charter');
+  // Royal Banker advisor doubles interest
+  const hasDoubleInterest = hasAdvisorEffect(empire, 'double_bank_interest');
   const bankInterest = applyBankInterest(empire, TURNS_PER_ROUND, hasDoubleInterest);
 
   // Apply per-turn loan interest
@@ -447,8 +447,8 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
   let turnsActuallySpent = 0;
   let stoppedEarly: TurnStopReason | undefined;
 
-  // Check for open_borders policy (double_explore)
-  const exploreMultiplier = hasPolicy(empire, 'open_borders') ? 2 : 1;
+  // Check for Frontier Scout advisor (double_explore)
+  const exploreMultiplier = hasAdvisorEffect(empire, 'double_explore') ? 2 : 1;
 
   for (let i = 0; i < turns; i++) {
     // Process economy (no bonus for explore)
@@ -475,7 +475,7 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
       break;
     }
 
-    // Gain land (doubled with open_borders policy)
+    // Gain land (doubled with Frontier Scout advisor)
     const landGain = calcLandGain(empire) * exploreMultiplier;
     empire.resources.land += landGain;
     empire.resources.freeland += landGain;
@@ -516,8 +516,8 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
   let turnsActuallySpent = 0;
   let stoppedEarly: TurnStopReason | undefined;
 
-  // Check for war_economy policy (farm_industry) - produces troops while farming
-  const producesTroops = hasPolicy(empire, 'war_economy');
+  // Check for War Profiteer advisor (farm_industry) - produces troops while farming
+  const producesTroops = hasAdvisorEffect(empire, 'farm_industry');
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'farm');

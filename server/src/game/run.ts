@@ -6,7 +6,7 @@ import { isLoanEmergency } from './bank';
 import { processAttack } from './combat';
 import { castSelfSpell, castEnemySpell } from './spells';
 import { generateBots, processBotPhase, updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './bot';
-import { generateMarketPrices, generateShopStock, generateDraftOptions, applyDraftSelection, executeMarketTransaction } from './shop';
+import { generateMarketPrices, generateShopStock, generateDraftOptions, applyDraftSelection, executeMarketTransaction, calculateRerollCost } from './shop';
 
 // ============================================
 // GAME RUN CREATION
@@ -47,6 +47,10 @@ export function createGameRun(
     marketPrices,
     shopStock: null,
     draftOptions: null,
+
+    // Reroll system - initialized when shop phase starts
+    rerollCost: null,
+    rerollCount: 0,
 
     intel: {},
 
@@ -130,8 +134,9 @@ export function executeTurn(
         };
       }
 
-      // Check attack limit per round
-      if (empire.attacksThisRound >= COMBAT.attacksPerRound) {
+      // Check attack limit per round (Warmaster advisor grants +1 attack)
+      const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
+      if (empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks) {
         return {
           success: false,
           turnsSpent: 0,
@@ -301,8 +306,9 @@ export function executeTurn(
 
         // Fight spell uses attack counter, other offensive spells use spell counter
         const isFightSpell = request.spell === 'fight';
+        const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
         const limitReached = isFightSpell
-          ? empire.attacksThisRound >= COMBAT.attacksPerRound
+          ? empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks
           : empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound;
 
         if (limitReached) {
@@ -421,6 +427,10 @@ export function endPlayerPhase(run: GameRun): void {
   run.shopStock = generateShopStock(run.playerEmpire, run.marketPrices);
   run.draftOptions = generateDraftOptions(phaseSeed + 500, run.playerEmpire);
 
+  // Lock reroll cost at 20% of current gold (prevents gaming by spending gold first)
+  run.rerollCost = calculateRerollCost(run.playerEmpire);
+  run.rerollCount = 0;
+
   run.updatedAt = Date.now();
 }
 
@@ -444,6 +454,45 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
   run.updatedAt = Date.now();
 
   return { success: true };
+}
+
+export function rerollDraft(run: GameRun): { success: boolean; error?: string; cost?: number } {
+  if (run.round.phase !== 'shop') {
+    return { success: false, error: 'Not in shop phase' };
+  }
+
+  if (!run.draftOptions) {
+    return { success: false, error: 'No draft options to reroll (already selected)' };
+  }
+
+  if (run.rerollCost === null) {
+    return { success: false, error: 'Reroll cost not set' };
+  }
+
+  // Check if player can afford the reroll
+  if (run.playerEmpire.resources.gold < run.rerollCost) {
+    return { success: false, error: `Not enough gold. Need ${run.rerollCost.toLocaleString()}` };
+  }
+
+  // Deduct the cost
+  run.playerEmpire.resources.gold -= run.rerollCost;
+  run.rerollCount++;
+
+  // Generate new draft options with a different seed
+  const rerollSeed = run.seed + run.round.number * 1000 + 500 + run.rerollCount * 100;
+  run.draftOptions = generateDraftOptions(rerollSeed, run.playerEmpire);
+
+  run.updatedAt = Date.now();
+
+  return { success: true, cost: run.rerollCost };
+}
+
+export function getRerollInfo(run: GameRun): { cost: number | null; canAfford: boolean; rerollCount: number } {
+  return {
+    cost: run.rerollCost,
+    canAfford: run.rerollCost !== null && run.playerEmpire.resources.gold >= run.rerollCost,
+    rerollCount: run.rerollCount,
+  };
 }
 
 export function endShopPhase(run: GameRun): void {

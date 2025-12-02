@@ -21,6 +21,34 @@ import { processEconomy, applyEconomyResult } from './turns';
 // From military.php lines 113-131
 // ============================================
 
+// Get unit specialist bonuses from advisors
+// Returns per-unit offense bonus and defense penalty for each troop type
+function getUnitSpecialistBonuses(empire: Empire): {
+  offenseBonus: Record<UnitType, number>;
+  defensePenalty: Record<UnitType, number>;
+} {
+  const offenseBonus: Record<UnitType, number> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
+  const defensePenalty: Record<UnitType, number> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
+
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'unit_specialist') {
+      const { boostUnits, nerfUnits, offenseBonus: bonus, defensePenalty: penalty } = advisor.effect;
+      if (boostUnits && bonus) {
+        for (const unit of boostUnits) {
+          offenseBonus[unit] += bonus;
+        }
+      }
+      if (nerfUnits && penalty) {
+        for (const unit of nerfUnits) {
+          defensePenalty[unit] += penalty;
+        }
+      }
+    }
+  }
+
+  return { offenseBonus, defensePenalty };
+}
+
 export function calculateOffensePower(empire: Empire): number {
   const era = empire.era;
   const stats = UNIT_STATS[era];
@@ -32,11 +60,14 @@ export function calculateOffensePower(empire: Empire): number {
   const dynamicOffensePerAttack = getAdvisorEffectModifier(empire, 'dynamic_offense');
   const dynamicOffenseBonus = 1 + (dynamicOffensePerAttack * empire.attacksThisRound);
 
+  // Unit specialist bonuses (flat per-unit additions)
+  const specialist = getUnitSpecialistBonuses(empire);
+
   let power = 0;
-  power += empire.troops.trparm * stats.trparm[0];
-  power += empire.troops.trplnd * stats.trplnd[0];
-  power += empire.troops.trpfly * stats.trpfly[0];
-  power += empire.troops.trpsea * stats.trpsea[0];
+  power += empire.troops.trparm * (stats.trparm[0] + specialist.offenseBonus.trparm);
+  power += empire.troops.trplnd * (stats.trplnd[0] + specialist.offenseBonus.trplnd);
+  power += empire.troops.trpfly * (stats.trpfly[0] + specialist.offenseBonus.trpfly);
+  power += empire.troops.trpsea * (stats.trpsea[0] + specialist.offenseBonus.trpsea);
   power += empire.troops.trpwiz * WIZARD_POWER;
 
   return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus);
@@ -48,11 +79,14 @@ export function calculateDefensePower(empire: Empire): number {
   const defenseModifier = getModifier(empire, 'defense');
   const healthModifier = empire.health / 100;
 
+  // Unit specialist penalties (flat per-unit subtractions)
+  const specialist = getUnitSpecialistBonuses(empire);
+
   let power = 0;
-  power += empire.troops.trparm * stats.trparm[1];
-  power += empire.troops.trplnd * stats.trplnd[1];
-  power += empire.troops.trpfly * stats.trpfly[1];
-  power += empire.troops.trpsea * stats.trpsea[1];
+  power += empire.troops.trparm * Math.max(0, stats.trparm[1] - specialist.defensePenalty.trparm);
+  power += empire.troops.trplnd * Math.max(0, stats.trplnd[1] - specialist.defensePenalty.trplnd);
+  power += empire.troops.trpfly * Math.max(0, stats.trpfly[1] - specialist.defensePenalty.trpfly);
+  power += empire.troops.trpsea * Math.max(0, stats.trpsea[1] - specialist.defensePenalty.trpsea);
   power += empire.troops.trpwiz * WIZARD_POWER;
 
   // Tower defense: 450 per tower, but requires soldiers to man them

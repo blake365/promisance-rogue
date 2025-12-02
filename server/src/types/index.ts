@@ -44,7 +44,7 @@ export type AttackType =
 
 export type BonusRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
-export type BonusType = 'advisor' | 'tech' | 'edict' | 'policy';
+export type BonusType = 'advisor' | 'tech' | 'edict';
 
 export type GamePhase = 'player' | 'shop' | 'bot' | 'complete';
 
@@ -153,6 +153,11 @@ export interface AdvisorEffect {
   type: string;
   modifier: number;
   condition?: string;
+  // For unit_specialist type: boost offense for some units, reduce defense for others
+  boostUnits?: ('trparm' | 'trplnd' | 'trpfly' | 'trpsea')[];
+  nerfUnits?: ('trparm' | 'trplnd' | 'trpfly' | 'trpsea')[];
+  offenseBonus?: number;    // Added to per-unit offense for boostUnits
+  defensePenalty?: number;  // Subtracted from per-unit defense for nerfUnits
 }
 
 export interface Tech {
@@ -186,7 +191,7 @@ export interface Policy {
 
 export interface DraftOption {
   type: BonusType;
-  item: Advisor | Tech | Edict | Policy;
+  item: Advisor | Tech | Edict;
 }
 
 // ============================================
@@ -295,6 +300,10 @@ export interface GameRun {
   marketPrices: MarketPrices;
   shopStock: ShopStock | null; // Available during shop phase only
   draftOptions: DraftOption[] | null;
+
+  // Reroll system - cost locked when shop phase starts
+  rerollCost: number | null; // 20% of gold, locked at shop start
+  rerollCount: number; // Number of rerolls used this shop phase
 
   // Spy intel gathered on bots (keyed by bot id)
   intel: Record<string, SpyIntel>;
