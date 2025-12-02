@@ -3,7 +3,7 @@
  * Reference: classes/prom_empire.php (calcFinances, calcProvisions, calcPCI, calcSizeBonus)
  */
 
-import type { Empire, TurnAction, TurnActionResult, Buildings, Troops } from '../types';
+import type { Empire, TurnAction, TurnActionResult, Buildings, Troops, TurnStopReason } from '../types';
 import {
   ECONOMY,
   UNIT_COSTS,
@@ -18,7 +18,7 @@ import {
   hasPolicy,
   hasAdvisorEffect,
 } from './empire';
-import { applyBankInterest, applyLoanInterest } from './bank';
+import { applyBankInterest, applyLoanInterest, isLoanEmergency } from './bank';
 
 // ============================================
 // SIZE BONUS (from prom_empire.php calcSizeBonus)
@@ -231,6 +231,9 @@ export interface EconomyResult {
 export interface ApplyEconomyExtra {
   bankInterest: number;
   loanInterest: number;
+  // Emergency flags (from QM Promisance TURNS_TROUBLE_* flags)
+  foodEmergency: boolean;
+  loanEmergency: boolean;
 }
 
 export function processEconomy(empire: Empire, actionBonus?: TurnAction): EconomyResult {
@@ -294,10 +297,15 @@ export function processEconomy(empire: Empire, actionBonus?: TurnAction): Econom
 }
 
 export function applyEconomyResult(empire: Empire, result: EconomyResult): ApplyEconomyExtra {
+  // Track emergency conditions (from QM Promisance TURNS_TROUBLE_* flags)
+  let foodEmergency = false;
+  let loanEmergency = false;
+
   // Apply gold change
   empire.resources.gold += result.netGold;
 
-  // Handle negative gold -> add to loan
+  // Handle negative gold -> add to loan (QM Promisance: "simply running out of money
+  // no longer halts turns; instead, it just adds it to your loan")
   if (empire.resources.gold < 0) {
     empire.loan -= empire.resources.gold;
     empire.resources.gold = 0;
@@ -310,12 +318,19 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   // Apply per-turn loan interest
   const loanInterest = applyLoanInterest(empire, TURNS_PER_ROUND);
 
+  // Check for emergency loan limit (QM Promisance TURNS_TROUBLE_LOAN)
+  // Loan exceeds 2x max loan - halt turns
+  if (isLoanEmergency(empire)) {
+    loanEmergency = true;
+  }
+
   // Apply food change
   empire.resources.food += result.netFood;
 
-  // Handle starvation (3% desertion)
+  // Handle starvation (3% desertion) - QM Promisance TURNS_TROUBLE_FOOD
   if (result.starvation || empire.resources.food < 0) {
     empire.resources.food = Math.max(0, empire.resources.food);
+    foodEmergency = true;
 
     const desertionRate = ECONOMY.starvationDesertion;
     empire.peasants = Math.floor(empire.peasants * (1 - desertionRate));
@@ -377,7 +392,7 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   // Recalculate networth
   empire.networth = calculateNetworth(empire);
 
-  return { bankInterest, loanInterest };
+  return { bankInterest, loanInterest, foodEmergency, loanEmergency };
 }
 
 // ============================================
@@ -423,6 +438,8 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   // Check for open_borders policy (double_explore)
   const exploreMultiplier = hasPolicy(empire, 'open_borders') ? 2 : 1;
@@ -431,6 +448,7 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     // Process economy (no bonus for explore)
     const economyResult = processEconomy(empire);
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -440,6 +458,16 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
 
     // Gain land (doubled with open_borders policy)
     const landGain = calcLandGain(empire) * exploreMultiplier;
@@ -452,7 +480,7 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
 
   return {
     success: true,
-    turnsSpent: turns,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome,
     expenses: totalExpenses,
@@ -463,6 +491,7 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     landGained: totalLand,
     empire,
   };
@@ -478,6 +507,8 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   // Check for war_economy policy (farm_industry) - produces troops while farming
   const producesTroops = hasPolicy(empire, 'war_economy');
@@ -485,6 +516,7 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'farm');
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -494,6 +526,16 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
 
     // With war_economy, also produce troops (at 50% rate)
     if (producesTroops) {
@@ -517,7 +559,7 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
 
   return {
     success: true,
-    turnsSpent: turns,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome,
     expenses: totalExpenses,
@@ -528,6 +570,7 @@ export function processFarm(empire: Empire, turns: number): TurnActionResult {
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     empire,
   };
 }
@@ -542,10 +585,13 @@ export function processCash(empire: Empire, turns: number): TurnActionResult {
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'cash');
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -555,11 +601,21 @@ export function processCash(empire: Empire, turns: number): TurnActionResult {
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
   }
 
   return {
     success: true,
-    turnsSpent: turns,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome,
     expenses: totalExpenses,
@@ -570,6 +626,7 @@ export function processCash(empire: Empire, turns: number): TurnActionResult {
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     empire,
   };
 }
@@ -584,10 +641,13 @@ export function processMeditate(empire: Empire, turns: number): TurnActionResult
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'meditate');
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -597,11 +657,21 @@ export function processMeditate(empire: Empire, turns: number): TurnActionResult
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
   }
 
   return {
     success: true,
-    turnsSpent: turns,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome,
     expenses: totalExpenses,
@@ -612,6 +682,7 @@ export function processMeditate(empire: Empire, turns: number): TurnActionResult
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     empire,
   };
 }
@@ -626,10 +697,13 @@ export function processIndustry(empire: Empire, turns: number): TurnActionResult
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turns; i++) {
     const economyResult = processEconomy(empire, 'industry');
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -644,11 +718,21 @@ export function processIndustry(empire: Empire, turns: number): TurnActionResult
     totalTroops.trplnd! += economyResult.troopsProduced.trplnd ?? 0;
     totalTroops.trpfly! += economyResult.troopsProduced.trpfly ?? 0;
     totalTroops.trpsea! += economyResult.troopsProduced.trpsea ?? 0;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
   }
 
   return {
     success: true,
-    turnsSpent: turns,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome,
     expenses: totalExpenses,
@@ -659,6 +743,7 @@ export function processIndustry(empire: Empire, turns: number): TurnActionResult
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     empire,
   };
 }
@@ -734,10 +819,13 @@ export function processBuild(
   let totalLoanPayment = 0;
   let totalBankInterest = 0;
   let totalLoanInterest = 0;
+  let turnsActuallySpent = 0;
+  let stoppedEarly: TurnStopReason | undefined;
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(empire);
     const extras = applyEconomyResult(empire, economyResult);
+    turnsActuallySpent++;
 
     totalIncome += economyResult.income;
     totalExpenses += economyResult.expenses;
@@ -747,9 +835,20 @@ export function processBuild(
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+
+    // Check for emergency conditions (QM Promisance interruptable turn processing)
+    if (extras.foodEmergency) {
+      stoppedEarly = 'food';
+      break;
+    }
+    if (extras.loanEmergency) {
+      stoppedEarly = 'loan';
+      break;
+    }
   }
 
-  // Apply building construction
+  // Apply building construction (buildings still complete even if stopped early -
+  // the cost was already validated upfront)
   empire.resources.gold -= totalCost;
 
   empire.buildings.bldpop += allocation.bldpop ?? 0;
@@ -766,7 +865,7 @@ export function processBuild(
 
   return {
     success: true,
-    turnsSpent: turnsNeeded,
+    turnsSpent: turnsActuallySpent,
     turnsRemaining: 0,
     income: totalIncome - totalCost,
     expenses: totalExpenses,
@@ -777,6 +876,7 @@ export function processBuild(
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,
+    stoppedEarly,
     buildingsConstructed: allocation,
     empire,
   };

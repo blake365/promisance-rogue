@@ -417,6 +417,9 @@ export interface TurnActionRequest {
   spellTargetId?: string;
 }
 
+// Reason turns stopped early (matching QM Promisance TURNS_TROUBLE_* flags)
+export type TurnStopReason = 'food' | 'loan';
+
 export interface TurnActionResult {
   success: boolean;
   turnsSpent: number;
@@ -434,6 +437,9 @@ export interface TurnActionResult {
   loanPayment: number;
   bankInterest: number;
   loanInterest: number;
+
+  // Emergency stop (from QM Promisance interruptable turn processing)
+  stoppedEarly?: TurnStopReason;
 
   // Action-specific results
   landGained?: number;
