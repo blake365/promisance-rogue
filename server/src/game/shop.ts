@@ -267,11 +267,11 @@ export function generateDraftOptions(
     let option: DraftOption;
 
     if (typeRoll < 40) {
-      // Advisor (40%) - but only if not at max advisors
-      const atMaxAdvisors = empire.advisors.length >= SHOP.maxAdvisors;
+      // Advisor (40%) - always show advisors even at max so players can see upgrades
+      // and strategically dismiss to make room
       const advisors = getItemsByRarity(ADVISORS, rarity);
 
-      if (!atMaxAdvisors && advisors.length > 0) {
+      if (advisors.length > 0) {
         const advisor = selectRandomItem(advisors, rng);
         // Don't offer advisors already owned
         if (!empire.advisors.find((a) => a.id === advisor.id)) {
@@ -288,15 +288,7 @@ export function generateDraftOptions(
           }
         }
       } else {
-        // At max advisors or no advisors available - fallback to tech/edict
-        const techs = TECHS.filter(
-          (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
-        );
-        if (techs.length > 0) {
-          option = { type: 'tech', item: selectRandomItem(techs, rng) };
-        } else {
-          option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
-        }
+        option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
       }
     } else if (typeRoll < 65) {
       // Tech (25%)
