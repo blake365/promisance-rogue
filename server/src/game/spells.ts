@@ -11,6 +11,7 @@ import {
   hasActiveShield,
   canChangeEra,
   subtractTroops,
+  getAdvisorEffectModifier,
 } from './empire';
 import { processEconomy, applyEconomyResult, calcSizeBonus } from './turns';
 
@@ -106,7 +107,12 @@ export function getWizardPowerEnemy(caster: Empire, target: Empire): number {
   // eratio = max(other.trpwiz, 1) / other.land * 1.05 * other.magic_modifier
   const eratio = Math.max(target.troops.trpwiz, 1) / target.resources.land * 1.05 * targetMagic;
 
-  return uratio / eratio;
+  // Mactalon the Spymaster: spy_ratio reduces the ratio requirement
+  // A -25% spy_ratio means we multiply the result by 1.25 (making spells easier)
+  const spyRatioBonus = getAdvisorEffectModifier(caster, 'spy_ratio');
+  const spyRatioMultiplier = 1 / (1 + spyRatioBonus); // -0.25 -> 1/0.75 = 1.33x
+
+  return (uratio / eratio) * spyRatioMultiplier;
 }
 
 // ============================================

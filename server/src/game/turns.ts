@@ -17,6 +17,7 @@ import {
   getTotalBuildings,
   hasPolicy,
   hasAdvisorEffect,
+  getAdvisorEffectModifier,
 } from './empire';
 import { applyBankInterest, applyLoanInterest, isLoanEmergency } from './bank';
 
@@ -344,12 +345,14 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   // ============================================
   // PEASANT GROWTH (from prom_empire.php lines 960-974)
   // Population grows toward base capacity, modified by tax rate
+  // Bella of Doublehomes multiplies peasants per acre
   // ============================================
   const taxRate = empire.taxRate / 100;
   // Base population capacity: (land * 2 + freeland * 5 + bldpop * 60) / (0.95 + taxrate)
-  // Simplified for rogue (no bldpop): use land-based capacity
+  // Bella multiplies the land-based capacity (default 1.0 if no advisor)
+  const peasantDensity = getAdvisorEffectModifier(empire, 'peasant_density') || 1.0;
   const popbase = Math.round(
-    (empire.resources.land * 2 + empire.resources.freeland * 5 + empire.buildings.bldpop * 60) /
+    (empire.resources.land * 2 * peasantDensity + empire.resources.freeland * 5 + empire.buildings.bldpop * 60) /
     (0.95 + taxRate)
   );
 
@@ -383,9 +386,12 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   empire.troops.trpwiz += result.wizardsProduced;
 
   // Health regeneration (slower at high tax rates)
+  // Brome the Healer adds +2 health per turn
   if (empire.health < 100) {
     const taxPenalty = empire.taxRate > 50 ? (empire.taxRate - 50) / 100 : 0;
-    const healthRegen = Math.max(0, ECONOMY.healthRegenPerTurn * (1 - taxPenalty));
+    const baseHealthRegen = Math.max(0, ECONOMY.healthRegenPerTurn * (1 - taxPenalty));
+    const advisorHealthRegen = getAdvisorEffectModifier(empire, 'health_regen');
+    const healthRegen = baseHealthRegen + advisorHealthRegen;
     empire.health = Math.min(100, empire.health + healthRegen);
   }
 
