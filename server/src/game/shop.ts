@@ -267,9 +267,11 @@ export function generateDraftOptions(
     let option: DraftOption;
 
     if (typeRoll < 40) {
-      // Advisor (40%)
+      // Advisor (40%) - but only if not at max advisors
+      const atMaxAdvisors = empire.advisors.length >= SHOP.maxAdvisors;
       const advisors = getItemsByRarity(ADVISORS, rarity);
-      if (advisors.length > 0) {
+
+      if (!atMaxAdvisors && advisors.length > 0) {
         const advisor = selectRandomItem(advisors, rng);
         // Don't offer advisors already owned
         if (!empire.advisors.find((a) => a.id === advisor.id)) {
@@ -286,7 +288,15 @@ export function generateDraftOptions(
           }
         }
       } else {
-        option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+        // At max advisors or no advisors available - fallback to tech/edict
+        const techs = TECHS.filter(
+          (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
+        );
+        if (techs.length > 0) {
+          option = { type: 'tech', item: selectRandomItem(techs, rng) };
+        } else {
+          option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+        }
       }
     } else if (typeRoll < 65) {
       // Tech (25%)
@@ -330,9 +340,13 @@ export function applyDraftSelection(
   empire: Empire,
   option: DraftOption,
   bots?: import('../types').BotEmpire[]
-): void {
+): { success: boolean; error?: string } {
   switch (option.type) {
     case 'advisor': {
+      // Check advisor limit
+      if (empire.advisors.length >= SHOP.maxAdvisors) {
+        return { success: false, error: `Cannot have more than ${SHOP.maxAdvisors} advisors. Dismiss one first.` };
+      }
       const advisor = option.item as Advisor;
       empire.advisors.push(advisor);
       break;
@@ -358,6 +372,42 @@ export function applyDraftSelection(
   }
 
   empire.networth = calculateNetworth(empire);
+  return { success: true };
+}
+
+// ============================================
+// DISMISS ADVISOR
+// ============================================
+
+export function dismissAdvisor(
+  empire: Empire,
+  advisorId: string
+): { success: boolean; error?: string; dismissed?: Advisor } {
+  const advisorIndex = empire.advisors.findIndex((a) => a.id === advisorId);
+
+  if (advisorIndex === -1) {
+    return { success: false, error: 'Advisor not found' };
+  }
+
+  const dismissed = empire.advisors.splice(advisorIndex, 1)[0];
+  empire.networth = calculateNetworth(empire);
+
+  return { success: true, dismissed };
+}
+
+// ============================================
+// CHECK ADVISOR CAPACITY
+// ============================================
+
+export function canAddAdvisor(empire: Empire): boolean {
+  return empire.advisors.length < SHOP.maxAdvisors;
+}
+
+export function getAdvisorCapacity(empire: Empire): { current: number; max: number } {
+  return {
+    current: empire.advisors.length,
+    max: SHOP.maxAdvisors,
+  };
 }
 
 function applyEdictEffect(
