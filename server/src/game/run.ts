@@ -509,9 +509,17 @@ export function executeTurn(
 export function endPlayerPhase(run: GameRun): void {
   if (run.round.phase !== 'player') return;
 
+  run.round.turnsRemaining = 0;
+
+  // Skip shop and bot phases on final round - game ends after player's last turn
+  if (run.round.number >= TOTAL_ROUNDS) {
+    run.round.phase = 'complete';
+    run.updatedAt = Date.now();
+    return;
+  }
+
   // Move to shop phase
   run.round.phase = 'shop';
-  run.round.turnsRemaining = 0;
 
   // Generate market prices using current RNG state (Balatro-style: state flows from player actions)
   const marketResult = generateMarketPrices(run.rngState);
