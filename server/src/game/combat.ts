@@ -15,6 +15,7 @@ import {
   getAdvisorEffectModifier,
 } from './empire';
 import { processEconomy, applyEconomyResult } from './turns';
+import { getBotInnateBonusValue } from './bot/strategies';
 
 // ============================================
 // POWER CALCULATIONS
@@ -90,7 +91,10 @@ export function calculateOffensePower(empire: Empire): number {
   const healthMissing = 100 - empire.health;
   const secondWindBonus = secondWindMod * Math.floor(healthMissing / 10);
 
-  return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus * (1 + buildingOffenseBonus + peasantBonus + secondWindBonus));
+  // Bot innate offense bonus (e.g., General Vask gets +15%)
+  const botOffenseBonus = getBotInnateBonusValue(empire, 'offense') ?? 0;
+
+  return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus * (1 + buildingOffenseBonus + peasantBonus + secondWindBonus + botOffenseBonus));
 }
 
 export function calculateDefensePower(empire: Empire): number {
@@ -125,7 +129,10 @@ export function calculateDefensePower(empire: Empire): number {
   const healthMissing = 100 - empire.health;
   const secondWindBonus = secondWindMod * Math.floor(healthMissing / 10);
 
-  return Math.round(power * defenseModifier * healthModifier * (1 + buildingDefenseBonus + secondWindBonus));
+  // Bot innate defense bonus (e.g., Grain Mother gets +25%)
+  const botDefenseBonus = getBotInnateBonusValue(empire, 'defense') ?? 0;
+
+  return Math.round(power * defenseModifier * healthModifier * (1 + buildingDefenseBonus + secondWindBonus + botDefenseBonus));
 }
 
 // ============================================

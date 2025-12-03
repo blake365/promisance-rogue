@@ -16,6 +16,7 @@ export type TurnAction =
   | 'meditate'
   | 'industry'
   | 'build'
+  | 'demolish'
   | 'attack'
   | 'spell';
 
@@ -226,6 +227,7 @@ export interface BotPersonality {
     meditate: number;
     industry: number;
     build: number;
+    demolish: number;
     attack: number;
     spell: number;
   };
@@ -435,6 +437,7 @@ export interface TurnActionRequest {
   turns: number;
 
   buildingAllocation?: Partial<Buildings>;
+  demolishAllocation?: Partial<Buildings>;
   targetId?: string;
   attackType?: AttackType;
   spell?: SpellType;

@@ -23,6 +23,7 @@ import {
   ECONOMY,
 } from './constants';
 import { MASTERY_BONUS_PER_LEVEL } from './bonuses/techs';
+import { getBotInnateBonusValue } from './bot/strategies';
 
 // ============================================
 // EMPIRE CREATION
@@ -433,6 +434,17 @@ export function canAttackEra(attacker: Empire, defender: Empire, currentRound?: 
   if (attacker.era === defender.era) {
     return true;
   }
+
+  // Bots with crossEraAttacks innate bonus can always attack any era
+  if (getBotInnateBonusValue(attacker, 'crossEraAttacks')) {
+    return true;
+  }
+
+  // Players with Time Weaver advisor (permanent_gate) can attack any era
+  if (hasAdvisorEffect(attacker, 'permanent_gate')) {
+    return true;
+  }
+
   return hasActiveGate(attacker, currentRound);
 }
 

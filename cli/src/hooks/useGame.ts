@@ -16,6 +16,8 @@ import {
   type SpyIntel,
   type DefeatReason,
   type RerollInfo,
+  type NewsItem,
+  type BotStanding,
 } from '../api/client.js';
 
 interface GameState {

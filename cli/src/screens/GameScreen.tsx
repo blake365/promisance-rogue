@@ -19,6 +19,7 @@ import type {
   SpyIntel,
   DefeatReason,
   RerollInfo,
+  BotPhaseResponse,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -35,6 +36,7 @@ import { MarketView } from '../components/MarketView.js';
 import { BankView } from '../components/BankView.js';
 import { AdvisorList } from '../components/AdvisorList.js';
 import { GuideScreen } from '../components/GuideScreen.js';
+import { NewsDisplay } from '../components/NewsDisplay.js';
 
 type ViewMode =
   | 'main'
@@ -55,6 +57,7 @@ type ViewMode =
   | 'draft'
   | 'advisors'
   | 'bot_phase'
+  | 'bot_phase_results'
   | 'guide';
 
 // Tech bonus percentages per level
@@ -125,7 +128,7 @@ interface Props {
   onEndShopPhase: () => Promise<boolean>;
   onMarketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   onBankTransaction: (transaction: BankTransaction) => Promise<boolean>;
-  onExecuteBotPhase: () => Promise<any>;
+  onExecuteBotPhase: () => Promise<BotPhaseResponse | null>;
   onClearError: () => void;
   onQuit: () => void;
 }
@@ -163,6 +166,7 @@ export function GameScreen({
   const [selectedTargetName, setSelectedTargetName] = useState<string | null>(null);
   const [selectedAttackType, setSelectedAttackType] = useState<AttackType | null>(null);
   const [selectedSpell, setSelectedSpell] = useState<SpellType | null>(null);
+  const [botPhaseResult, setBotPhaseResult] = useState<BotPhaseResponse | null>(null);
 
   // Handle global keys
   useInput((input, key) => {
@@ -389,8 +393,13 @@ export function GameScreen({
 
   // Handle bot phase
   const handleBotPhase = useCallback(async () => {
-    await onExecuteBotPhase();
-    setView('main');
+    const result = await onExecuteBotPhase();
+    if (result) {
+      setBotPhaseResult(result);
+      setView('bot_phase_results');
+    } else {
+      setView('main');
+    }
   }, [onExecuteBotPhase]);
 
   // Auto-transition based on phase changes
@@ -464,7 +473,21 @@ export function GameScreen({
               gold={empire.resources.gold}
               landTotal={empire.resources.land}
               currentBuildings={empire.buildings}
-              onConfirm={handleBuildingConfirm}
+              onBuild={handleBuildingConfirm}
+              onDemolish={async (allocation) => {
+                const request: TurnActionRequest = {
+                  action: 'demolish',
+                  turns: 0,
+                  demolishAllocation: allocation,
+                };
+                const result = await onAction(request);
+                if (result) {
+                  setLastResult(result);
+                  setView('action_result');
+                } else {
+                  setView('main');
+                }
+              }}
               onCancel={() => setView('main')}
             />
           </Box>
@@ -726,6 +749,28 @@ export function GameScreen({
               </Box>
             )}
 
+            {/* Buildings Demolished Section */}
+            {lastResult.buildingsConstructed && Object.values(lastResult.buildingsConstructed).some((v) => v && v < 0) && (
+              <Box marginTop={1} flexDirection="column">
+                <Text bold color="red">━━ Buildings Demolished ━━</Text>
+                {lastResult.buildingsConstructed.bldcash !== undefined && lastResult.buildingsConstructed.bldcash < 0 && (
+                  <Text>  Markets:  <Text color="red">{lastResult.buildingsConstructed.bldcash}</Text></Text>
+                )}
+                {lastResult.buildingsConstructed.bldtrp !== undefined && lastResult.buildingsConstructed.bldtrp < 0 && (
+                  <Text>  Barracks: <Text color="red">{lastResult.buildingsConstructed.bldtrp}</Text></Text>
+                )}
+                {lastResult.buildingsConstructed.bldcost !== undefined && lastResult.buildingsConstructed.bldcost < 0 && (
+                  <Text>  Exchanges:<Text color="red">{lastResult.buildingsConstructed.bldcost}</Text></Text>
+                )}
+                {lastResult.buildingsConstructed.bldfood !== undefined && lastResult.buildingsConstructed.bldfood < 0 && (
+                  <Text>  Farms:    <Text color="red">{lastResult.buildingsConstructed.bldfood}</Text></Text>
+                )}
+                {lastResult.buildingsConstructed.bldwiz !== undefined && lastResult.buildingsConstructed.bldwiz < 0 && (
+                  <Text>  Towers:   <Text color="red">{lastResult.buildingsConstructed.bldwiz}</Text></Text>
+                )}
+              </Box>
+            )}
+
             {/* Combat Result Section */}
             {lastResult.combatResult && (
               <Box marginTop={1} flexDirection="column">
@@ -950,8 +995,8 @@ export function GameScreen({
     );
   }
 
-  // Bot Phase
-  if (round.phase === 'bot') {
+  // Bot Phase - waiting to execute
+  if (round.phase === 'bot' && view !== 'bot_phase_results') {
     return (
       <Box flexDirection="column" padding={1} alignItems="center">
         <Text bold color="red">Bot Phase - Round {round.number}</Text>
@@ -962,6 +1007,22 @@ export function GameScreen({
           <BotPhasePrompt onExecute={handleBotPhase} />
         </Box>
       </Box>
+    );
+  }
+
+  // Bot Phase Results - show news and standings
+  if (view === 'bot_phase_results' && botPhaseResult) {
+    return (
+      <NewsDisplay
+        news={botPhaseResult.news}
+        standings={botPhaseResult.standings}
+        playerId={empire.id}
+        roundNumber={botPhaseResult.round.number - 1}
+        onContinue={() => {
+          setBotPhaseResult(null);
+          setView('main');
+        }}
+      />
     );
   }
 

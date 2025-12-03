@@ -438,6 +438,7 @@ export function executeTurn(
     default:
       result = executeTurnAction(empire, action, turns, {
         buildingAllocation: request.buildingAllocation,
+        demolishAllocation: request.demolishAllocation,
       });
   }
 
@@ -621,7 +622,8 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
     run.botEmpires,
     run.playerEmpire,
     run.round.number,
-    phaseSeed
+    phaseSeed,
+    run.marketPrices
   );
 
   // Update run state with results

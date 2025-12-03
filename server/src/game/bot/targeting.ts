@@ -27,11 +27,15 @@ export function scoreTargets(
     ...otherBots.filter(b => b.id !== bot.id && b.health > 0),
   ];
 
+  // Find the leader (highest networth) for gang-up mechanics
+  const leader = findLeader(player, otherBots.filter(b => b.id !== bot.id && b.health > 0));
+
   const scores: TargetScore[] = [];
   const botOffense = calculateOffensePower(bot);
 
   for (const target of validTargets) {
-    const result = scoreTarget(bot, target, botOffense, currentRound);
+    const isLeader = leader !== null && target.id === leader.id;
+    const result = scoreTarget(bot, target, botOffense, currentRound, isLeader);
     scores.push(result);
   }
 
@@ -39,11 +43,34 @@ export function scoreTargets(
   return scores.sort((a, b) => b.score - a.score);
 }
 
+/**
+ * Find the current leader (highest networth empire).
+ * Used for gang-up mechanics - bots will prioritize attacking the leader.
+ */
+function findLeader(
+  player: Empire,
+  otherBots: BotEmpire[]
+): Empire | BotEmpire | null {
+  const allEmpires: (Empire | BotEmpire)[] = [player, ...otherBots];
+
+  if (allEmpires.length === 0) return null;
+
+  let leader = allEmpires[0];
+  for (const empire of allEmpires) {
+    if (empire.networth > leader.networth) {
+      leader = empire;
+    }
+  }
+
+  return leader;
+}
+
 function scoreTarget(
   bot: BotEmpire,
   target: Empire | BotEmpire,
   botOffense: number,
-  currentRound: number
+  currentRound: number,
+  isLeader: boolean = false
 ): TargetScore {
   const reasons: string[] = [];
   let score = 0;
@@ -113,6 +140,13 @@ function scoreTarget(
   if (bot.memory.lastAttackedBy === target.id) {
     score += 25; // Strong preference for retaliation target
     reasons.push('retaliation');
+  }
+
+  // Gang-up mechanics: Double the score for the current leader
+  // This prevents one empire from running away with the game
+  if (isLeader && score > 0) {
+    score *= TARGETING_WEIGHTS.leaderMultiplier;
+    reasons.push('leader (gang-up)');
   }
 
   return { target, score, reasons };

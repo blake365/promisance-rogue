@@ -2,7 +2,7 @@
 
 export type Era = 'past' | 'present' | 'future';
 export type Race = 'human' | 'elf' | 'dwarf' | 'troll' | 'gnome' | 'gremlin' | 'orc' | 'drow' | 'goblin';
-export type TurnAction = 'explore' | 'farm' | 'cash' | 'meditate' | 'industry' | 'build' | 'attack' | 'spell';
+export type TurnAction = 'explore' | 'farm' | 'cash' | 'meditate' | 'industry' | 'build' | 'demolish' | 'attack' | 'spell';
 export type SpellType = 'shield' | 'food' | 'cash' | 'runes' | 'blast' | 'steal' | 'storm' | 'struct' | 'advance' | 'regress' | 'gate' | 'spy' | 'fight';
 export type AttackType = 'standard' | 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
 export type BonusRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
@@ -148,6 +148,29 @@ export interface SpyIntel {
   troops: Troops;
 }
 
+// News feed for bot phase results
+export type NewsAction =
+  | { type: 'attack'; success: boolean; landTaken: number }
+  | { type: 'spell'; spell: SpellType; success: boolean }
+  | { type: 'eliminated'; eliminatedBy: string };
+
+export interface NewsItem {
+  round: number;
+  actor: string;
+  actorId: string;
+  target: string;
+  targetId: string;
+  action: NewsAction;
+}
+
+export interface BotStanding {
+  id: string;
+  name: string;
+  networth: number;
+  networthChange: number;
+  isEliminated: boolean;
+}
+
 export interface SpellResult {
   success: boolean;
   spell: SpellType;
@@ -168,6 +191,7 @@ export interface TurnActionRequest {
   action: TurnAction;
   turns: number;
   buildingAllocation?: Partial<Buildings>;
+  demolishAllocation?: Partial<Buildings>;
   industryAllocation?: IndustryAllocation;
   taxRate?: number;
   targetId?: string;
@@ -361,7 +385,8 @@ interface BankResponse {
 }
 
 export interface BotPhaseResponse {
-  botsAttacked: string[];
+  news: NewsItem[];
+  standings: BotStanding[];
   round: GameRound;
   playerEmpire: Empire;
   botEmpires: BotSummary[];

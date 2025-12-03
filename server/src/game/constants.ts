@@ -330,6 +330,9 @@ export const ECONOMY = {
 
   // Industry multiplier (from config.php)
   industryMult: 2.5,
+
+  // Demolish refund: percentage of building cost returned when demolishing
+  demolishRefundPercent: 0.30,
 };
 
 // ============================================

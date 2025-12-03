@@ -33,6 +33,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 25,
       build: 10,
+      demolish: 0,
       attack: 30,
       spell: 5,
     },
@@ -56,6 +57,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 10,
       build: 15,
+      demolish: 0,
       attack: 5,
       spell: 5,
     },
@@ -79,6 +81,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 30,
       industry: 5,
       build: 10,
+      demolish: 0,
       attack: 5,
       spell: 25,
     },
@@ -102,6 +105,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 35,
       build: 15,
+      demolish: 0,
       attack: 5,
       spell: 5,
     },
@@ -125,6 +129,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 10,
       build: 15,
+      demolish: 0,
       attack: 5,
       spell: 5,
     },
@@ -148,6 +153,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 10,
       build: 20,
+      demolish: 0,
       attack: 5,
       spell: 5,
     },
@@ -171,6 +177,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
       meditate: 5,
       industry: 20,
       build: 25,
+      demolish: 0,
       attack: 5,
       spell: 5,
     },
@@ -400,6 +407,10 @@ export const TARGETING_WEIGHTS = {
 
   // Minimum power ratio to consider attacking (below this = score 0)
   minPowerRatio: 0.8,
+
+  // Gang-up multiplier: Score for the current leader is multiplied by this
+  // This encourages bots to gang up on whoever is winning
+  leaderMultiplier: 2.0,
 };
 
 // ============================================

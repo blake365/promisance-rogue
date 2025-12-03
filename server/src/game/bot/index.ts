@@ -78,3 +78,17 @@ export {
   createBotEmpire,
   generateIndustryAllocation,
 } from './generation';
+
+// Strategies (new system)
+export {
+  BOT_STRATEGIES,
+  getStrategy,
+  getInnateBonuses,
+  getBotInnateBonusValue,
+  getExploreTurns,
+  shouldAttack,
+  getTargetBuildings,
+  getBuildingsToBuild,
+  getNextTurnAction,
+} from './strategies';
+export type { BotStrategy, BuildingRatio, InnateBonuses } from './strategies';

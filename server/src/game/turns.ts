@@ -19,6 +19,7 @@ import {
   getAdvisorEffectModifier,
 } from './empire';
 import { applyBankInterest, applyLoanInterest, isLoanEmergency } from './bank';
+import { getBotInnateBonusValue } from './bot/strategies';
 
 // ============================================
 // SIZE BONUS (from prom_empire.php calcSizeBonus)
@@ -78,7 +79,11 @@ export function calcFinances(empire: Empire): FinanceResult {
 
   // Tax Collector / Treasury Master: +25%/+50% income
   const incomeBoost = getAdvisorEffectModifier(empire, 'income_boost');
-  income = Math.round(income * (1 + incomeBoost));
+
+  // Bot innate income bonus (e.g., Shadow Merchant gets +25%)
+  const botIncomeBonus = getBotInnateBonusValue(empire, 'income') ?? 0;
+
+  income = Math.round(income * (1 + incomeBoost + botIncomeBonus));
 
   // Loan payment = loan / 200
   const loanPayment = Math.round(empire.loan / 200);
@@ -133,7 +138,11 @@ export function calcProvisions(empire: Empire): ProvisionResult {
   const farmProduction = empire.buildings.bldfood * ECONOMY.foodPerFarm * farmEfficiency;
 
   const foodproModifier = getModifier(empire, 'foodpro');
-  const production = Math.round((freelandProduction + farmProduction) * foodproModifier);
+
+  // Bot innate food production bonus (e.g., Grain Mother gets +50%)
+  const botFoodBonus = getBotInnateBonusValue(empire, 'foodProduction') ?? 0;
+
+  const production = Math.round((freelandProduction + farmProduction) * foodproModifier * (1 + botFoodBonus));
 
   // Consumption = sum of unit consumption * (2 - foodcon_modifier)
   // Note: (2 - modifier) inverts the effect - higher modifier = LESS consumption
@@ -171,6 +180,9 @@ export function calcTroopProduction(empire: Empire): Partial<Troops> {
   // Advisor bonuses for troop production
   const troopProductionBonus = getAdvisorEffectModifier(empire, 'troop_production');
 
+  // Bot innate troop production bonus (e.g., Iron Baron gets +50%)
+  const botTroopBonus = getBotInnateBonusValue(empire, 'troopProduction') ?? 0;
+
   // Production rates for each unit type (from QM Promisance)
   // trparm: 1.2x, trplnd: 0.6x, trpfly: 0.3x, trpsea: 0.2x
   const productionRates = {
@@ -192,10 +204,10 @@ export function calcTroopProduction(empire: Empire): Partial<Troops> {
   };
 
   return {
-    trparm: Math.floor(totalProduction * (industryAllocation.trparm / 100) * productionRates.trparm * (1 + troopProductionBonus + getUnitBonus('trparm'))),
-    trplnd: Math.floor(totalProduction * (industryAllocation.trplnd / 100) * productionRates.trplnd * (1 + troopProductionBonus + getUnitBonus('trplnd'))),
-    trpfly: Math.floor(totalProduction * (industryAllocation.trpfly / 100) * productionRates.trpfly * (1 + troopProductionBonus + getUnitBonus('trpfly'))),
-    trpsea: Math.floor(totalProduction * (industryAllocation.trpsea / 100) * productionRates.trpsea * (1 + troopProductionBonus + getUnitBonus('trpsea'))),
+    trparm: Math.floor(totalProduction * (industryAllocation.trparm / 100) * productionRates.trparm * (1 + troopProductionBonus + botTroopBonus + getUnitBonus('trparm'))),
+    trplnd: Math.floor(totalProduction * (industryAllocation.trplnd / 100) * productionRates.trplnd * (1 + troopProductionBonus + botTroopBonus + getUnitBonus('trplnd'))),
+    trpfly: Math.floor(totalProduction * (industryAllocation.trpfly / 100) * productionRates.trpfly * (1 + troopProductionBonus + botTroopBonus + getUnitBonus('trpfly'))),
+    trpsea: Math.floor(totalProduction * (industryAllocation.trpsea / 100) * productionRates.trpsea * (1 + troopProductionBonus + botTroopBonus + getUnitBonus('trpsea'))),
   };
 }
 
@@ -603,6 +615,10 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     exploreMultiplier = Math.max(exploreMultiplier, expansionistMod);
   }
 
+  // Bot innate explore multiplier (e.g., The Locust gets 2x)
+  const botExploreMultiplier = getBotInnateBonusValue(empire, 'exploreMultiplier') ?? 1;
+  exploreMultiplier = Math.max(exploreMultiplier, botExploreMultiplier);
+
   for (let i = 0; i < turns; i++) {
     const economy = processEconomy(empire);
     const extras = applyEconomyResult(empire, economy);
@@ -771,6 +787,80 @@ export function processBuild(
   return buildResult(totals, empire, { buildingsConstructed: allocation });
 }
 
+export function processDemolish(
+  empire: Empire,
+  allocation: Partial<Buildings>
+): TurnActionResult {
+  // Calculate total buildings to demolish
+  const totalToDemolish =
+    (allocation.bldpop ?? 0) +
+    (allocation.bldcash ?? 0) +
+    (allocation.bldtrp ?? 0) +
+    (allocation.bldcost ?? 0) +
+    (allocation.bldfood ?? 0) +
+    (allocation.bldwiz ?? 0) +
+    (allocation.blddef ?? 0);
+
+  // Validate we have enough buildings to demolish
+  if ((allocation.bldcash ?? 0) > empire.buildings.bldcash ||
+      (allocation.bldtrp ?? 0) > empire.buildings.bldtrp ||
+      (allocation.bldcost ?? 0) > empire.buildings.bldcost ||
+      (allocation.bldfood ?? 0) > empire.buildings.bldfood ||
+      (allocation.bldwiz ?? 0) > empire.buildings.bldwiz ||
+      totalToDemolish <= 0) {
+    return failedBuildResult(empire);
+  }
+
+  // Calculate refund: BUILD_COST + (land * multiplier) per building * refund percent
+  const baseCostPerBuilding = ECONOMY.buildingBaseCost +
+    empire.resources.land * ECONOMY.buildingLandMultiplier;
+  const refund = Math.round(baseCostPerBuilding * totalToDemolish * ECONOMY.demolishRefundPercent);
+
+  // Calculate turns needed - demolish rate scales with land (same as build rate)
+  let buildRateBonus = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'build_rate') {
+      buildRateBonus += advisor.effect.modifier;
+    }
+  }
+  const demolishRate = Math.max(1, Math.floor(empire.resources.land / 20) + buildRateBonus);
+  const turnsNeeded = Math.max(1, Math.ceil(totalToDemolish / demolishRate));
+
+  // Process economy for demolish turns
+  const totals = initTotals();
+
+  for (let i = 0; i < turnsNeeded; i++) {
+    const economy = processEconomy(empire);
+    const extras = applyEconomyResult(empire, economy);
+    accumulateEconomy(totals, economy, extras);
+    if (checkEmergency(totals, extras)) break;
+  }
+
+  // Apply demolition - remove buildings, add gold refund, increase freeland
+  empire.buildings.bldcash -= allocation.bldcash ?? 0;
+  empire.buildings.bldtrp -= allocation.bldtrp ?? 0;
+  empire.buildings.bldcost -= allocation.bldcost ?? 0;
+  empire.buildings.bldfood -= allocation.bldfood ?? 0;
+  empire.buildings.bldwiz -= allocation.bldwiz ?? 0;
+
+  empire.resources.freeland += totalToDemolish;
+  empire.resources.gold += refund;
+  empire.networth = calculateNetworth(empire);
+
+  // Adjust income to reflect refund
+  totals.income += refund;
+
+  // Return negative values to indicate demolition
+  const demolishedAllocation: Partial<Buildings> = {};
+  if (allocation.bldcash) demolishedAllocation.bldcash = -(allocation.bldcash);
+  if (allocation.bldtrp) demolishedAllocation.bldtrp = -(allocation.bldtrp);
+  if (allocation.bldcost) demolishedAllocation.bldcost = -(allocation.bldcost);
+  if (allocation.bldfood) demolishedAllocation.bldfood = -(allocation.bldfood);
+  if (allocation.bldwiz) demolishedAllocation.bldwiz = -(allocation.bldwiz);
+
+  return buildResult(totals, empire, { buildingsConstructed: demolishedAllocation });
+}
+
 // ============================================
 // HELPER: Execute any turn action
 // ============================================
@@ -781,6 +871,7 @@ export function executeTurnAction(
   turns: number,
   options?: {
     buildingAllocation?: Partial<Buildings>;
+    demolishAllocation?: Partial<Buildings>;
   }
 ): TurnActionResult {
   switch (action) {
@@ -799,6 +890,11 @@ export function executeTurnAction(
         return failedBuildResult(empire);
       }
       return processBuild(empire, options.buildingAllocation);
+    case 'demolish':
+      if (!options?.demolishAllocation) {
+        return failedBuildResult(empire);
+      }
+      return processDemolish(empire, options.demolishAllocation);
     default:
       return failedBuildResult(empire);
   }

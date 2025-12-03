@@ -14,6 +14,7 @@ import {
   getAdvisorEffectModifier,
 } from './empire';
 import { processEconomy, applyEconomyResult, calcSizeBonus } from './turns';
+import { getBotInnateBonusValue } from './bot/strategies';
 
 // ============================================
 // SPELL COST CALCULATION
@@ -39,6 +40,10 @@ export function getSpellCost(empire: Empire, spell: SpellType): number {
       spellCostReduction += advisor.effect.modifier; // Negative value = reduction
     }
   }
+
+  // Bot innate spell cost reduction (e.g., Archon Nyx gets -20%)
+  const botSpellCostReduction = getBotInnateBonusValue(empire, 'spellCost') ?? 0;
+  spellCostReduction += botSpellCostReduction;
 
   // spell_cost modifier is negative, so (1 + modifier) reduces cost
   const finalCost = baseCost * multiplier * (1 + spellCostReduction);
@@ -115,7 +120,11 @@ export function getWizardPowerEnemy(caster: Empire, target: Empire): number {
 
   // Blood Mage: +75% magic power
   const bloodMageBoost = getAdvisorEffectModifier(caster, 'blood_mage');
-  const adjustedCasterMagic = casterMagic * (1 + bloodMageBoost);
+
+  // Bot innate magic power bonus (e.g., Archon Nyx gets +30%)
+  const botMagicBonus = getBotInnateBonusValue(caster, 'magicPower') ?? 0;
+
+  const adjustedCasterMagic = casterMagic * (1 + bloodMageBoost + botMagicBonus);
 
   // Destruction Mage: +40% offensive spell power
   const destructionBoost = getAdvisorEffectModifier(caster, 'destruction_mage');
