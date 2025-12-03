@@ -1,0 +1,357 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =================================================================
+   PROMISANCE ROGUE - Early 2000s Browser Game Aesthetic
+   ================================================================= */
+
+/* Base layer - global styles */
+@layer base {
+  html {
+    font-family: 'VT323', 'Courier New', monospace;
+    background-color: #0a0a12;
+    color: #e0e0e0;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport for mobile */
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar styling for retro feel */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1a1a2e;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #0f3460;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #1e90ff;
+  }
+
+  /* Remove tap highlight on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    outline: 2px solid #e94560;
+    outline-offset: 2px;
+  }
+}
+
+/* Component layer - reusable patterns */
+@layer components {
+  /* Retro panel with double border effect */
+  .panel-retro {
+    @apply bg-game-panel rounded border-2 border-game-border;
+    box-shadow:
+      inset 0 0 20px rgba(0, 0, 0, 0.5),
+      0 0 10px rgba(15, 52, 96, 0.3);
+  }
+
+  .panel-retro-header {
+    @apply px-3 py-2 border-b-2 border-game-border
+           font-display text-sm uppercase tracking-wider text-cyan-400;
+  }
+
+  /* 3D beveled button */
+  .btn-retro {
+    @apply font-display uppercase tracking-wider font-bold
+           border-2 transition-all duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow:
+      inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+      inset 2px 2px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-retro:active:not(:disabled) {
+    box-shadow:
+      inset 2px 2px 0 rgba(0, 0, 0, 0.3),
+      inset -2px -2px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(1px);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply btn-retro bg-gradient-to-b from-blue-500 to-blue-700
+           border-blue-400 text-white;
+  }
+
+  .btn-secondary {
+    @apply btn-retro bg-gradient-to-b from-gray-600 to-gray-800
+           border-gray-500 text-gray-100;
+  }
+
+  .btn-danger {
+    @apply btn-retro bg-gradient-to-b from-red-500 to-red-700
+           border-red-400 text-white;
+  }
+
+  .btn-gold {
+    @apply btn-retro bg-gradient-to-b from-yellow-500 to-yellow-700
+           border-yellow-400 text-black;
+  }
+
+  /* Button sizes */
+  .btn-sm {
+    @apply px-3 py-1 text-xs;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Stat table - alternating rows, visible grid */
+  .table-retro {
+    @apply w-full text-sm;
+  }
+
+  .table-retro th {
+    @apply bg-game-border text-cyan-400 px-3 py-2 text-left
+           font-display uppercase tracking-wider;
+  }
+
+  .table-retro td {
+    @apply px-3 py-2 border-b border-game-border/50;
+  }
+
+  .table-retro tr:nth-child(even) td {
+    @apply bg-game-card/50;
+  }
+
+  .table-retro tr:hover td {
+    @apply bg-game-border/30;
+  }
+
+  /* Resource display with icon */
+  .resource-display {
+    @apply flex items-center gap-1;
+  }
+
+  .resource-icon {
+    @apply w-4 h-4 flex-shrink-0;
+  }
+
+  .resource-value {
+    @apply font-stats font-bold;
+  }
+
+  /* Era badges */
+  .era-badge {
+    @apply px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider;
+  }
+
+  .era-past {
+    @apply bg-era-past/20 text-era-past border border-era-past/50;
+  }
+
+  .era-present {
+    @apply bg-era-present/20 text-era-present border border-era-present/50;
+  }
+
+  .era-future {
+    @apply bg-era-future/20 text-era-future border border-era-future/50;
+  }
+
+  /* Rarity text colors */
+  .rarity-common {
+    @apply text-common;
+  }
+
+  .rarity-uncommon {
+    @apply text-uncommon;
+  }
+
+  .rarity-rare {
+    @apply text-rare;
+  }
+
+  .rarity-legendary {
+    @apply text-legendary;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-4 bg-game-dark rounded-sm overflow-hidden border border-game-border;
+  }
+
+  .progress-bar-fill {
+    @apply h-full transition-all duration-300;
+  }
+
+  /* Glowing text effect */
+  .text-glow-gold {
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 10px rgba(30, 144, 255, 0.5);
+  }
+
+  .text-glow-purple {
+    text-shadow: 0 0 10px rgba(153, 50, 204, 0.5);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+  }
+
+  /* Card for items/advisors/etc */
+  .card-retro {
+    @apply bg-game-card rounded border-2 border-game-border
+           transition-all duration-200;
+  }
+
+  .card-retro:hover {
+    @apply border-game-highlight;
+    box-shadow: 0 0 15px rgba(233, 69, 96, 0.2);
+  }
+
+  .card-retro.selected {
+    @apply border-cyan-400;
+    box-shadow: 0 0 20px rgba(0, 206, 209, 0.3);
+  }
+
+  /* Mobile touch-friendly action button */
+  .action-btn {
+    @apply flex flex-col items-center justify-center
+           min-h-[60px] p-2 rounded
+           bg-game-card border border-game-border
+           transition-all duration-150
+           active:scale-95 active:bg-game-border;
+  }
+
+  .action-btn-icon {
+    @apply text-2xl mb-1;
+  }
+
+  .action-btn-label {
+    @apply text-xs uppercase tracking-wider;
+  }
+
+  /* Mobile navigation bar */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0
+           bg-game-panel border-t-2 border-game-border
+           flex justify-around items-center
+           h-16 px-2 z-50;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    @apply bg-game-panel border-2 border-game-border rounded-lg
+           max-w-lg w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  /* Number input with increment buttons */
+  .number-input-group {
+    @apply flex items-center gap-1;
+  }
+
+  .number-input {
+    @apply bg-game-dark border border-game-border rounded
+           px-3 py-2 text-center font-stats
+           focus:border-cyan-400 focus:outline-none
+           w-24;
+  }
+
+  .number-btn {
+    @apply w-10 h-10 flex items-center justify-center
+           bg-game-card border border-game-border rounded
+           font-bold text-lg
+           active:bg-game-border;
+  }
+}
+
+/* Utility layer - custom utilities */
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Text stroke for headings */
+  .text-stroke {
+    -webkit-text-stroke: 1px currentColor;
+    paint-order: stroke fill;
+  }
+
+  /* Gradient text */
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-yellow-400 to-yellow-600
+           bg-clip-text text-transparent;
+  }
+
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-cyan-400 to-blue-500
+           bg-clip-text text-transparent;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply bg-game-border/50 rounded animate-pulse;
+}
+
+/* Pixel art rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
