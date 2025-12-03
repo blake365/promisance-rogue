@@ -110,13 +110,13 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
        (id, player_id, seed, round_number, turns_remaining, phase,
         player_empire, bot_empires, market_prices, shop_stock, draft_options,
         reroll_cost, reroll_count, intel, offered_advisor_ids, modifiers,
-        player_defeated, created_at, updated_at, completed_at, final_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        player_defeated, stats, created_at, updated_at, completed_at, final_score)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       run.id,
       run.playerId,
-      run.seed,
+      run.rngState.current,  // Store RNG state as seed in DB
       run.round.number,
       run.round.turnsRemaining,
       run.round.phase,
@@ -131,6 +131,7 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
       JSON.stringify(run.offeredAdvisorIds ?? []),
       JSON.stringify(run.modifiers ?? []),
       run.playerDefeated ?? null,
+      JSON.stringify(run.stats),
       run.createdAt,
       run.updatedAt,
       run.round.phase === 'complete' ? Date.now() : null,
@@ -187,6 +188,38 @@ export async function getPlayerGameRuns(
   return results.results.map(reconstructGameRun);
 }
 
+// Default stats for existing games that don't have stats tracked yet
+function createDefaultStats(): GameRun['stats'] {
+  return {
+    totalIncome: 0,
+    totalExpenses: 0,
+    totalFoodProduction: 0,
+    totalFoodConsumption: 0,
+    totalRuneProduction: 0,
+    totalTroopsProduced: { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0, trpwiz: 0 },
+    totalAttacks: 0,
+    totalAttackWins: 0,
+    totalLandGained: 0,
+    totalLandLost: 0,
+    totalKills: 0,
+    totalSpellsCast: 0,
+    totalOffensiveSpells: 0,
+    networthPerTurn: 0,
+    turnsPlayed: 0,
+    peakGold: 0,
+    peakFood: 0,
+    peakRunes: 0,
+    peakLand: 0,
+    peakNetworth: 0,
+    peakPeasants: 0,
+    peakTrparm: 0,
+    peakTrplnd: 0,
+    peakTrpfly: 0,
+    peakTrpsea: 0,
+    peakTrpwiz: 0,
+  };
+}
+
 function reconstructGameRun(row: Record<string, unknown>): GameRun {
   // Parse bot empires and ensure they have memory initialized
   const botEmpires = (JSON.parse(row.bot_empires as string) as BotEmpire[]).map(bot => ({
@@ -197,7 +230,7 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
   return {
     id: row.id as string,
     playerId: row.player_id as string,
-    seed: row.seed as number,
+    rngState: { current: row.seed as number },  // Reconstruct RNG state from DB seed
     round: {
       number: row.round_number as number,
       turnsRemaining: row.turns_remaining as number,
@@ -214,6 +247,7 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
     offeredAdvisorIds: row.offered_advisor_ids ? JSON.parse(row.offered_advisor_ids as string) : [],
     modifiers: JSON.parse(row.modifiers as string),
     playerDefeated: row.player_defeated ? (row.player_defeated as string) as GameRun['playerDefeated'] : null,
+    stats: row.stats ? JSON.parse(row.stats as string) : createDefaultStats(),
     createdAt: row.created_at as number,
     updatedAt: row.updated_at as number,
   };

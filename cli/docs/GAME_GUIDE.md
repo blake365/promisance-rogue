@@ -64,11 +64,18 @@ Quick reference for game mechanics and strategies.
 
 ## Eras
 
-| Era | Explore | Industry | Rune Production |
-|-----|---------|----------|-----------------|
-| Past | 0% | -5% | +20% |
-| Present | +40% | 0% | 0% |
-| Future | +80% | +15% | 0% |
+| Era | Economy | Food Production | Industry | Energy | Exploration |
+|-----|---------|-----------------|----------|--------|-------------|
+| Past | -5% | -5% | -10% | +20% | 0% |
+| Present | 0% | +15% | +5% | 0% | +20% |
+| Future | +15% | -5% | +15% | -20% | +40% |
+
+**Bonus Descriptions:**
+- **Economy**: Affects per capita income of citizens
+- **Food Production**: Affects farm productivity
+- **Industry**: Affects troop production rate
+- **Energy**: Rate at which wizards produce mana (runes)
+- **Exploration**: How much land gained per explore turn
 
 - Can only attack empires in the **same era** (unless using Gate spell)
 - Era change has 1-round cooldown
@@ -85,7 +92,7 @@ Quick reference for game mechanics and strategies.
 | Land | 1,000 | 2.5 |
 | Air | 2,000 | 4.0 |
 | Sea | 3,000 | 7.0 |
-| Wizard | - | 0.5 |
+| Wizard | N/A | 0.5 |
 
 ### Combat Stats by Era [Offense, Defense]
 
@@ -95,7 +102,6 @@ Quick reference for game mechanics and strategies.
 | Land | [3, 2] | [2, 6] | [5, 2] |
 | Air | [7, 5] | [5, 3] | [6, 3] |
 | Sea | [7, 6] | [6, 8] | [7, 7] |
-| Wizard | [3, 3] | [3, 3] | [3, 3] |
 
 ---
 
@@ -280,19 +286,21 @@ Stackable bonuses up to level 5. Select in draft to increase level.
 
 - **Win threshold**: Attacker needs 5% more power
 - **Turns per attack**: 2
-- **Health cost**: -5 per attack (net -3 after regen)
+- **Health cost**: -5 per attack (net -3 after regen), -6 for standard attacks (net -4)
 - **Max attacks/round**: 10
 - **No attacks**: Round 1
 
 ### Attack Types
 
-| Type | Units Used | Loss Rate |
-|------|------------|-----------|
-| Standard | All | Higher |
-| Infantry Only | Infantry | Lower |
-| Land Only | Land | Lower |
-| Air Only | Air | Lower |
-| Sea Only | Sea | Lower |
+| Type | Units Used | Health | Land Bonus |
+|------|------------|--------|------------|
+| Standard | All | 6 | +15% |
+| Infantry Only | Infantry | 5 | - |
+| Land Only | Land | 5 | - |
+| Air Only | Air | 5 | - |
+| Sea Only | Sea | 5 | - |
+
+Standard attacks use all units and cost 1 extra health, but gain 15% more land on victory.
 
 ### Building Capture (on victory)
 

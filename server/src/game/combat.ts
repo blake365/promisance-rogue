@@ -271,10 +271,14 @@ export function resolveCombat(
     const buildingTypes = ['bldcash', 'bldtrp', 'bldcost', 'bldfood', 'bldwiz'] as const;
     const isStandardAttack = attackType === 'standard';
 
+    // Standard attacks destroy more buildings (and thus take more land)
+    const destructionMultiplier = isStandardAttack ? (1 + COMBAT.standardAttackLandBonus) : 1;
+
     for (const bldType of buildingTypes) {
       const captureRates = COMBAT.buildingCapture[bldType];
       if (captureRates) {
-        const [lossRate, gainRate] = captureRates;
+        const [baseLossRate, gainRate] = captureRates;
+        const lossRate = baseLossRate * destructionMultiplier;
         const bldCount = defender.buildings[bldType];
         const { loss, gain } = destroyBuildings(bldCount, defender.resources.land, lossRate, gainRate);
         buildingsDestroyed[bldType] = loss;
@@ -290,9 +294,9 @@ export function resolveCombat(
       }
     }
 
-    // Free land handling
+    // Free land handling (also boosted for standard attacks)
     const freelandRates = COMBAT.buildingCapture.freeland;
-    const freelandLoss = Math.ceil(defender.resources.freeland * freelandRates[0]);
+    const freelandLoss = Math.ceil(defender.resources.freeland * freelandRates[0] * destructionMultiplier);
     landGained += freelandLoss; // Attacker gets some of defender's free land
   }
 
@@ -301,6 +305,7 @@ export function resolveCombat(
     attackerLosses,
     defenderLosses,
     landGained,
+    landLost: landGained, // Defender loses same amount attacker gains
     buildingsGained,
     buildingsDestroyed,
     offpower,
@@ -519,8 +524,12 @@ export function processAttack(
   applyCombatResult(attacker, defender, combatResult);
 
   // Apply health cost for attacking (reduced by battle_surgeon advisor)
+  // Standard attacks cost 1 extra health compared to unit-specific attacks
   const healthReduction = getAdvisorEffectModifier(attacker, 'attack_health_reduction');
-  const effectiveHealthCost = Math.floor(COMBAT.attackHealthCost * (1 - healthReduction));
+  const baseHealthCost = attackType === 'standard'
+    ? COMBAT.attackHealthCost + COMBAT.standardAttackHealthBonus
+    : COMBAT.attackHealthCost;
+  const effectiveHealthCost = Math.floor(baseHealthCost * (1 - healthReduction));
   attacker.health = Math.max(0, Math.floor(attacker.health - effectiveHealthCost));
 
   return {

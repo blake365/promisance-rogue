@@ -20,6 +20,7 @@ import type {
   DefeatReason,
   RerollInfo,
   BotPhaseResponse,
+  GameStats,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -37,6 +38,7 @@ import { BankView } from '../components/BankView.js';
 import { AdvisorList } from '../components/AdvisorList.js';
 import { GuideScreen } from '../components/GuideScreen.js';
 import { NewsDisplay } from '../components/NewsDisplay.js';
+import { GameSummary } from '../components/GameSummary.js';
 
 type ViewMode =
   | 'main'
@@ -118,6 +120,7 @@ interface Props {
   shopStock: ShopStock | null;
   bankInfo: BankInfo | null;
   playerDefeated: DefeatReason | null;
+  stats: GameStats | null;
   loading: boolean;
   error: string | null;
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
@@ -144,6 +147,7 @@ export function GameScreen({
   shopStock,
   bankInfo,
   playerDefeated,
+  stats,
   loading,
   error,
   onAction,
@@ -517,6 +521,11 @@ export function GameScreen({
               intel={intel}
               currentRound={round.number}
               selectable
+              playerEra={empire.era}
+              hasActiveGate={
+                (empire.gateExpiresRound !== null && empire.gateExpiresRound >= round.number) ||
+                empire.advisors.some((a) => a.effect.type === 'permanent_gate')
+              }
               onSelect={handleTargetSelect}
               onClose={() => {
                 setView('main');
@@ -532,6 +541,7 @@ export function GameScreen({
               targetName={selectedTargetName}
               runes={empire.resources.runes}
               wizards={empire.troops.trpwiz}
+              troops={empire.troops}
               onSelect={handleAttackTypeSelect}
               onCancel={() => {
                 setView('main');
@@ -1055,19 +1065,26 @@ export function GameScreen({
   if (playerDefeated) {
     const { title, description } = getDefeatMessage(playerDefeated);
     return (
-      <Box flexDirection="column" padding={1} alignItems="center">
-        <Box borderStyle="double" borderColor="red" paddingX={3} paddingY={1}>
-          <Text bold color="red">GAME OVER</Text>
+      <Box flexDirection="column" padding={1}>
+        <Box alignItems="center" flexDirection="column">
+          <Box borderStyle="double" borderColor="red" paddingX={3} paddingY={1}>
+            <Text bold color="red">GAME OVER</Text>
+          </Box>
+          <Box marginTop={1} flexDirection="column" alignItems="center">
+            <Text bold color="red">{title}</Text>
+            <Text color="gray">{description}</Text>
+          </Box>
+          <Box marginTop={1} flexDirection="column" alignItems="center">
+            <Text color="yellow">Survived {round.number} round{round.number !== 1 ? 's' : ''}</Text>
+            <Text color="gray">Final Networth: ${empire.networth.toLocaleString()}</Text>
+          </Box>
         </Box>
-        <Box marginTop={1} flexDirection="column" alignItems="center">
-          <Text bold color="red">{title}</Text>
-          <Text color="gray">{description}</Text>
-        </Box>
-        <Box marginTop={1} flexDirection="column" alignItems="center">
-          <Text color="yellow">Survived {round.number} round{round.number !== 1 ? 's' : ''}</Text>
-          <Text color="gray">Final Networth: {empire.networth.toLocaleString()}</Text>
-        </Box>
-        <Box marginTop={1}>
+        {stats && (
+          <Box marginTop={1}>
+            <GameSummary stats={stats} empire={empire} />
+          </Box>
+        )}
+        <Box marginTop={1} alignItems="center" justifyContent="center">
           <Text color="gray">[q] to quit</Text>
         </Box>
       </Box>
@@ -1076,17 +1093,24 @@ export function GameScreen({
 
   // Victory - completed all rounds
   return (
-    <Box flexDirection="column" padding={1} alignItems="center">
-      <Box borderStyle="double" borderColor="yellow" paddingX={3} paddingY={1}>
-        <Text bold color="yellow">VICTORY!</Text>
+    <Box flexDirection="column" padding={1}>
+      <Box alignItems="center" flexDirection="column">
+        <Box borderStyle="double" borderColor="yellow" paddingX={3} paddingY={1}>
+          <Text bold color="yellow">VICTORY!</Text>
+        </Box>
+        <Box marginTop={1} flexDirection="column" alignItems="center">
+          <Text color="green">Your empire has survived all {round.number} rounds!</Text>
+        </Box>
+        <Box marginTop={1} flexDirection="column" alignItems="center">
+          <Text bold color="yellow">Final Networth: ${empire.networth.toLocaleString()}</Text>
+        </Box>
       </Box>
-      <Box marginTop={1} flexDirection="column" alignItems="center">
-        <Text color="green">Your empire has survived all {round.number} rounds!</Text>
-      </Box>
-      <Box marginTop={1} flexDirection="column" alignItems="center">
-        <Text bold color="yellow">Final Networth: {empire.networth.toLocaleString()}</Text>
-      </Box>
-      <Box marginTop={1}>
+      {stats && (
+        <Box marginTop={1}>
+          <GameSummary stats={stats} empire={empire} />
+        </Box>
+      )}
+      <Box marginTop={1} alignItems="center" justifyContent="center">
         <Text color="gray">[q] to quit</Text>
       </Box>
     </Box>

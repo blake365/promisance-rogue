@@ -243,7 +243,9 @@ export function getModifier(empire: Empire, stat: keyof typeof RACE_MODIFIERS.hu
   return 1.0 + raceModifier / 100 + advisorBonus + techBonus;
 }
 
-export function getEraModifier(empire: Empire, stat: keyof typeof ERA_MODIFIERS.past): number {
+export type EraModifierStat = keyof typeof ERA_MODIFIERS.past;
+
+export function getEraModifier(empire: Empire, stat: EraModifierStat): number {
   const eraModifier = ERA_MODIFIERS[empire.era][stat] ?? 0;
   return 1.0 + eraModifier / 100;
 }

@@ -23,6 +23,7 @@ import type {
   TurnAction,
   MarketPrices,
   ShopTransaction,
+  AttackType,
 } from '../../types';
 import { TURNS_PER_ROUND, COMBAT, UNIT_COSTS, SHOP } from '../constants';
 import { executeTurnAction, calcProvisions, calcFinances } from '../turns';
@@ -31,16 +32,39 @@ import { castEnemySpell, castSelfSpell, getSpellCost } from '../spells';
 import { calculateNetworth, canAttackEra } from '../empire';
 import { executeMarketTransaction } from '../shop';
 import { selectAttackTarget, selectSpellTarget } from './targeting';
-import { updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './memory';
+import { updateBotMemoryAfterAttack, updateBotMemoryAfterSpell, getCombatIntel, findWeakTroopLines, updateBotCombatIntel, getSpyIntel, hasSpyIntel, updateBotSpyIntel } from './memory';
 import { advanceRng } from './decisions';
+import { maybeShiftIndustryAllocation } from './generation';
 import {
   getStrategy,
   getExploreTurns,
   shouldAttack,
   getBuildingsToBuild,
   getNextTurnAction,
+  getBotInnateBonusValue,
   type BotStrategy,
 } from './strategies';
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Fisher-Yates shuffle using seeded RNG.
+ * Returns a new shuffled array (does not mutate original).
+ */
+function shuffleBots(bots: BotEmpire[], seed: number): BotEmpire[] {
+  const shuffled = [...bots];
+  let rng = seed;
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    const j = rng % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+}
 
 // ============================================
 // MAIN BOT PHASE PROCESSOR
@@ -63,13 +87,26 @@ export function processBotPhase(
     initialNetworthsMap.set(bot.id, bot.networth);
   }
 
+  // Shuffle bot order each round for fairness
+  const shuffledBots = shuffleBots(bots, rng);
+  rng = advanceRng(rng);
+
   // Process each bot using strategy-based phases
-  for (const bot of bots) {
+  for (const bot of shuffledBots) {
     if (bot.health <= 0) continue; // Skip eliminated bots
 
     // Reset attack and spell counters for this round
     bot.attacksThisRound = 0;
     bot.offensiveSpellsThisRound = 0;
+
+    // Small chance to shift industry allocation each round (10% chance)
+    // Use unique seed per bot per round
+    const shiftSeed = rng + bot.id.charCodeAt(0) * 1000 + roundNumber * 100;
+    const newAllocation = maybeShiftIndustryAllocation(bot.industryAllocation, shiftSeed);
+    if (newAllocation) {
+      bot.industryAllocation = newAllocation;
+    }
+    rng = advanceRng(rng);
 
     const strategy = getStrategy(bot.personality.archetype);
     const context: BotPhaseContext = {
@@ -149,6 +186,11 @@ function executeEraPhase(_ctx: BotPhaseContext): void {
 function executeLandAcquisitionPhase(ctx: BotPhaseContext): void {
   const { strategy } = ctx;
 
+  // Magic bots cast spy spells before attacking to gather intel
+  if (strategy.useOffensiveSpells) {
+    executeSpyPhase(ctx);
+  }
+
   if (strategy.exploreBeforeAttack) {
     executeExploreTurns(ctx);
     executeAttackPhase(ctx);
@@ -175,6 +217,228 @@ function executeExploreTurns(ctx: BotPhaseContext): void {
   executeTurnAction(bot, 'explore', turnsToUse);
   ctx.turnsRemaining -= turnsToUse;
   ctx.rng = advanceRng(ctx.rng);
+}
+
+/**
+ * Cast spy spells to gather intel before attacking.
+ * Only bots with useOffensiveSpells will use this.
+ * Prioritizes targets we plan to attack but don't have fresh intel on.
+ */
+function executeSpyPhase(ctx: BotPhaseContext): void {
+  const { bot, player, allBots, roundNumber } = ctx;
+
+  // No spying in round 1
+  if (roundNumber === 1) {
+    return;
+  }
+
+  // Need wizards and runes to cast spy
+  const minWizards = 5;
+  const spyCost = getSpellCost(bot, 'spy');
+
+  if (bot.troops.trpwiz < minWizards || bot.resources.runes < spyCost) {
+    return;
+  }
+
+  // Need at least 2 turns for a spell
+  if (ctx.turnsRemaining < 2) {
+    return;
+  }
+
+  // Find potential attack targets that we don't have fresh intel on
+  const otherBots = allBots.filter(b => b.id !== bot.id && b.health > 0);
+  const potentialTargets: (Empire | BotEmpire)[] = [player, ...otherBots];
+
+  // Filter to targets without fresh spy intel (max 1 spy per round to conserve resources)
+  const targetsNeedingIntel = potentialTargets.filter(target => {
+    // Skip if we already have fresh intel
+    if (hasSpyIntel(bot.memory, target.id, roundNumber)) {
+      return false;
+    }
+    // Skip if target is protected
+    if (target.id === player.id) {
+      const hasPacification = player.pacificationExpiresRound !== null &&
+        player.pacificationExpiresRound >= roundNumber;
+      const hasDivineProtection = player.divineProtectionExpiresRound !== null &&
+        player.divineProtectionExpiresRound >= roundNumber;
+      if (hasPacification || hasDivineProtection) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (targetsNeedingIntel.length === 0) {
+    return;
+  }
+
+  // Pick the best target to spy on (prioritize player, then highest networth)
+  let spyTarget: Empire | BotEmpire = targetsNeedingIntel[0];
+  for (const target of targetsNeedingIntel) {
+    if (target.id === player.id) {
+      spyTarget = target;
+      break;
+    }
+    if (target.networth > spyTarget.networth) {
+      spyTarget = target;
+    }
+  }
+
+  // Cast spy spell
+  const result = castEnemySpell(bot, spyTarget, 'spy', ctx.turnsRemaining, roundNumber);
+  ctx.turnsRemaining -= result.turnsSpent;
+  ctx.rng = advanceRng(ctx.rng);
+
+  // If successful, store the intel from spellResult
+  if (result.success && result.spellResult?.intel) {
+    updateBotSpyIntel(bot, result.spellResult.intel);
+  }
+}
+
+/**
+ * Select attack type based on:
+ * 1. Perfect intel (mages can see target troops directly)
+ * 2. Spy intel (from spy spells)
+ * 3. Combat intel (learned from previous attacks)
+ * 4. Bot's own troop composition (fallback)
+ */
+function selectAttackType(
+  bot: BotEmpire,
+  target: Empire | BotEmpire,
+  rng: number,
+  currentRound: number
+): AttackType {
+  const hasPerfectIntel = getBotInnateBonusValue(bot, 'hasPerfectIntel') ?? false;
+
+  // PRIORITY 1: Mages with perfect intel can see and exploit weak troop lines
+  if (hasPerfectIntel) {
+    const weakLine = findWeakestTroopLine(target.troops, rng);
+    if (weakLine) {
+      // 80% chance to exploit the weakness
+      if (rng % 100 < 80) {
+        return weakLine;
+      }
+    }
+  }
+
+  // PRIORITY 2: Use spy intel if available and fresh
+  const spyIntel = getSpyIntel(bot.memory, target.id, currentRound);
+  if (spyIntel) {
+    const weakLine = findWeakestTroopLine(spyIntel.troops, rng);
+    if (weakLine) {
+      // 75% chance to exploit the weakness from spy intel
+      if (rng % 100 < 75) {
+        return weakLine;
+      }
+    }
+  }
+
+  // PRIORITY 3: Use combat intel from previous attacks
+  const combatIntel = getCombatIntel(bot.memory, target.id);
+  if (combatIntel && combatIntel.round >= 1) {
+    // If last attack failed, try a different approach
+    if (!combatIntel.lastAttackWon && combatIntel.lastAttackType !== 'standard') {
+      // Last single-unit attack failed, try standard
+      if (rng % 100 < 60) {
+        return 'standard';
+      }
+    }
+
+    // Look for weak lines from combat results
+    const weakLines = findWeakTroopLines(combatIntel);
+    if (weakLines.length > 0) {
+      // 70% chance to exploit known weakness
+      if (rng % 100 < 70) {
+        const idx = rng % weakLines.length;
+        return weakLines[idx];
+      }
+    }
+  }
+
+  // PRIORITY 4: Fall back to bot's own troop composition
+  return selectAttackTypeByOwnTroops(bot, rng);
+}
+
+/**
+ * Find the weakest troop line in target's army (for perfect intel).
+ * Returns the troop type with the lowest count, or null if balanced.
+ */
+function findWeakestTroopLine(troops: Empire['troops'], rng: number): AttackType | null {
+  const lines: { type: AttackType; count: number }[] = [
+    { type: 'trparm', count: troops.trparm },
+    { type: 'trplnd', count: troops.trplnd },
+    { type: 'trpfly', count: troops.trpfly },
+    { type: 'trpsea', count: troops.trpsea },
+  ];
+
+  // Sort by count ascending (weakest first)
+  lines.sort((a, b) => a.count - b.count);
+
+  const weakest = lines[0];
+  const strongest = lines[lines.length - 1];
+
+  // Only exploit if there's a significant weakness (weakest < 30% of strongest)
+  if (strongest.count > 0 && weakest.count < strongest.count * 0.3) {
+    return weakest.type;
+  }
+
+  // If two lines are similarly weak, pick one randomly
+  if (strongest.count > 0 && lines[1].count < strongest.count * 0.4) {
+    const idx = rng % 2;
+    return lines[idx].type;
+  }
+
+  return null; // No clear weakness
+}
+
+/**
+ * Select attack type based on bot's own troop composition (original logic).
+ */
+function selectAttackTypeByOwnTroops(bot: BotEmpire, rng: number): AttackType {
+  const troops = bot.troops;
+  const total = troops.trparm + troops.trplnd + troops.trpfly + troops.trpsea;
+
+  if (total === 0) {
+    return 'standard';
+  }
+
+  // Calculate percentage of each troop type
+  const percentages: { type: AttackType; pct: number; count: number }[] = [
+    { type: 'trparm', pct: troops.trparm / total, count: troops.trparm },
+    { type: 'trplnd', pct: troops.trplnd / total, count: troops.trplnd },
+    { type: 'trpfly', pct: troops.trpfly / total, count: troops.trpfly },
+    { type: 'trpsea', pct: troops.trpsea / total, count: troops.trpsea },
+  ];
+
+  // Sort by count descending
+  percentages.sort((a, b) => b.count - a.count);
+
+  // 40% chance to use standard attack regardless (more land gain)
+  if (rng % 100 < 40) {
+    return 'standard';
+  }
+
+  // If dominant troop type (>50% of army), high chance to use that type
+  // Single-unit attacks have lower casualty rates
+  const dominant = percentages[0];
+  if (dominant.pct > 0.50 && dominant.count >= 100) {
+    // 70% chance to use dominant type, 30% chance standard
+    if (rng % 100 < 70) {
+      return dominant.type;
+    }
+    return 'standard';
+  }
+
+  // If we have a strong secondary (>30%), sometimes use that
+  if (dominant.pct > 0.30 && dominant.count >= 50) {
+    // 40% chance to use this type
+    if (rng % 100 < 40) {
+      return dominant.type;
+    }
+  }
+
+  // Default to standard for mixed armies
+  return 'standard';
 }
 
 function executeAttackPhase(ctx: BotPhaseContext): void {
@@ -225,13 +489,21 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
       }
     }
 
+    // Select attack type based on intel and troop composition
+    const attackType = selectAttackType(bot, target, ctx.rng, roundNumber);
+    ctx.rng = advanceRng(ctx.rng);
+
     // Execute attack
-    const result = processAttack(bot, target, ctx.turnsRemaining, 'standard');
+    const result = processAttack(bot, target, ctx.turnsRemaining, attackType);
     ctx.turnsRemaining -= result.turnsSpent;
 
-    if (result.success) {
+    if (result.success && result.combatResult) {
       bot.attacksThisRound++;
-      const landGained = result.landGained ?? 0;
+      const combatWon = result.combatResult.won;
+      const landGained = combatWon ? (result.landGained ?? 0) : 0;
+
+      // Record combat intel for tactical adaptation
+      updateBotCombatIntel(bot, target.id, result.combatResult, attackType, roundNumber);
 
       // Update defender's memory
       if ('isBot' in target && target.isBot) {
@@ -243,16 +515,30 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
         );
       }
 
-      // Generate news
-      ctx.news.push(createAttackNews(bot, target, landGained, roundNumber));
+      // Generate news for ALL attacks (won or lost)
+      ctx.news.push(createAttackNews(bot, target, landGained, combatWon, roundNumber));
 
       // Check if target was eliminated
       if (target.health <= 0) {
         ctx.news.push(createEliminationNews(target, bot, roundNumber));
         break; // Stop attacking this round after elimination
       }
+
+      // If attack failed (didn't break defense), bot might try again or give up
+      if (!combatWon) {
+        // 50% chance to stop attacking after a failed attack
+        if (ctx.rng % 2 === 0) {
+          ctx.rng = advanceRng(ctx.rng);
+          break;
+        }
+        ctx.rng = advanceRng(ctx.rng);
+      }
     } else {
-      // Attack failed, stop attacking
+      // Attack didn't go through (not enough turns, wrong era, etc.)
+      // Still record intel if we got combat results
+      if (result.combatResult) {
+        updateBotCombatIntel(bot, target.id, result.combatResult, attackType, roundNumber);
+      }
       break;
     }
   }
@@ -339,6 +625,9 @@ function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
     const result = castEnemySpell(bot, target, spell, ctx.turnsRemaining, roundNumber);
     ctx.turnsRemaining -= result.turnsSpent;
 
+    // Generate news for ALL spell attempts (success or failure)
+    ctx.news.push(createSpellNews(bot, target, spell, result.success, roundNumber));
+
     if (result.success) {
       bot.offensiveSpellsThisRound++;
 
@@ -351,17 +640,13 @@ function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
         );
       }
 
-      // Generate spell attack news
-      ctx.news.push(createSpellNews(bot, target, spell, roundNumber));
-
       // Check if target was eliminated (some spells can reduce health)
       if (target.health <= 0) {
         ctx.news.push(createEliminationNews(target, bot, roundNumber));
         break;
       }
     } else {
-      // Spell failed, might want to try again with different spell
-      // For now, just stop casting
+      // Spell failed - stop casting (power ratio won't change this phase)
       break;
     }
   }
@@ -697,8 +982,8 @@ function buyTroopsWithExcessGold(ctx: BotPhaseContext, provisions: { consumption
 
   // === BUY TROOPS ===
 
-  // Use strategy's industry allocation to determine troop mix
-  const allocation = strategy.industryAllocation;
+  // Use bot's industry allocation to determine troop mix
+  const allocation = bot.industryAllocation;
   type TroopType = 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
   const allTroopTypes: Array<{ type: TroopType; pct: number; upkeep: number }> = [
     { type: 'trparm' as const, pct: allocation.trparm, upkeep: UNIT_COSTS.trparm.upkeep },
@@ -903,7 +1188,7 @@ function sellExcessTroops(ctx: BotPhaseContext, provisions: { consumption: numbe
 
   // Sell troops to cover the deficit, prioritizing troops we don't use as much
   type TroopType = 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
-  const allocation = strategy.industryAllocation;
+  const allocation = bot.industryAllocation;
 
   // Sort by allocation (lowest first - sell what we don't prioritize)
   const allTroops: Array<{ type: TroopType; pct: number }> = [
@@ -986,6 +1271,7 @@ function createAttackNews(
   attacker: BotEmpire,
   defender: Empire,
   landTaken: number,
+  won: boolean,
   round: number
 ): NewsItem {
   return {
@@ -996,7 +1282,7 @@ function createAttackNews(
     targetId: defender.id,
     action: {
       type: 'attack',
-      success: true,
+      success: won,
       landTaken,
     },
   };
@@ -1006,6 +1292,7 @@ function createSpellNews(
   caster: BotEmpire,
   target: Empire,
   spell: SpellType,
+  success: boolean,
   round: number
 ): NewsItem {
   return {
@@ -1017,7 +1304,7 @@ function createSpellNews(
     action: {
       type: 'spell',
       spell,
-      success: true,
+      success,
     },
   };
 }

@@ -201,26 +201,34 @@ export const RACE_MODIFIERS: Record<Race, RaceModifiers> = {
 // ============================================
 
 export interface EraModifiers {
-  explore: number;
-  industry: number;
-  runeProduction: number;
+  economy: number;        // Affects per capita income of citizens
+  foodProduction: number; // Affects farm productivity
+  industry: number;       // Affects ability to produce military units
+  energy: number;         // Rate at which wizards produce mana (runes)
+  explore: number;        // How much land gained per explore turn
 }
 
 export const ERA_MODIFIERS: Record<Era, EraModifiers> = {
   past: {
+    economy: -5,
+    foodProduction: -5,
+    industry: -10,
+    energy: 20,
     explore: 0,
-    industry: -5,
-    runeProduction: 20,
   },
   present: {
-    explore: 40,
-    industry: 0,
-    runeProduction: 0,
+    economy: 0,
+    foodProduction: 15,
+    industry: 5,
+    energy: 0,
+    explore: 20,
   },
   future: {
-    explore: 80,
+    economy: 15,
+    foodProduction: -5,
     industry: 15,
-    runeProduction: 0,
+    energy: -20,
+    explore: 40,
   },
 };
 
@@ -343,6 +351,8 @@ export const COMBAT = {
   winThreshold: 1.05,      // Attacker needs 5% more power to win
   turnsPerAttack: 2,
   attackHealthCost: 5,     // Health lost per attack (net -3 after turn regen)
+  standardAttackHealthBonus: 1, // Additional health cost for standard attacks
+  standardAttackLandBonus: 0.15, // 15% more land gained from standard attacks
   offensiveSpellHealthCost: 5, // Health lost per offensive spell (net -3 after turn regen)
   attacksPerRound: 10,     // Max attacks per round (no attacks allowed in round 1)
   offensiveSpellsPerRound: 10, // Max offensive spells per round (no offensive spells in round 1)

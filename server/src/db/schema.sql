@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS game_runs (
   -- Game over state
   player_defeated TEXT, -- 'no_land', 'no_peasants', 'excessive_loan', or NULL if not defeated
 
+  -- Stats tracking for post-game summary (JSON)
+  stats TEXT DEFAULT '{}',
+
   -- Timestamps
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),

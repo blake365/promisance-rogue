@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { BotSummary, SpyIntel } from '../api/client.js';
+import type { BotSummary, SpyIntel, Era } from '../api/client.js';
 
 interface Props {
   bots: BotSummary[];
   intel?: Record<string, SpyIntel>;
   currentRound?: number;
   selectable?: boolean;
+  playerEra?: Era;
+  hasActiveGate?: boolean;
   onSelect?: (botId: string) => void;
   onClose?: () => void;
 }
@@ -23,9 +25,17 @@ const eraColors: Record<string, string> = {
   future: 'green',
 };
 
-export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSelect, onClose }: Props) {
+export function BotList({ bots, intel = {}, currentRound = 1, selectable, playerEra, hasActiveGate, onSelect, onClose }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewingIntel, setViewingIntel] = useState<string | null>(null);
+
+  // Check if a bot can be attacked (same era or have gate)
+  const canAttackBot = (bot: BotSummary): boolean => {
+    if (!playerEra) return true; // If no player era provided, allow all
+    if (bot.era === playerEra) return true;
+    if (hasActiveGate) return true;
+    return false;
+  };
 
   useInput((input, key) => {
     if (viewingIntel) {
@@ -44,7 +54,11 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
       } else if (key.downArrow || input === 'j') {
         setSelectedIndex((i) => (i < bots.length - 1 ? i + 1 : 0));
       } else if (key.return && onSelect) {
-        onSelect(bots[selectedIndex].id);
+        const selectedBot = bots[selectedIndex];
+        // Only allow selection if era matches or has gate
+        if (canAttackBot(selectedBot)) {
+          onSelect(selectedBot.id);
+        }
       } else if (input === 'i' || input === 'I') {
         // View intel for selected bot if available
         const selectedBot = bots[selectedIndex];
@@ -131,21 +145,25 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
           const botIntel = intel[bot.id];
           const isStale = botIntel && botIntel.round < currentRound;
           const isSelected = selectedIndex === index;
+          const needsGate = selectable && playerEra && bot.era !== playerEra && !hasActiveGate;
 
           return (
             <Box key={bot.id} gap={1}>
               <Text color={isSelected ? 'cyan' : 'gray'}>
                 {isSelected ? '▶' : ' '}
               </Text>
-              <Text bold color={isSelected ? 'white' : 'gray'}>
+              <Text bold color={needsGate ? 'gray' : isSelected ? 'white' : 'gray'}>
                 {bot.name}
               </Text>
-              <Text color="cyan">Land: {formatNumber(bot.land)}</Text>
-              <Text color="yellow">NW: {formatNumber(bot.networth)}</Text>
+              <Text color={needsGate ? 'gray' : 'cyan'}>Land: {formatNumber(bot.land)}</Text>
+              <Text color={needsGate ? 'gray' : 'yellow'}>NW: {formatNumber(bot.networth)}</Text>
               <Text color="gray">
                 {bot.race.charAt(0).toUpperCase() + bot.race.slice(1)}
               </Text>
               <Text color={eraColors[bot.era]}>[{bot.era}]</Text>
+              {needsGate && (
+                <Text color="red">[need Gate]</Text>
+              )}
               {hasIntel && (
                 <Text color={isStale ? 'yellow' : 'magenta'}>
                   {isStale ? '[intel:old]' : '[intel]'}

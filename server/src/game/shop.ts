@@ -8,26 +8,33 @@ import type {
   Edict,
   BonusRarity,
   ShopTransaction,
+  RngState,
 } from '../types';
 import { SHOP, UNIT_COSTS } from './constants';
 import { calculateNetworth, addTroops } from './empire';
 import { ADVISORS } from './bonuses/advisors';
 import { MASTERIES, MASTERY_BONUS_PER_LEVEL, MAX_MASTERY_LEVEL } from './bonuses/techs';
 import { EDICTS } from './bonuses/edicts';
+import { nextRng, randomFloat } from './rng';
 
 // ============================================
 // MARKET PRICE GENERATION
 // ============================================
 
-export function generateMarketPrices(seed: number): MarketPrices {
+export interface MarketPriceResult {
+  prices: MarketPrices;
+  rngState: RngState;
+}
+
+export function generateMarketPrices(rngState: RngState): MarketPriceResult {
   const base = SHOP.baseMarketPrices;
   const fluctuation = SHOP.priceFluctuation;
 
-  // Seeded random for price fluctuation
-  let rng = seed;
+  let state = rngState;
   const nextRandom = () => {
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    return (rng % 1000) / 1000;
+    const result = randomFloat(state);
+    state = result.state;
+    return result.value;
   };
 
   const fluctuate = (basePrice: number) => {
@@ -35,7 +42,7 @@ export function generateMarketPrices(seed: number): MarketPrices {
     return Math.floor(basePrice * (1 + change));
   };
 
-  return {
+  const prices: MarketPrices = {
     foodBuyPrice: fluctuate(base.foodBuyPrice),
     foodSellPrice: fluctuate(base.foodSellPrice),
     troopBuyMultiplier: base.troopBuyMultiplier * (1 + (nextRandom() - 0.5) * fluctuation),
@@ -43,6 +50,8 @@ export function generateMarketPrices(seed: number): MarketPrices {
     runeBuyPrice: fluctuate(base.runeBuyPrice),
     runeSellPrice: fluctuate(base.runeSellPrice),
   };
+
+  return { prices, rngState: state };
 }
 
 // ============================================
@@ -219,17 +228,20 @@ export function executeMarketTransaction(
 // DRAFT GENERATION
 // ============================================
 
-function selectRarity(seed: number): BonusRarity {
+function selectRarityWithState(state: RngState): { rarity: BonusRarity; state: RngState } {
   const weights = SHOP.rarityWeights;
   const total = weights.common + weights.uncommon + weights.rare + weights.legendary;
 
-  const rng = (seed * 1103515245 + 12345) & 0x7fffffff;
-  const roll = (rng % total);
+  const result = nextRng(state);
+  const roll = result.value % total;
 
-  if (roll < weights.common) return 'common';
-  if (roll < weights.common + weights.uncommon) return 'uncommon';
-  if (roll < weights.common + weights.uncommon + weights.rare) return 'rare';
-  return 'legendary';
+  let rarity: BonusRarity;
+  if (roll < weights.common) rarity = 'common';
+  else if (roll < weights.common + weights.uncommon) rarity = 'uncommon';
+  else if (roll < weights.common + weights.uncommon + weights.rare) rarity = 'rare';
+  else rarity = 'legendary';
+
+  return { rarity, state: result.state };
 }
 
 function getItemsByRarity<T extends { rarity: BonusRarity }>(
@@ -239,32 +251,35 @@ function getItemsByRarity<T extends { rarity: BonusRarity }>(
   return items.filter((item) => item.rarity === rarity);
 }
 
-function selectRandomItem<T>(items: T[], seed: number): T {
-  const rng = (seed * 1103515245 + 12345) & 0x7fffffff;
-  const index = rng % items.length;
-  return items[index];
+function selectRandomItemWithState<T>(items: T[], state: RngState): { item: T; state: RngState } {
+  const result = nextRng(state);
+  const index = result.value % items.length;
+  return { item: items[index], state: result.state };
 }
 
 // Helper to generate a single advisor option
 // Will retry up to MAX_RETRIES times to find an unowned, unoffered advisor
 function generateAdvisorOption(
   empire: Empire,
-  rng: number,
+  state: RngState,
   offeredAdvisorIds: Set<string>,
   hasSecondChance: boolean
-): { option: DraftOption | null; rng: number } {
+): { option: DraftOption | null; state: RngState } {
   const MAX_RETRIES = 10;
   const ownedIds = new Set(empire.advisors.map((a) => a.id));
 
+  let currentState = state;
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    const rarity = selectRarity(rng);
-    const advisors = getItemsByRarity(ADVISORS, rarity);
+    const rarityResult = selectRarityWithState(currentState);
+    currentState = rarityResult.state;
+    const advisors = getItemsByRarity(ADVISORS, rarityResult.rarity);
 
     if (advisors.length === 0) continue;
 
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    const advisor = selectRandomItem(advisors, rng);
+    const selectResult = selectRandomItemWithState(advisors, currentState);
+    currentState = selectResult.state;
+    const advisor = selectResult.item;
 
     // Skip if already owned
     if (ownedIds.has(advisor.id)) continue;
@@ -272,19 +287,19 @@ function generateAdvisorOption(
     // Skip if previously offered (unless hasSecondChance edict)
     if (!hasSecondChance && offeredAdvisorIds.has(advisor.id)) continue;
 
-    return { option: { type: 'advisor', item: advisor }, rng };
+    return { option: { type: 'advisor', item: advisor }, state: currentState };
   }
 
-  return { option: null, rng };
+  return { option: null, state: currentState };
 }
 
 // Helper to generate a rare or legendary advisor option (for guaranteed rare edict)
 function generateRarePlusAdvisorOption(
   empire: Empire,
-  rng: number,
+  state: RngState,
   offeredAdvisorIds: Set<string>,
   hasSecondChance: boolean
-): { option: DraftOption | null; rng: number } {
+): { option: DraftOption | null; state: RngState } {
   const MAX_RETRIES = 10;
   const ownedIds = new Set(empire.advisors.map((a) => a.id));
 
@@ -294,12 +309,15 @@ function generateRarePlusAdvisorOption(
   );
 
   if (rareAdvisors.length === 0) {
-    return { option: null, rng };
+    return { option: null, state };
   }
 
+  let currentState = state;
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    const advisor = selectRandomItem(rareAdvisors, rng);
+    const selectResult = selectRandomItemWithState(rareAdvisors, currentState);
+    currentState = selectResult.state;
+    const advisor = selectResult.item;
 
     // Skip if already owned
     if (ownedIds.has(advisor.id)) continue;
@@ -307,20 +325,24 @@ function generateRarePlusAdvisorOption(
     // Skip if previously offered (unless hasSecondChance edict)
     if (!hasSecondChance && offeredAdvisorIds.has(advisor.id)) continue;
 
-    return { option: { type: 'advisor', item: advisor }, rng };
+    return { option: { type: 'advisor', item: advisor }, state: currentState };
   }
 
   // Fallback to regular generation if no valid rare+ found
-  return generateAdvisorOption(empire, rng, offeredAdvisorIds, hasSecondChance);
+  return generateAdvisorOption(empire, currentState, offeredAdvisorIds, hasSecondChance);
 }
 
 // Helper to generate a single non-advisor option (mastery or edict)
-function generateOtherOption(empire: Empire, rng: number): { option: DraftOption; rng: number } {
-  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-  const rarity = selectRarity(rng);
+function generateOtherOption(empire: Empire, state: RngState): { option: DraftOption; state: RngState } {
+  let currentState = state;
 
-  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-  const typeRoll = rng % 100;
+  const rarityResult = selectRarityWithState(currentState);
+  currentState = rarityResult.state;
+  const rarity = rarityResult.rarity;
+
+  const typeResult = nextRng(currentState);
+  currentState = typeResult.state;
+  const typeRoll = typeResult.value % 100;
 
   let option: DraftOption;
 
@@ -330,36 +352,40 @@ function generateOtherOption(empire: Empire, rng: number): { option: DraftOption
       (m) => (empire.techs[m.action] ?? 0) < MAX_MASTERY_LEVEL
     );
     if (availableMasteries.length > 0) {
-      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-      option = { type: 'tech', item: selectRandomItem(availableMasteries, rng) };
+      const selectResult = selectRandomItemWithState(availableMasteries, currentState);
+      currentState = selectResult.state;
+      option = { type: 'tech', item: selectResult.item };
     } else {
       // All masteries maxed, offer edict instead
-      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-      option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
+      const selectResult = selectRandomItemWithState(EDICTS, currentState);
+      currentState = selectResult.state;
+      option = { type: 'edict', item: selectResult.item };
     }
   } else {
     // Edict (50%)
     const edicts = getItemsByRarity(EDICTS, rarity);
-    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-    option = { type: 'edict', item: selectRandomItem(edicts.length > 0 ? edicts : EDICTS, rng) };
+    const selectResult = selectRandomItemWithState(edicts.length > 0 ? edicts : EDICTS, currentState);
+    currentState = selectResult.state;
+    option = { type: 'edict', item: selectResult.item };
   }
 
-  return { option, rng };
+  return { option, state: currentState };
 }
 
 export interface DraftResult {
   options: DraftOption[];
   newOfferedAdvisorIds: string[];
+  rngState: RngState;
 }
 
 export function generateDraftOptions(
-  seed: number,
+  rngState: RngState,
   empire: Empire,
   previouslyOfferedIds: string[] = []
 ): DraftResult {
   const options: DraftOption[] = [];
   const newOfferedAdvisorIds: string[] = [];
-  let rng = seed;
+  let state = rngState;
 
   // Check if player has Second Chance edict (allows previously offered advisors)
   const hasSecondChance = hasEdictEffect(empire, 'second_chance');
@@ -368,15 +394,17 @@ export function generateDraftOptions(
   const offeredSet = new Set(previouslyOfferedIds);
 
   // Determine number of advisor slots (1-2 base + bonus from edicts)
-  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const advisorSlotsResult = nextRng(state);
+  state = advisorSlotsResult.state;
   const baseAdvisorSlots = SHOP.advisorOptionsMin +
-    (rng % (SHOP.advisorOptionsMax - SHOP.advisorOptionsMin + 1));
+    (advisorSlotsResult.value % (SHOP.advisorOptionsMax - SHOP.advisorOptionsMin + 1));
   const advisorSlots = baseAdvisorSlots + (empire.bonusDraftOptions ?? 0);
 
   // Determine number of other slots (2-3)
-  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+  const otherSlotsResult = nextRng(state);
+  state = otherSlotsResult.state;
   const otherSlots = SHOP.otherOptionsMin +
-    (rng % (SHOP.otherOptionsMax - SHOP.otherOptionsMin + 1));
+    (otherSlotsResult.value % (SHOP.otherOptionsMax - SHOP.otherOptionsMin + 1));
 
   // Check for guaranteed rare advisor
   const hasGuaranteedRare = empire.guaranteedRareDraft ?? false;
@@ -390,9 +418,9 @@ export function generateDraftOptions(
     const forceRarePlus = hasGuaranteedRare && !hasRarePlus && i === 0;
 
     const result = forceRarePlus
-      ? generateRarePlusAdvisorOption(empire, rng, offeredSet, hasSecondChance)
-      : generateAdvisorOption(empire, rng, offeredSet, hasSecondChance);
-    rng = result.rng;
+      ? generateRarePlusAdvisorOption(empire, state, offeredSet, hasSecondChance)
+      : generateAdvisorOption(empire, state, offeredSet, hasSecondChance);
+    state = result.state;
 
     if (result.option) {
       const advisor = result.option.item as Advisor;
@@ -415,12 +443,12 @@ export function generateDraftOptions(
 
   // Generate other options (tech or edict)
   for (let i = 0; i < otherSlots; i++) {
-    const result = generateOtherOption(empire, rng);
-    rng = result.rng;
+    const result = generateOtherOption(empire, state);
+    state = result.state;
     options.push(result.option);
   }
 
-  return { options, newOfferedAdvisorIds };
+  return { options, newOfferedAdvisorIds, rngState: state };
 }
 
 // ============================================

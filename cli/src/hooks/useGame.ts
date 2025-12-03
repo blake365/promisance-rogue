@@ -18,6 +18,7 @@ import {
   type RerollInfo,
   type NewsItem,
   type BotStanding,
+  type GameStats,
 } from '../api/client.js';
 
 interface GameState {
@@ -32,6 +33,7 @@ interface GameState {
   rerollInfo: RerollInfo | null;
   isComplete: boolean;
   playerDefeated: DefeatReason | null;
+  stats: GameStats | null;
 }
 
 interface PlayerState {
@@ -59,6 +61,7 @@ export function useGame() {
     rerollInfo: null,
     isComplete: false,
     playerDefeated: null,
+    stats: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -111,6 +114,7 @@ export function useGame() {
           rerollInfo: null, // Will be fetched when entering shop phase
           isComplete: false,
           playerDefeated: response.game.playerDefeated,
+          stats: response.game.stats,
         });
         return true;
       }
@@ -143,6 +147,7 @@ export function useGame() {
           rerollInfo: null, // Will be fetched when entering shop phase
           isComplete: false,
           playerDefeated: gameResponse.game.playerDefeated,
+          stats: gameResponse.game.stats,
         });
       }
       return true;
@@ -172,6 +177,7 @@ export function useGame() {
         rerollInfo: null,
         isComplete: false,
         playerDefeated: null,
+        stats: null,
       });
       return true;
     } catch (err) {
@@ -445,6 +451,7 @@ export function useGame() {
         intel: response.intel,
         isComplete: response.isComplete,
         playerDefeated: response.playerDefeated,
+        stats: response.stats,
       }));
       return response;
     } catch (err) {

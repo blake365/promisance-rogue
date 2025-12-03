@@ -46,8 +46,9 @@ export function calcPCI(empire: Empire): number {
   const land = Math.max(empire.resources.land, 1);
   const bldcashRatio = empire.buildings.bldcash / land;
   const incomeModifier = getModifier(empire, 'income');
+  const eraEconomyModifier = getEraModifier(empire, 'economy');
 
-  return Math.round(ECONOMY.pciBase * (1 + bldcashRatio) * incomeModifier);
+  return Math.round(ECONOMY.pciBase * (1 + bldcashRatio) * incomeModifier * eraEconomyModifier);
 }
 
 // ============================================
@@ -138,11 +139,12 @@ export function calcProvisions(empire: Empire): ProvisionResult {
   const farmProduction = empire.buildings.bldfood * ECONOMY.foodPerFarm * farmEfficiency;
 
   const foodproModifier = getModifier(empire, 'foodpro');
+  const eraFoodModifier = getEraModifier(empire, 'foodProduction');
 
   // Bot innate food production bonus (e.g., Grain Mother gets +50%)
   const botFoodBonus = getBotInnateBonusValue(empire, 'foodProduction') ?? 0;
 
-  const production = Math.round((freelandProduction + farmProduction) * foodproModifier * (1 + botFoodBonus));
+  const production = Math.round((freelandProduction + farmProduction) * foodproModifier * eraFoodModifier * (1 + botFoodBonus));
 
   // Consumption = sum of unit consumption * (2 - foodcon_modifier)
   // Note: (2 - modifier) inverts the effect - higher modifier = LESS consumption
@@ -219,9 +221,9 @@ export function calcRuneProduction(empire: Empire): number {
   // Runes from wizard towers
   const baseProduction = empire.buildings.bldwiz * 3;
   const runeproModifier = getModifier(empire, 'runepro');
-  const eraRuneModifier = getEraModifier(empire, 'runeProduction');
+  const eraEnergyModifier = getEraModifier(empire, 'energy');
 
-  return Math.floor(baseProduction * runeproModifier * eraRuneModifier);
+  return Math.floor(baseProduction * runeproModifier * eraEnergyModifier);
 }
 
 // ============================================

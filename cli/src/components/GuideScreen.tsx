@@ -294,11 +294,19 @@ function ErasSection() {
     <Box flexDirection="column">
       <Text bold color="yellow">Era Bonuses</Text>
       <Box marginTop={1} flexDirection="column">
-        <Text color="gray">Era      Explore  Industry  Runes</Text>
-        <Text color="gray">{'─'.repeat(35)}</Text>
-        <Text><Text color="white">Past    </Text><Text color="gray">  0%</Text><Text color="red">     -5%</Text><Text color="green">     +20%</Text></Text>
-        <Text><Text color="white">Present </Text><Text color="green"> +40%</Text><Text color="gray">      0%</Text><Text color="gray">       0%</Text></Text>
-        <Text><Text color="white">Future  </Text><Text color="green"> +80%</Text><Text color="green">    +15%</Text><Text color="gray">       0%</Text></Text>
+        <Text color="gray">Era      Economy  Food    Industry  Energy  Explore</Text>
+        <Text color="gray">{'─'.repeat(55)}</Text>
+        <Text><Text color="white">Past    </Text><Text color="red">  -5%</Text><Text color="red">    -5%</Text><Text color="red">     -10%</Text><Text color="green">    +20%</Text><Text color="gray">      0%</Text></Text>
+        <Text><Text color="white">Present </Text><Text color="gray">   0%</Text><Text color="green">   +15%</Text><Text color="green">      +5%</Text><Text color="gray">      0%</Text><Text color="green">    +20%</Text></Text>
+        <Text><Text color="white">Future  </Text><Text color="green"> +15%</Text><Text color="red">    -5%</Text><Text color="green">     +15%</Text><Text color="red">    -20%</Text><Text color="green">    +40%</Text></Text>
+      </Box>
+      <Box marginTop={1} flexDirection="column">
+        <Text bold color="yellow">Bonus Descriptions</Text>
+        <Text>• Economy: Per capita income of citizens</Text>
+        <Text>• Food: Farm productivity</Text>
+        <Text>• Industry: Troop production rate</Text>
+        <Text>• Energy: Wizard mana (rune) production</Text>
+        <Text>• Explore: Land gained per exploration</Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
         <Text bold color="yellow">Era Rules</Text>

@@ -235,6 +235,7 @@ app.get('/api/game/current', async (c) => {
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
       playerDefeated: run.playerDefeated,
+      stats: run.stats,
     },
   });
 });
@@ -268,6 +269,7 @@ app.get('/api/game/:id', async (c) => {
       draftOptions: run.draftOptions,
       isComplete: isGameComplete(run),
       playerDefeated: run.playerDefeated,
+      stats: run.stats,
     },
   });
 });
@@ -628,6 +630,7 @@ app.post('/api/game/:id/bot-phase', async (c) => {
     intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
     isComplete: isGameComplete(run),
     playerDefeated: run.playerDefeated,
+    stats: run.stats,
   });
 });
 

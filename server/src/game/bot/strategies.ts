@@ -39,12 +39,12 @@ export interface InnateBonuses {
   marketBonus?: number;          // +X% market effectiveness
   permanentShield?: boolean;     // Always shielded
   crossEraAttacks?: boolean;     // Can attack any era (all bots get this)
+  hasPerfectIntel?: boolean;     // Can see enemy troop composition (spy effect)
 }
 
 export interface BotStrategy {
   // Identity
   archetype: BotArchetype;
-  name: string;
   description: string;
 
   // Race and era preferences (ordered by preference)
@@ -86,11 +86,10 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    * GENERAL VASK - Aggressive Attacker
    *
    * Dominates through military pressure. Attacks early and often,
-   * uses Future era for explore + industry bonuses. Takes player's land.
+   * uses Future era for economy (+15%) + industry (+15%) bonuses. Takes player's land.
    */
   general_vask: {
     archetype: 'general_vask',
-    name: 'General Vask',
     description: 'Aggressive military leader who attacks early and often',
 
     preferredRaces: ['orc', 'troll', 'dwarf'],
@@ -140,11 +139,10 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    */
   grain_mother: {
     archetype: 'grain_mother',
-    name: 'The Grain Mother',
     description: 'Peaceful empire focused on food production and survival',
 
     preferredRaces: ['gremlin', 'elf', 'human'],
-    preferredEra: 'present',  // +40% explore for safe growth
+    preferredEra: 'present',  // +15% food, +20% explore for safe growth
 
     buildingRatio: {
       bldfood: 85,
@@ -186,15 +184,14 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    * ARCHON NYX - Battle Mage
    *
    * Magic-focused empire that meditates and uses spells offensively.
-   * Stays in Past for rune bonus, harasses through magical attacks.
+   * Stays in Past for energy bonus (+20% runes), harasses through magical attacks.
    */
   archon_nyx: {
     archetype: 'archon_nyx',
-    name: 'Archon Nyx',
     description: 'Archmage who dominates through magical warfare',
 
     preferredRaces: ['elf', 'drow', 'human'],
-    preferredEra: 'past',  // +20% rune production
+    preferredEra: 'past',  // +20% energy (rune production)
 
     buildingRatio: {
       bldfood: 20,
@@ -229,6 +226,7 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
       magicPower: 0.30,        // +30% wizard power
       spellCost: -0.20,        // -20% spell rune costs
       crossEraAttacks: true,
+      hasPerfectIntel: true,   // Magical scrying reveals enemy troops
     },
   },
 
@@ -240,11 +238,10 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    */
   iron_baron: {
     archetype: 'iron_baron',
-    name: 'Iron Baron',
     description: 'Industrial powerhouse who builds an unstoppable late-game army',
 
     preferredRaces: ['dwarf', 'goblin', 'orc'],
-    preferredEra: 'future',  // +15% industry, +80% explore
+    preferredEra: 'future',  // +15% industry, +15% economy, +40% explore
 
     buildingRatio: {
       bldfood: 15,
@@ -286,15 +283,14 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    * THE LOCUST - Land Rush
    *
    * Maximizes land through massive exploration and opportunistic attacks.
-   * Uses Future era's +80% explore bonus to outgrow everyone.
+   * Uses Future era's +40% explore bonus and +15% industry to outgrow everyone.
    */
   the_locust: {
     archetype: 'the_locust',
-    name: 'The Locust',
     description: 'Land-hungry empire that explores aggressively and raids',
 
     preferredRaces: ['orc', 'troll', 'elf'],
-    preferredEra: 'future',  // +80% explore!
+    preferredEra: 'future',  // +40% explore, +15% industry
 
     buildingRatio: {
       bldfood: 35,
@@ -340,11 +336,10 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    */
   shadow_merchant: {
     archetype: 'shadow_merchant',
-    name: 'Shadow Merchant',
     description: 'Wealthy empire focused on economic dominance',
 
     preferredRaces: ['gnome', 'human', 'elf'],
-    preferredEra: 'present',  // Safe middle ground
+    preferredEra: 'future',  // +15% economy, +40% explore for wealth building
 
     buildingRatio: {
       bldfood: 30,
@@ -390,7 +385,6 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
    */
   the_fortress: {
     archetype: 'the_fortress',
-    name: 'The Fortress',
     description: 'Impenetrable defensive empire that outlasts opponents',
 
     preferredRaces: ['dwarf', 'human', 'goblin'],
@@ -429,6 +423,250 @@ export const BOT_STRATEGIES: Record<BotArchetype, BotStrategy> = {
       defense: 0.25,           // +25% defense
       permanentShield: true,   // Always shielded
       crossEraAttacks: true,
+    },
+  },
+
+  /**
+   * ADMIRAL TIDE - Naval Commander
+   *
+   * Sea-focused empire that builds naval superiority.
+   * High sea unit production, uses naval attacks to raid.
+   */
+  admiral_tide: {
+    archetype: 'admiral_tide',
+    description: 'Naval commander who dominates through sea power',
+
+    preferredRaces: ['gnome', 'human', 'elf'],
+    preferredEra: 'present',
+
+    buildingRatio: {
+      bldfood: 25,
+      bldcash: 20,
+      bldtrp: 45,
+      bldwiz: 10,
+      bldcost: 0,
+    },
+
+    turnPriority: ['industry', 'cash', 'farm'],
+    exploreTurnsPerRound: [6, 9],
+    exploreBeforeAttack: true,
+
+    attackHealthThreshold: 65,
+    minPowerRatioToAttack: 1.0,
+    attackStartRound: 3,
+    maxAttacksPerRound: 7,
+
+    industryAllocation: {
+      trparm: 10,
+      trplnd: 15,
+      trpfly: 15,
+      trpsea: 60,  // Naval dominance!
+    },
+
+    maintainShield: true,
+    useOffensiveSpells: false,
+    preferredOffensiveSpells: ['storm', 'steal'],
+
+    // Innate bonuses: Naval mastery
+    innateBonuses: {
+      offense: 0.10,           // +10% offense
+      defense: 0.10,           // +10% defense (ships are sturdy)
+      crossEraAttacks: true,
+    },
+  },
+
+  /**
+   * THE SABOTEUR - Disruptor
+   *
+   * Spell-focused empire that weakens enemies before attacking.
+   * Casts struct/storm to cripple infrastructure, then strikes.
+   */
+  the_saboteur: {
+    archetype: 'the_saboteur',
+    description: 'Disruptor who cripples enemies with spells before striking',
+
+    preferredRaces: ['drow', 'goblin', 'gremlin'],
+    preferredEra: 'past',  // +20% energy (rune production)
+
+    buildingRatio: {
+      bldfood: 20,
+      bldcash: 10,
+      bldtrp: 20,
+      bldwiz: 50,  // Heavy magic focus
+      bldcost: 0,
+    },
+
+    turnPriority: ['meditate', 'industry', 'farm'],
+    exploreTurnsPerRound: [5, 7],
+    exploreBeforeAttack: true,
+
+    attackHealthThreshold: 70,
+    minPowerRatioToAttack: 0.9,  // Can attack weaker after softening
+    attackStartRound: 3,
+    maxAttacksPerRound: 6,
+
+    industryAllocation: {
+      trparm: 40,
+      trplnd: 30,
+      trpfly: 20,
+      trpsea: 10,
+    },
+
+    maintainShield: true,
+    useOffensiveSpells: true,    // Primary strategy!
+    preferredOffensiveSpells: ['struct', 'storm', 'blast'],  // Destroy buildings first
+
+    // Innate bonuses: Sabotage mastery
+    innateBonuses: {
+      magicPower: 0.20,        // +20% wizard power
+      spellCost: -0.15,        // -15% spell costs
+      crossEraAttacks: true,
+    },
+  },
+
+  /**
+   * CRIMSON BERSERKER - Glass Cannon
+   *
+   * Maximum offense, minimal defense. Attacks relentlessly.
+   * Either snowballs to victory or gets crushed early.
+   */
+  crimson_berserker: {
+    archetype: 'crimson_berserker',
+    description: 'Reckless warrior who attacks constantly regardless of odds',
+
+    preferredRaces: ['troll', 'orc', 'drow'],
+    preferredEra: 'future',  // +15% industry, +15% economy, +40% explore
+
+    buildingRatio: {
+      bldfood: 20,
+      bldcash: 0,
+      bldtrp: 80,  // All military!
+      bldwiz: 0,
+      bldcost: 0,
+    },
+
+    turnPriority: ['industry', 'farm', 'cash'],
+    exploreTurnsPerRound: [3, 5],  // Minimal explore - attacks are land source
+    exploreBeforeAttack: false,   // Attack first!
+
+    attackHealthThreshold: 30,    // Attacks even when badly hurt
+    minPowerRatioToAttack: 0.6,   // Attacks even when weaker!
+    attackStartRound: 1,          // Immediate aggression
+    maxAttacksPerRound: 10,       // All-out always
+
+    industryAllocation: {
+      trparm: 50,
+      trplnd: 40,
+      trpfly: 10,
+      trpsea: 0,
+    },
+
+    maintainShield: false,        // No defense!
+    useOffensiveSpells: false,    // Pure physical violence
+    preferredOffensiveSpells: ['fight', 'blast'],
+
+    // Innate bonuses: Berserker rage
+    innateBonuses: {
+      offense: 0.30,           // +30% offense!
+      troopProduction: 0.20,   // +20% troop production
+      crossEraAttacks: true,
+    },
+  },
+
+  /**
+   * THE COUNTESS - Counter-Puncher
+   *
+   * Balanced empire that remembers grudges and retaliates hard.
+   * Normal play until attacked, then focuses all efforts on revenge.
+   */
+  the_countess: {
+    archetype: 'the_countess',
+    description: 'Vengeful noble who retaliates disproportionately against attackers',
+
+    preferredRaces: ['human', 'elf', 'drow'],
+    preferredEra: 'present',
+
+    buildingRatio: {
+      bldfood: 30,
+      bldcash: 15,
+      bldtrp: 40,
+      bldwiz: 15,
+      bldcost: 0,
+    },
+
+    turnPriority: ['industry', 'farm', 'cash', 'meditate'],
+    exploreTurnsPerRound: [7, 10],
+    exploreBeforeAttack: true,
+
+    attackHealthThreshold: 60,
+    minPowerRatioToAttack: 1.0,   // Fair fight normally
+    attackStartRound: 2,
+    maxAttacksPerRound: 8,
+
+    industryAllocation: {
+      trparm: 35,
+      trplnd: 35,
+      trpfly: 20,
+      trpsea: 10,
+    },
+
+    maintainShield: true,
+    useOffensiveSpells: true,     // Uses spells for revenge
+    preferredOffensiveSpells: ['blast', 'fight', 'struct'],
+
+    // Innate bonuses: Vengeful nature
+    innateBonuses: {
+      offense: 0.10,           // +10% offense
+      defense: 0.10,           // +10% defense
+      crossEraAttacks: true,
+    },
+  },
+
+  /**
+   * HAPPY - Cupcake Bot
+   *
+   * Incompetent and weak. Makes poor decisions, barely builds military,
+   * and is easily conquered. A free snack for players learning the game.
+   */
+  happy: {
+    archetype: 'happy',
+    description: 'Cheerful but hopelessly incompetent empire',
+
+    preferredRaces: ['human', 'gnome', 'goblin'],  // Weak combat races
+    preferredEra: 'past',  // Worst era for growth (-5% economy, -5% food, -10% industry)
+
+    buildingRatio: {
+      bldfood: 20,
+      bldcash: 40,   // Hoards gold but doesn't use it well
+      bldtrp: 10,    // Barely any military production
+      bldwiz: 5,
+      bldcost: 25,   // Wastes land on exchanges
+    },
+
+    turnPriority: ['cash', 'farm', 'meditate'],  // Never prioritizes industry
+    exploreTurnsPerRound: [12, 18],  // Explores a lot (more land for player to take!)
+    exploreBeforeAttack: true,
+
+    attackHealthThreshold: 95,    // Too scared to attack unless perfect health
+    minPowerRatioToAttack: 3.0,   // Only attacks when massively stronger (rarely)
+    attackStartRound: 8,          // Waits way too long to attack
+    maxAttacksPerRound: 1,        // At most 1 attack
+
+    industryAllocation: {
+      trparm: 100,   // Only makes cheap infantry
+      trplnd: 0,
+      trpfly: 0,
+      trpsea: 0,
+    },
+
+    maintainShield: false,        // Forgets to shield
+    useOffensiveSpells: false,
+    preferredOffensiveSpells: [],
+
+    // Innate bonuses: Actually penalties - Happy is just bad at everything
+    innateBonuses: {
+      crossEraAttacks: true,
+      // No bonuses - Happy is intentionally weak
     },
   },
 };

@@ -183,6 +183,7 @@ function App() {
         shopStock={game.shopStock}
         bankInfo={bankInfo}
         playerDefeated={game.playerDefeated}
+        stats={game.stats}
         loading={loading}
         error={error}
         onAction={executeAction}

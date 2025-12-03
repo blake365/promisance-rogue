@@ -1,4 +1,4 @@
-import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason } from '../types';
+import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason, RngState } from '../types';
 import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT, SHOP } from './constants';
 import { createEmpire, calculateNetworth, hasAdvisorEffect, getAdvisorEffectModifier } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
@@ -7,6 +7,8 @@ import { processAttack } from './combat';
 import { castSelfSpell, castEnemySpell } from './spells';
 import { generateBots, processBotPhase, updateBotMemoryAfterAttack, updateBotMemoryAfterSpell } from './bot';
 import { generateMarketPrices, generateShopStock, generateDraftOptions, applyDraftSelection, executeMarketTransaction, calculateRerollCost } from './shop';
+import { createRngState, nextRng, advanceRngBy } from './rng';
+import { createInitialStats, updatePeakValues, updateProductionStats, updateCombatStats, incrementKills, updateSpellStats } from './stats';
 
 // ============================================
 // GAME RUN CREATION
@@ -20,25 +22,35 @@ export function createGameRun(
   seed?: number
 ): GameRun {
   const gameSeed = seed ?? Math.floor(Math.random() * 2147483647);
+  let rngState = createRngState(gameSeed);
 
   // Create player empire
   const playerEmpire = createEmpire(`player_${playerId}`, playerName, race);
 
-  // Generate bot empires
-  const botEmpires = generateBots(gameSeed);
+  // Generate bot empires (uses seed directly for now, advances rng state)
+  const botEmpires = generateBots(rngState.current);
+  rngState = advanceRngBy(rngState, 100); // Advance state after bot generation
 
   // Generate initial market prices
-  const marketPrices = generateMarketPrices(gameSeed);
+  const marketResult = generateMarketPrices(rngState);
+  const marketPrices = marketResult.prices;
+  rngState = marketResult.rngState;
 
   // Generate initial shop stock and draft options for the starting shop
   const initialShopStock = generateShopStock(playerEmpire, marketPrices);
-  const initialDraftResult = generateDraftOptions(gameSeed + 500, playerEmpire, []);
+  const initialDraftResult = generateDraftOptions(rngState, playerEmpire, []);
+  rngState = initialDraftResult.rngState;
+
   const initialRerollCost = calculateRerollCost(playerEmpire, marketPrices);
+
+  // Initialize stats and set initial peak values based on starting empire
+  const stats = createInitialStats();
+  updatePeakValues(stats, playerEmpire);
 
   return {
     id,
     playerId,
-    seed: gameSeed,
+    rngState,
 
     round: {
       number: 1,
@@ -65,6 +77,8 @@ export function createGameRun(
     modifiers: [],
 
     playerDefeated: null,
+
+    stats,
 
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -99,6 +113,7 @@ export function executeTurn(
 
   const { action, turns } = request;
   const empire = run.playerEmpire;
+  const startingNetworth = empire.networth;
 
   // Validate turns
   if (turns > run.round.turnsRemaining) {
@@ -446,6 +461,35 @@ export function executeTurn(
   run.round.turnsRemaining -= result.turnsSpent;
   result.turnsRemaining = run.round.turnsRemaining;
 
+  // Track stats after successful turn actions
+  if (result.success && result.turnsSpent > 0) {
+    // Track production stats for all actions
+    updateProductionStats(run.stats, result, startingNetworth);
+
+    // Track combat stats for attacks
+    if (action === 'attack' && result.combatResult) {
+      updateCombatStats(run.stats, result.combatResult, true);
+      // Check if we killed a bot
+      if (result.combatResult.won) {
+        const target = run.botEmpires.find((b) => b.id === request.targetId);
+        if (target && target.resources.land <= 0) {
+          incrementKills(run.stats);
+        }
+      }
+    }
+
+    // Track spell stats
+    if (action === 'spell' && result.spellResult) {
+      const selfSpells = ['shield', 'food', 'cash', 'runes', 'gate', 'advance', 'regress'];
+      const isOffensive = !selfSpells.includes(result.spellResult.spell);
+      const castCount = result.spellResult.castCount ?? 1;
+      updateSpellStats(run.stats, isOffensive, castCount);
+    }
+
+    // Update peak values after every action
+    updatePeakValues(run.stats, empire);
+  }
+
   // Check for player defeat after turn processing
   const defeatReason = checkPlayerDefeated(run.playerEmpire);
   if (defeatReason) {
@@ -469,13 +513,18 @@ export function endPlayerPhase(run: GameRun): void {
   run.round.phase = 'shop';
   run.round.turnsRemaining = 0;
 
-  // Generate market prices, shop stock, and draft options
-  const phaseSeed = run.seed + run.round.number * 1000;
-  run.marketPrices = generateMarketPrices(phaseSeed);
+  // Generate market prices using current RNG state (Balatro-style: state flows from player actions)
+  const marketResult = generateMarketPrices(run.rngState);
+  run.marketPrices = marketResult.prices;
+  run.rngState = marketResult.rngState;
+
   run.shopStock = generateShopStock(run.playerEmpire, run.marketPrices);
 
-  const draftResult = generateDraftOptions(phaseSeed + 500, run.playerEmpire, run.offeredAdvisorIds);
+  // Generate draft options using updated RNG state
+  const draftResult = generateDraftOptions(run.rngState, run.playerEmpire, run.offeredAdvisorIds);
   run.draftOptions = draftResult.options;
+  run.rngState = draftResult.rngState;
+
   // Track newly offered advisors
   run.offeredAdvisorIds = [...run.offeredAdvisorIds, ...draftResult.newOfferedAdvisorIds];
 
@@ -502,7 +551,7 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
   const result = applyDraftSelection(run.playerEmpire, option, {
     bots: run.botEmpires,
     currentRound: run.round.number,
-    seed: run.seed + run.round.number * 1000,
+    seed: run.rngState.current,
     clearOfferedCallback: () => {
       run.offeredAdvisorIds = [];
     },
@@ -511,6 +560,10 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
   if (!result.success) {
     return result;
   }
+
+  // Balatro-style: Advance RNG based on which option was selected
+  // Picking option 0 vs option 2 will diverge future RNG states
+  run.rngState = advanceRngBy(run.rngState, optionIndex + 1);
 
   // Check for extra draft picks
   const extraPicks = run.playerEmpire.extraDraftPicks ?? 0;
@@ -564,10 +617,11 @@ export function rerollDraft(run: GameRun): { success: boolean; error?: string; c
   run.playerEmpire.resources.gold -= run.rerollCost;
   run.rerollCount++;
 
-  // Generate new draft options with a different seed
-  const rerollSeed = run.seed + run.round.number * 1000 + 500 + run.rerollCount * 100;
-  const draftResult = generateDraftOptions(rerollSeed, run.playerEmpire, run.offeredAdvisorIds);
+  // Generate new draft options using current RNG state (Balatro-style: rerolls advance state)
+  const draftResult = generateDraftOptions(run.rngState, run.playerEmpire, run.offeredAdvisorIds);
   run.draftOptions = draftResult.options;
+  run.rngState = draftResult.rngState;
+
   // Track newly offered advisors
   run.offeredAdvisorIds = [...run.offeredAdvisorIds, ...draftResult.newOfferedAdvisorIds];
 
@@ -612,24 +666,34 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
       playerEmpire: run.playerEmpire,
       news: [],
       standings: [],
-      newSeed: run.seed,
+      newSeed: run.rngState.current,
     };
   }
 
-  // Process all bot turns (no artificial scaling - bots grow through using turns)
-  const phaseSeed = run.seed + run.round.number * 2000;
+  // Process all bot turns using current RNG state
   const result = processBotPhase(
     run.botEmpires,
     run.playerEmpire,
     run.round.number,
-    phaseSeed,
+    run.rngState.current,
     run.marketPrices
   );
 
   // Update run state with results
   run.botEmpires = result.botEmpires;
   run.playerEmpire = result.playerEmpire;
-  run.seed = result.newSeed;
+  // Update RNG state from bot phase result
+  run.rngState = { current: result.newSeed };
+
+  // Track land lost from bot attacks on player
+  for (const news of result.news) {
+    if (news.targetId === run.playerEmpire.id && news.action.type === 'attack' && news.action.success) {
+      run.stats.totalLandLost += news.action.landTaken;
+    }
+  }
+
+  // Update peak values after bot phase (player may have gained/lost resources)
+  updatePeakValues(run.stats, run.playerEmpire);
 
   // Check for player defeat after bot attacks
   const defeatReason = checkPlayerDefeated(run.playerEmpire);

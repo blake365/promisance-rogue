@@ -125,6 +125,7 @@ export interface CombatResult {
   attackerLosses: Partial<Troops>;
   defenderLosses: Partial<Troops>;
   landGained: number;
+  landLost: number;
   buildingsGained: Partial<Buildings>;
   buildingsDestroyed: Partial<Buildings>;
   offpower: number;
@@ -272,6 +273,45 @@ export interface LeaderboardEntry {
   createdAt: number;
 }
 
+// Game stats for post-game summary
+export interface GameStats {
+  // Production totals
+  totalIncome: number;
+  totalExpenses: number;
+  totalFoodProduction: number;
+  totalFoodConsumption: number;
+  totalRuneProduction: number;
+  totalTroopsProduced: Troops;
+
+  // Combat totals
+  totalAttacks: number;
+  totalAttackWins: number;
+  totalLandGained: number;
+  totalLandLost: number;
+  totalKills: number;
+
+  // Spell totals
+  totalSpellsCast: number;
+  totalOffensiveSpells: number;
+
+  // Networth tracking
+  networthPerTurn: number;
+  turnsPlayed: number;
+
+  // Peak values
+  peakGold: number;
+  peakFood: number;
+  peakRunes: number;
+  peakLand: number;
+  peakNetworth: number;
+  peakPeasants: number;
+  peakTrparm: number;
+  peakTrplnd: number;
+  peakTrpfly: number;
+  peakTrpsea: number;
+  peakTrpwiz: number;
+}
+
 // API Response types
 interface AuthResponse {
   playerId: string;
@@ -316,6 +356,7 @@ interface CurrentGameResponse {
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
     playerDefeated: DefeatReason | null;
+    stats: GameStats;
   };
 }
 
@@ -393,6 +434,7 @@ export interface BotPhaseResponse {
   intel: Record<string, SpyIntel>;
   isComplete: boolean;
   playerDefeated: DefeatReason | null;
+  stats: GameStats;
 }
 
 interface LeaderboardResponse {

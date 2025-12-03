@@ -29,7 +29,6 @@ export {
   BOT_PERSONALITIES,
   BOT_RACE_PREFERENCES,
   BOT_SPELL_PREFERENCES,
-  BOT_INDUSTRY_PREFERENCES,
   INDUSTRY_VARIATION,
   STATE_WEIGHT_MODIFIERS,
   TARGETING_WEIGHTS,
@@ -46,6 +45,16 @@ export {
   getTopGrudge,
   updateBotMemoryAfterAttack,
   updateBotMemoryAfterSpell,
+  // Combat intelligence
+  recordCombatIntel,
+  getCombatIntel,
+  findWeakTroopLines,
+  updateBotCombatIntel,
+  // Spy intelligence
+  recordSpyIntel,
+  getSpyIntel,
+  updateBotSpyIntel,
+  hasSpyIntel,
 } from './memory';
 
 // State
@@ -77,6 +86,7 @@ export {
   selectBotArchetypes,
   createBotEmpire,
   generateIndustryAllocation,
+  maybeShiftIndustryAllocation,
 } from './generation';
 
 // Strategies (new system)

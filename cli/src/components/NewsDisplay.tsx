@@ -82,10 +82,10 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
                 if (isPlayerTarget) {
                   return (
                     <Box key={index}>
-                      <Text color="red">
+                      <Text color={item.action.success ? 'red' : 'green'}>
                         {item.actor} attacked you
-                        {item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres!`}
-                        {item.action.landTaken === 0 && ' but was repelled.'}
+                        {item.action.success && item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres!`}
+                        {!item.action.success && ' but was repelled!'}
                       </Text>
                     </Box>
                   );
@@ -94,7 +94,8 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
                     <Box key={index}>
                       <Text color="cyan">
                         You attacked {item.target}
-                        {item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres.`}
+                        {item.action.success && item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres.`}
+                        {!item.action.success && ' but failed to break their defense.'}
                       </Text>
                     </Box>
                   );
@@ -105,8 +106,9 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
                 if (isPlayerTarget) {
                   return (
                     <Box key={index}>
-                      <Text color="magenta">
-                        {item.actor} cast {item.action.spell.toUpperCase()} on you!
+                      <Text color={item.action.success ? 'magenta' : 'green'}>
+                        {item.actor} cast {item.action.spell.toUpperCase()} on you
+                        {item.action.success ? '!' : ' but it fizzled!'}
                       </Text>
                     </Box>
                   );
@@ -114,7 +116,8 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
                   return (
                     <Box key={index}>
                       <Text color="cyan">
-                        You cast {item.action.spell.toUpperCase()} on {item.target}.
+                        You cast {item.action.spell.toUpperCase()} on {item.target}
+                        {item.action.success ? '.' : ' but it failed.'}
                       </Text>
                     </Box>
                   );

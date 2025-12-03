@@ -10,7 +10,7 @@
  * Edit this file to tune bot behavior.
  */
 
-import type { BotArchetype, BotPersonality, BotState, Race, Era, SpellType, TurnAction, IndustryAllocation } from '../../types';
+import type { BotArchetype, BotPersonality, BotState, Race, SpellType, TurnAction } from '../../types';
 
 // ============================================
 // BOT PERSONALITIES
@@ -24,7 +24,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   general_vask: {
     archetype: 'general_vask',
-    name: 'General Vask',
+    name: 'xX_Destroyer_Xx',
     preferredEra: 'present',
     weights: {
       explore: 5,
@@ -48,7 +48,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   grain_mother: {
     archetype: 'grain_mother',
-    name: 'The Grain Mother',
+    name: 'SunnyDays2019',
     preferredEra: 'past',
     weights: {
       explore: 10,
@@ -72,7 +72,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   archon_nyx: {
     archetype: 'archon_nyx',
-    name: 'Archon Nyx',
+    name: 'Nightshade_XIII',
     preferredEra: 'past',
     weights: {
       explore: 5,
@@ -96,7 +96,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   iron_baron: {
     archetype: 'iron_baron',
-    name: 'Iron Baron',
+    name: 'SteelReserve88',
     preferredEra: 'future',
     weights: {
       explore: 10,
@@ -120,7 +120,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   the_locust: {
     archetype: 'the_locust',
-    name: 'The Locust',
+    name: 'SpreadThinly',
     preferredEra: 'future',
     weights: {
       explore: 40,
@@ -144,7 +144,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   shadow_merchant: {
     archetype: 'shadow_merchant',
-    name: 'Shadow Merchant',
+    name: 'GoldDigger_Pro',
     preferredEra: 'present',
     weights: {
       explore: 10,
@@ -168,7 +168,7 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
    */
   the_fortress: {
     archetype: 'the_fortress',
-    name: 'The Fortress',
+    name: 'BrickWall99',
     preferredEra: 'present',
     weights: {
       explore: 10,
@@ -183,6 +183,126 @@ export const BOT_PERSONALITIES: Record<BotArchetype, BotPersonality> = {
     },
     aggressionThreshold: 2.0,  // Almost never attacks
     defenseFocus: 0.9,         // Maximum defense priority
+  },
+
+  /**
+   * ADMIRAL TIDE - The Naval Commander
+   * Sea-focused empire that dominates through naval superiority.
+   * Strong on water, raids coastal targets, controls the seas.
+   */
+  admiral_tide: {
+    archetype: 'admiral_tide',
+    name: 'DeepBlue42',
+    preferredEra: 'present',
+    weights: {
+      explore: 10,
+      farm: 10,
+      cash: 15,
+      meditate: 5,
+      industry: 25,
+      build: 15,
+      demolish: 0,
+      attack: 10,
+      spell: 5,
+    },
+    aggressionThreshold: 1.1,  // Moderately aggressive
+    defenseFocus: 0.4,
+  },
+
+  /**
+   * THE SABOTEUR - The Disruptor
+   * Spell-focused empire that weakens enemies before striking.
+   * Uses struct/storm to cripple infrastructure, then attacks.
+   */
+  the_saboteur: {
+    archetype: 'the_saboteur',
+    name: 'Glitch_In_The_System',
+    preferredEra: 'past',
+    weights: {
+      explore: 5,
+      farm: 10,
+      cash: 10,
+      meditate: 25,
+      industry: 10,
+      build: 10,
+      demolish: 0,
+      attack: 10,
+      spell: 20,
+    },
+    aggressionThreshold: 1.0,  // Attacks after softening target
+    defenseFocus: 0.3,
+  },
+
+  /**
+   * CRIMSON BERSERKER - The Glass Cannon
+   * All offense, minimal defense. High risk, high reward.
+   * Attacks constantly, either dominates or gets crushed.
+   */
+  crimson_berserker: {
+    archetype: 'crimson_berserker',
+    name: 'LEEROY_2024',
+    preferredEra: 'future',
+    weights: {
+      explore: 5,
+      farm: 5,
+      cash: 5,
+      meditate: 0,
+      industry: 30,
+      build: 5,
+      demolish: 0,
+      attack: 45,
+      spell: 5,
+    },
+    aggressionThreshold: 0.6,  // Attacks even when weaker!
+    defenseFocus: 0.0,         // Pure offense
+  },
+
+  /**
+   * THE COUNTESS - The Vengeful Noble
+   * Remembers every slight, retaliates disproportionately.
+   * Balanced normally, but becomes extremely aggressive when attacked.
+   */
+  the_countess: {
+    archetype: 'the_countess',
+    name: 'NeverForgets',
+    preferredEra: 'present',
+    weights: {
+      explore: 10,
+      farm: 15,
+      cash: 15,
+      meditate: 5,
+      industry: 20,
+      build: 15,
+      demolish: 0,
+      attack: 10,
+      spell: 10,
+    },
+    aggressionThreshold: 1.3,  // Normal threshold, but grudge system amplifies
+    defenseFocus: 0.5,
+  },
+
+  /**
+   * HAPPY - The Cupcake
+   * Cheerful but hopelessly incompetent. Makes poor decisions,
+   * barely builds military, easy to conquer. Free food for players.
+   */
+  happy: {
+    archetype: 'happy',
+    name: 'Happy',
+    preferredEra: 'past',  // Worst era for growth
+    weights: {
+      explore: 5,
+      farm: 15,
+      cash: 30,    // Hoards gold but doesn't use it well
+      meditate: 10,
+      industry: 5,  // Barely any troop production
+      build: 25,    // Builds wrong things
+      demolish: 0,
+      attack: 0,    // Never attacks
+      spell: 0,     // Never casts spells
+    },
+    aggressionThreshold: 5.0,  // Will basically never attack
+    defenseFocus: 0.5,
   },
 };
 
@@ -199,6 +319,11 @@ export const BOT_RACE_PREFERENCES: Record<BotArchetype, Race[]> = {
   the_locust: ['orc', 'troll', 'elf'],          // Exploration + offense
   shadow_merchant: ['gnome', 'human', 'elf'],   // Market + income races
   the_fortress: ['dwarf', 'human', 'goblin'],   // Defense + building races
+  admiral_tide: ['gnome', 'human', 'elf'],      // Coastal/trade races
+  the_saboteur: ['drow', 'goblin', 'gremlin'],  // Sneaky races
+  crimson_berserker: ['troll', 'orc', 'drow'],  // Aggressive races
+  the_countess: ['human', 'elf', 'drow'],       // Noble/refined races
+  happy: ['human', 'gnome', 'goblin'],          // Weak combat races
 };
 
 // ============================================
@@ -239,88 +364,69 @@ export const BOT_SPELL_PREFERENCES: Record<BotArchetype, {
     offensive: ['struct'],                      // Counter-attack infrastructure
     defensive: ['shield'],
   },
-};
-
-// ============================================
-// INDUSTRY PREFERENCES (Troop Production %)
-// Base allocation for each archetype - will be varied by seed
-// Must sum to 100
-// ============================================
-
-export const BOT_INDUSTRY_PREFERENCES: Record<BotArchetype, IndustryAllocation> = {
-  /**
-   * General Vask - All-in on ground war, armor + infantry
-   */
-  general_vask: {
-    trparm: 55,   // Infantry backbone
-    trplnd: 40,   // Heavy armor support
-    trpfly: 5,    // Token air
-    trpsea: 0,    // No navy
+  admiral_tide: {
+    offensive: ['storm', 'steal'],              // Coastal raids, resource theft
+    defensive: ['shield'],
   },
-
-  /**
-   * Grain Mother - Pure militia, cheap bodies
-   */
-  grain_mother: {
-    trparm: 90,   // Peasant militia horde
-    trplnd: 10,   // Minimal support
-    trpfly: 0,    // No air
-    trpsea: 0,    // No navy
+  the_saboteur: {
+    offensive: ['struct', 'storm', 'blast'],    // Infrastructure destruction priority
+    defensive: ['shield', 'runes'],
   },
-
-  /**
-   * Archon Nyx - Air superiority for spell support
-   */
-  archon_nyx: {
-    trparm: 15,   // Light ground presence
-    trplnd: 5,    // Almost no armor
-    trpfly: 70,   // Air dominance for magical strikes
-    trpsea: 10,   // Coastal scouts
+  crimson_berserker: {
+    offensive: ['fight', 'blast'],              // Pure damage spells
+    defensive: [],                              // No defense!
   },
-
-  /**
-   * Iron Baron - Tank rush, pure armor doctrine
-   */
-  iron_baron: {
-    trparm: 5,    // Skeleton crew infantry
-    trplnd: 85,   // TANKS TANKS TANKS
-    trpfly: 10,   // Air recon only
-    trpsea: 0,    // No navy
+  the_countess: {
+    offensive: ['blast', 'fight', 'struct'],    // Vengeful assault
+    defensive: ['shield'],
   },
-
-  /**
-   * The Locust - Fast air raids, hit and run
-   */
-  the_locust: {
-    trparm: 10,   // Light raiders
-    trplnd: 15,   // Fast vehicles
-    trpfly: 60,   // Air swarm
-    trpsea: 15,   // Coastal harassment
-  },
-
-  /**
-   * Shadow Merchant - Naval trade empire with mercenary escort
-   */
-  shadow_merchant: {
-    trparm: 20,   // Hired guards
-    trplnd: 10,   // Light escort
-    trpfly: 15,   // Air cover
-    trpsea: 55,   // Trade fleet dominance
-  },
-
-  /**
-   * The Fortress - Infantry garrison with some armor
-   */
-  the_fortress: {
-    trparm: 70,   // Garrison troops everywhere
-    trplnd: 25,   // Defensive armor
-    trpfly: 5,    // Patrol aircraft
-    trpsea: 0,    // No navy - land fortress
+  happy: {
+    offensive: [],                              // Too incompetent to attack
+    defensive: [],                              // Forgets to use defensive spells
   },
 };
 
-// How much the seed can vary each allocation (±percentage points)
+// ============================================
+// INDUSTRY VARIATION
+// How much the random seed can vary each allocation (±percentage points)
+// Industry allocations are now randomly generated from templates in generation.ts
+// ============================================
+
 export const INDUSTRY_VARIATION = 15;
+
+// ============================================
+// BOT RARITY
+// Determines how often each archetype appears in games
+// Common: 50% weight, Uncommon: 35% weight, Rare: 15% weight
+// ============================================
+
+export type BotRarity = 'common' | 'uncommon' | 'rare';
+
+export const BOT_RARITY: Record<BotArchetype, BotRarity> = {
+  // Common (50% weight) - Balanced, straightforward playstyles
+  general_vask: 'common',      // Standard aggressive
+  grain_mother: 'common',      // Standard passive
+  iron_baron: 'common',        // Standard industrial
+  shadow_merchant: 'common',   // Standard economic
+  the_countess: 'common',      // Balanced with grudge mechanic
+
+  // Uncommon (35% weight) - Specialized playstyles
+  the_fortress: 'uncommon',    // Pure turtle
+  the_locust: 'uncommon',      // Land rush specialist
+  admiral_tide: 'uncommon',    // Naval specialist
+  the_saboteur: 'uncommon',    // Spell disruption
+  happy: 'uncommon',           // Cupcake - easy target
+
+  // Rare (15% weight) - Extreme/unique playstyles
+  archon_nyx: 'rare',          // Full mage with perfect intel
+  crimson_berserker: 'rare',   // Glass cannon, high variance
+};
+
+export const RARITY_WEIGHTS: Record<BotRarity, number> = {
+  common: 50,
+  uncommon: 35,
+  rare: 15,
+};
 
 // ============================================
 // STATE WEIGHT MODIFIERS

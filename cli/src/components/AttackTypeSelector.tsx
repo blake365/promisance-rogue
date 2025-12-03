@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { SpellType } from '../api/client.js';
+import type { SpellType, Troops } from '../api/client.js';
 
 // Attack types from QM Promisance military.php
 export type AttackType = 'standard' | 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
@@ -22,11 +22,11 @@ interface CombatOption {
 }
 
 const MILITARY_ATTACKS: CombatOption[] = [
-  { id: 'standard', name: 'Standard Attack', shortKey: 's', description: 'Full assault with all units', cost: '2 turns', kind: 'military' },
-  { id: 'trparm', name: 'Soldier Attack', shortKey: '1', description: 'Infantry only, lower losses', cost: '2 turns', kind: 'military' },
-  { id: 'trplnd', name: 'Tank Attack', shortKey: '2', description: 'Vehicles only, lower losses', cost: '2 turns', kind: 'military' },
-  { id: 'trpfly', name: 'Air Strike', shortKey: '3', description: 'Aircraft only, lowest losses', cost: '2 turns', kind: 'military' },
-  { id: 'trpsea', name: 'Naval Attack', shortKey: '4', description: 'Ships only, lowest losses', cost: '2 turns', kind: 'military' },
+  { id: 'standard', name: 'Standard Attack', shortKey: 's', description: 'All units, +15% land, +1 health cost', cost: '2 turns', kind: 'military' },
+  { id: 'trparm', name: 'Soldier Attack', shortKey: '1', description: 'Infantry only', cost: '2 turns', kind: 'military' },
+  { id: 'trplnd', name: 'Tank Attack', shortKey: '2', description: 'Vehicles only', cost: '2 turns', kind: 'military' },
+  { id: 'trpfly', name: 'Air Strike', shortKey: '3', description: 'Aircraft only', cost: '2 turns', kind: 'military' },
+  { id: 'trpsea', name: 'Naval Attack', shortKey: '4', description: 'Ships only', cost: '2 turns', kind: 'military' },
 ];
 
 const MAGIC_ATTACKS: CombatOption[] = [
@@ -40,15 +40,22 @@ const MAGIC_ATTACKS: CombatOption[] = [
 
 const ALL_OPTIONS = [...MILITARY_ATTACKS, ...MAGIC_ATTACKS];
 
+function formatTroopCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
 interface Props {
   targetName: string;
   runes: number;
   wizards: number;
+  troops: Troops;
   onSelect: (choice: CombatChoice) => void;
   onCancel: () => void;
 }
 
-export function AttackTypeSelector({ targetName, runes, wizards, onSelect, onCancel }: Props) {
+export function AttackTypeSelector({ targetName, runes, wizards, troops, onSelect, onCancel }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const canUseMagic = wizards > 0 && runes >= 100; // Basic rune check
@@ -118,6 +125,14 @@ export function AttackTypeSelector({ targetName, runes, wizards, onSelect, onCan
         <Text>
           Runes: <Text color="magenta">{runes.toLocaleString()}</Text> | Wizards:{' '}
           <Text color="cyan">{wizards.toLocaleString()}</Text>
+        </Text>
+      </Box>
+      <Box>
+        <Text>
+          Troops: <Text color="white">{formatTroopCount(troops.trparm)}</Text> inf |{' '}
+          <Text color="white">{formatTroopCount(troops.trplnd)}</Text> veh |{' '}
+          <Text color="white">{formatTroopCount(troops.trpfly)}</Text> air |{' '}
+          <Text color="white">{formatTroopCount(troops.trpsea)}</Text> sea
         </Text>
       </Box>
 

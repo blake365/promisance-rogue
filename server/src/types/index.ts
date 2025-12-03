@@ -214,7 +214,12 @@ export type BotArchetype =
   | 'iron_baron'
   | 'the_locust'
   | 'shadow_merchant'
-  | 'the_fortress';
+  | 'the_fortress'
+  | 'admiral_tide'
+  | 'the_saboteur'
+  | 'crimson_berserker'
+  | 'the_countess'
+  | 'happy';
 
 export interface BotPersonality {
   archetype: BotArchetype;
@@ -242,12 +247,35 @@ export type BotState =
   | 'defensive'     // Under threat, turtle up
   | 'retaliating';  // Recently attacked, revenge mode
 
+/**
+ * Intelligence gathered from combat results against a specific target.
+ * Used to adapt attack tactics based on observed enemy weaknesses.
+ */
+export interface CombatIntelligence {
+  // Last observed troop losses by the target (low losses may indicate weak line)
+  lastDefenderLosses: Partial<Troops>;
+  // Whether our last attack succeeded
+  lastAttackWon: boolean;
+  // Attack type used in last attack
+  lastAttackType: AttackType;
+  // Round this intel was gathered
+  round: number;
+  // Count of failed attacks (didn't win)
+  failedAttacks: number;
+  // Count of successful attacks
+  successfulAttacks: number;
+}
+
 export interface BotMemory {
   attacksReceived: Record<string, number>;
   spellsReceived: Record<string, number>;
   landLostTo: Record<string, number>;
   lastAttackedBy: string | null;
   lastAttackedRound: number | null;
+  // Combat intelligence gathered from attacking targets (keyed by target id)
+  combatIntel: Record<string, CombatIntelligence>;
+  // Spy intel gathered from spy spells (keyed by target id)
+  spyIntel: Record<string, SpyIntel>;
 }
 
 export interface BotEmpire extends Empire {
@@ -289,6 +317,56 @@ export interface BotStanding {
 }
 
 // ============================================
+// RNG STATE
+// ============================================
+
+export interface RngState {
+  current: number;
+}
+
+// ============================================
+// GAME STATS (for post-game summary)
+// ============================================
+
+export interface GameStats {
+  // Production totals
+  totalIncome: number;
+  totalExpenses: number;
+  totalFoodProduction: number;
+  totalFoodConsumption: number;
+  totalRuneProduction: number;
+  totalTroopsProduced: Troops;
+
+  // Combat totals
+  totalAttacks: number;
+  totalAttackWins: number;
+  totalLandGained: number;
+  totalLandLost: number;
+  totalKills: number;
+
+  // Spell totals
+  totalSpellsCast: number;
+  totalOffensiveSpells: number;
+
+  // Networth tracking
+  networthPerTurn: number;  // Average networth gain per turn
+  turnsPlayed: number;
+
+  // Peak values
+  peakGold: number;
+  peakFood: number;
+  peakRunes: number;
+  peakLand: number;
+  peakNetworth: number;
+  peakPeasants: number;
+  peakTrparm: number;
+  peakTrplnd: number;
+  peakTrpfly: number;
+  peakTrpsea: number;
+  peakTrpwiz: number;
+}
+
+// ============================================
 // GAME STATE
 // ============================================
 
@@ -301,7 +379,7 @@ export interface GameRound {
 export interface GameRun {
   id: string;
   playerId: string;
-  seed: number;
+  rngState: RngState;
 
   round: GameRound;
   playerEmpire: Empire;
@@ -326,6 +404,9 @@ export interface GameRun {
 
   // Game over state
   playerDefeated: DefeatReason | null;
+
+  // Stats tracking for post-game summary
+  stats: GameStats;
 
   createdAt: number;
   updatedAt: number;
@@ -367,7 +448,8 @@ export interface CombatResult {
   attackerLosses: Partial<Troops>;
   defenderLosses: Partial<Troops>;
 
-  landGained: number;
+  landGained: number;      // Land attacker receives (may include bonus)
+  landLost: number;        // Land defender loses (base amount, no bonus)
   buildingsGained: Partial<Buildings>;
   buildingsDestroyed: Partial<Buildings>;
 
