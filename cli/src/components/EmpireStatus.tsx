@@ -22,40 +22,25 @@ function ResourceBar({ label, value, color }: { label: string; value: string; co
   );
 }
 
-// Compact bonus indicator
-function BonusIndicators({ empire }: { empire: Empire }) {
-  const advisorCount = empire.advisors.length;
-  const techCount = Object.keys(empire.techs).length;
-  const policyCount = empire.policies.length;
+// Rarity colors for advisors
+const RARITY_COLORS: Record<string, string> = {
+  common: 'white',
+  uncommon: 'green',
+  rare: 'blue',
+  legendary: 'yellow',
+};
 
-  // Check for permanent effects from advisors/policies
-  const hasPermanentGate = empire.advisors.some(a => a.effect.type === 'permanent_gate');
-  const hasPermanentShield = empire.policies.includes('magical_immunity');
+// Mastery display names (abbreviated for compact display)
+const MASTERY_ABBREV: Record<string, string> = {
+  farm: 'Farm',
+  cash: 'Cash',
+  explore: 'Expl',
+  industry: 'Ind',
+  meditate: 'Myst',
+};
 
-  if (advisorCount === 0 && techCount === 0 && policyCount === 0) {
-    return null;
-  }
-
-  return (
-    <Box gap={1}>
-      {advisorCount > 0 && (
-        <Text color="magenta">[A:{advisorCount}]</Text>
-      )}
-      {techCount > 0 && (
-        <Text color="cyan">[T:{techCount}]</Text>
-      )}
-      {policyCount > 0 && (
-        <Text color="green">[P:{policyCount}]</Text>
-      )}
-      {hasPermanentGate && (
-        <Text color="magenta">GATE</Text>
-      )}
-      {hasPermanentShield && (
-        <Text color="cyan">SHIELD</Text>
-      )}
-    </Box>
-  );
-}
+// Roman numerals for mastery levels
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V'];
 
 export function EmpireStatus({ empire, round }: Props) {
   const eraColors: Record<string, string> = {
@@ -64,21 +49,18 @@ export function EmpireStatus({ empire, round }: Props) {
     future: 'green',
   };
 
-  const raceIcons: Record<string, string> = {
-    human: '👤',
-    elf: '🧝',
-    dwarf: '⛏️',
-    orc: '👹',
-    undead: '💀',
-  };
+  // Capitalize race name
+  const raceName = empire.race.charAt(0).toUpperCase() + empire.race.slice(1);
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       {/* Header */}
       <Box justifyContent="space-between">
-        <Text bold color="yellow">
-          {empire.name} {raceIcons[empire.race] || ''}
-        </Text>
+        <Box gap={1}>
+          <Text bold color="yellow">{empire.name}</Text>
+          <Text color="gray">-</Text>
+          <Text color="white">{raceName}</Text>
+        </Box>
         <Text color={eraColors[empire.era]}>
           [{empire.era.toUpperCase()}]
         </Text>
@@ -117,14 +99,39 @@ export function EmpireStatus({ empire, round }: Props) {
         <ResourceBar label="❤️ Health" value={`${empire.health}%`} color={empire.health > 50 ? 'green' : 'red'} />
       </Box>
 
-      {/* Networth and Bonuses */}
-      <Box marginTop={1} justifyContent="space-between">
-        <Box>
-          <Text color="gray">Networth: </Text>
-          <Text bold color="yellow">{formatNumber(empire.networth)}</Text>
-        </Box>
-        <BonusIndicators empire={empire} />
+      {/* Networth */}
+      <Box marginTop={1}>
+        <Text color="gray">Networth: </Text>
+        <Text bold color="yellow">{formatNumber(empire.networth)}</Text>
       </Box>
+
+      {/* Advisors */}
+      {empire.advisors.length > 0 && (
+        <Box gap={1}>
+          <Text color="gray">Advisors:</Text>
+          {empire.advisors.map((advisor, idx) => (
+            <React.Fragment key={advisor.id}>
+              <Text color={RARITY_COLORS[advisor.rarity] || 'white'}>{advisor.name}</Text>
+              {idx < empire.advisors.length - 1 && <Text color="gray">,</Text>}
+            </React.Fragment>
+          ))}
+        </Box>
+      )}
+
+      {/* Masteries */}
+      {Object.keys(empire.techs).length > 0 && (
+        <Box gap={1}>
+          <Text color="gray">Masteries:</Text>
+          {Object.entries(empire.techs).map(([action, level], idx, arr) => (
+            <React.Fragment key={action}>
+              <Text color="cyan">
+                {MASTERY_ABBREV[action] || action} {ROMAN_NUMERALS[level - 1] || level}
+              </Text>
+              {idx < arr.length - 1 && <Text color="gray">,</Text>}
+            </React.Fragment>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }
