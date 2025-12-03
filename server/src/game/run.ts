@@ -30,6 +30,11 @@ export function createGameRun(
   // Generate initial market prices
   const marketPrices = generateMarketPrices(gameSeed);
 
+  // Generate initial shop stock and draft options for the starting shop
+  const initialShopStock = generateShopStock(playerEmpire, marketPrices);
+  const initialDraftOptions = generateDraftOptions(gameSeed + 500, playerEmpire);
+  const initialRerollCost = calculateRerollCost(playerEmpire, marketPrices);
+
   return {
     id,
     playerId,
@@ -38,18 +43,18 @@ export function createGameRun(
     round: {
       number: 1,
       turnsRemaining: TURNS_PER_ROUND,
-      phase: 'player',
+      phase: 'shop', // Start with initial shop phase
     },
 
     playerEmpire,
     botEmpires,
 
     marketPrices,
-    shopStock: null,
-    draftOptions: null,
+    shopStock: initialShopStock,
+    draftOptions: initialDraftOptions,
 
-    // Reroll system - initialized when shop phase starts
-    rerollCost: null,
+    // Reroll system - initialized for initial shop
+    rerollCost: initialRerollCost,
     rerollCount: 0,
 
     intel: {},
@@ -510,8 +515,14 @@ export function endShopPhase(run: GameRun): void {
   run.draftOptions = null;
   run.shopStock = null;
 
-  // Move to bot phase
-  run.round.phase = 'bot';
+  // Determine next phase:
+  // - If turnsRemaining > 0, this was the initial shop → go to player phase
+  // - If turnsRemaining = 0, this was post-player shop → go to bot phase
+  if (run.round.turnsRemaining > 0) {
+    run.round.phase = 'player';
+  } else {
+    run.round.phase = 'bot';
+  }
   run.updatedAt = Date.now();
 }
 

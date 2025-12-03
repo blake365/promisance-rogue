@@ -10,22 +10,23 @@ interface BuildingType {
 }
 
 const BUILDING_TYPES: BuildingType[] = [
-  { key: 'bldcash', name: 'Markets', shortKey: 'm', description: '+500 gold/turn' },
-  { key: 'bldtrp', name: 'Barracks', shortKey: 'b', description: 'Troop production' },
-  { key: 'bldcost', name: 'Exchanges', shortKey: 'e', description: 'Better prices & reduce expenses' },
-  { key: 'bldfood', name: 'Farms', shortKey: 'f', description: '+85 food/turn' },
-  { key: 'bldwiz', name: 'Towers', shortKey: 't', description: 'Runes & wizards' },
+  { key: 'bldcash', name: 'Markets', shortKey: 'm', description: 'Generate gold income' },
+  { key: 'bldtrp', name: 'Barracks', shortKey: 'b', description: 'Produce troops' },
+  { key: 'bldcost', name: 'Exchanges', shortKey: 'e', description: 'Reduce expenses' },
+  { key: 'bldfood', name: 'Farms', shortKey: 'f', description: 'Produce food' },
+  { key: 'bldwiz', name: 'Towers', shortKey: 't', description: 'Produce runes & train wizards' },
 ];
 
 interface Props {
   freeLand: number;
   gold: number;
   landTotal: number;
+  currentBuildings: Buildings;
   onConfirm: (allocation: Partial<Buildings>) => void;
   onCancel: () => void;
 }
 
-export function BuildingSelector({ freeLand, gold, landTotal, onConfirm, onCancel }: Props) {
+export function BuildingSelector({ freeLand, gold, landTotal, currentBuildings, onConfirm, onCancel }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [allocation, setAllocation] = useState<Partial<Record<keyof Buildings, number>>>({
     bldcash: 0,
@@ -138,13 +139,15 @@ export function BuildingSelector({ freeLand, gold, landTotal, onConfirm, onCance
         {BUILDING_TYPES.map((type, index) => {
           const isSelected = index === selectedIndex;
           const count = allocation[type.key] || 0;
+          const current = currentBuildings[type.key] || 0;
           return (
             <Box key={type.key}>
               <Text color={isSelected ? 'cyan' : 'white'}>
                 {isSelected ? '>' : ' '} [{type.shortKey}] {type.name.padEnd(10)}{' '}
               </Text>
+              <Text color="yellow">{String(current).padStart(4)}</Text>
               <Text color={count > 0 ? 'green' : 'gray'}>
-                {String(count).padStart(4)}
+                {count > 0 ? ` +${count}` : '    '}
               </Text>
               <Text color="gray"> - {type.description}</Text>
             </Box>

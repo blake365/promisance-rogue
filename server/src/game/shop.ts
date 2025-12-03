@@ -12,7 +12,7 @@ import type {
 import { SHOP, UNIT_COSTS } from './constants';
 import { calculateNetworth, addTroops } from './empire';
 import { ADVISORS } from './bonuses/advisors';
-import { TECHS } from './bonuses/techs';
+import { MASTERIES, MASTERY_BONUS_PER_LEVEL, MAX_MASTERY_LEVEL } from './bonuses/techs';
 import { EDICTS } from './bonuses/edicts';
 
 // ============================================
@@ -262,7 +262,7 @@ function generateAdvisorOption(empire: Empire, rng: number): { option: DraftOpti
   return { option: null, rng };
 }
 
-// Helper to generate a single non-advisor option (tech or edict)
+// Helper to generate a single non-advisor option (mastery or edict)
 function generateOtherOption(empire: Empire, rng: number): { option: DraftOption; rng: number } {
   rng = (rng * 1103515245 + 12345) & 0x7fffffff;
   const rarity = selectRarity(rng);
@@ -273,14 +273,15 @@ function generateOtherOption(empire: Empire, rng: number): { option: DraftOption
   let option: DraftOption;
 
   if (typeRoll < 50) {
-    // Tech (50%)
-    const availableTechs = TECHS.filter(
-      (t) => !empire.techs[t.action] || empire.techs[t.action] < t.level
+    // Mastery (50%) - only offer masteries not yet at max level
+    const availableMasteries = MASTERIES.filter(
+      (m) => (empire.techs[m.action] ?? 0) < MAX_MASTERY_LEVEL
     );
-    if (availableTechs.length > 0) {
+    if (availableMasteries.length > 0) {
       rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-      option = { type: 'tech', item: selectRandomItem(availableTechs, rng) };
+      option = { type: 'tech', item: selectRandomItem(availableMasteries, rng) };
     } else {
+      // All masteries maxed, offer edict instead
       rng = (rng * 1103515245 + 12345) & 0x7fffffff;
       option = { type: 'edict', item: selectRandomItem(EDICTS, rng) };
     }
@@ -398,8 +399,13 @@ export function applyDraftSelection(
     }
 
     case 'tech': {
+      // Mastery: increment level by 1 (capped at MAX_MASTERY_LEVEL)
       const tech = option.item as Tech;
-      empire.techs[tech.action] = tech.level;
+      const currentLevel = empire.techs[tech.action] ?? 0;
+      if (currentLevel >= MAX_MASTERY_LEVEL) {
+        return { success: false, error: 'Mastery already at maximum level' };
+      }
+      empire.techs[tech.action] = currentLevel + 1;
       break;
     }
 
@@ -535,13 +541,11 @@ export function getTechBonus(empire: Empire, action: string): number {
   const level = empire.techs[action] ?? 0;
   if (level === 0) return 0;
 
-  // Sum all bonuses up to current level (since bonuses vary per level)
+  // Sum all bonuses up to current level
+  // MASTERY_BONUS_PER_LEVEL = [10, 10, 10, 15, 15] (percentage points)
   let totalBonus = 0;
-  for (let i = 1; i <= level; i++) {
-    const tech = TECHS.find((t) => t.action === action && t.level === i);
-    if (tech) {
-      totalBonus += tech.bonus;
-    }
+  for (let i = 0; i < level; i++) {
+    totalBonus += MASTERY_BONUS_PER_LEVEL[i] ?? 0;
   }
   return totalBonus / 100;
 }

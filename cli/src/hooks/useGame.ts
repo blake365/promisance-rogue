@@ -15,6 +15,7 @@ import {
   type BankInfo,
   type SpyIntel,
   type DefeatReason,
+  type RerollInfo,
 } from '../api/client.js';
 
 interface GameState {
@@ -26,6 +27,7 @@ interface GameState {
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
   draftOptions: DraftOption[] | null;
+  rerollInfo: RerollInfo | null;
   isComplete: boolean;
   playerDefeated: DefeatReason | null;
 }
@@ -52,6 +54,7 @@ export function useGame() {
     marketPrices: null,
     shopStock: null,
     draftOptions: null,
+    rerollInfo: null,
     isComplete: false,
     playerDefeated: null,
   });
@@ -103,6 +106,7 @@ export function useGame() {
           marketPrices: response.game.marketPrices,
           shopStock: response.game.shopStock,
           draftOptions: response.game.draftOptions,
+          rerollInfo: null, // Will be fetched when entering shop phase
           isComplete: false,
           playerDefeated: response.game.playerDefeated,
         });
@@ -134,6 +138,7 @@ export function useGame() {
           marketPrices: gameResponse.game.marketPrices,
           shopStock: gameResponse.game.shopStock,
           draftOptions: gameResponse.game.draftOptions,
+          rerollInfo: null, // Will be fetched when entering shop phase
           isComplete: false,
           playerDefeated: gameResponse.game.playerDefeated,
         });
@@ -141,6 +146,34 @@ export function useGame() {
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create game');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const abandonGame = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await client.abandonGame();
+      // Reset game state
+      setGame({
+        gameId: null,
+        round: null,
+        playerEmpire: null,
+        botEmpires: [],
+        intel: {},
+        marketPrices: null,
+        shopStock: null,
+        draftOptions: null,
+        rerollInfo: null,
+        isComplete: false,
+        playerDefeated: null,
+      });
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to abandon game');
       return false;
     } finally {
       setLoading(false);
@@ -192,12 +225,15 @@ export function useGame() {
     setError(null);
     try {
       const response = await client.endPlayerPhase(game.gameId);
+      // Fetch reroll info when entering shop phase
+      const rerollInfo = await client.getRerollInfo(game.gameId);
       setGame((prev) => ({
         ...prev,
         round: prev.round ? { ...prev.round, phase: response.phase as 'shop' } : null,
         marketPrices: response.marketPrices,
         shopStock: response.shopStock,
         draftOptions: response.draftOptions,
+        rerollInfo,
       }));
       return true;
     } catch (err) {
@@ -217,15 +253,76 @@ export function useGame() {
       try {
         const response = await client.selectDraft(game.gameId, optionIndex);
         if (response.success) {
+          // Refresh reroll info after selection (advisor capacity may have changed)
+          const rerollInfo = await client.getRerollInfo(game.gameId);
           setGame((prev) => ({
             ...prev,
             playerEmpire: response.empire,
             draftOptions: response.draftOptions,
+            rerollInfo,
           }));
         }
         return response.success;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Draft failed');
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [game.gameId]
+  );
+
+  // Reroll draft options
+  const rerollDraft = useCallback(async () => {
+    if (!game.gameId) return false;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await client.rerollDraft(game.gameId);
+      if (response.success) {
+        setGame((prev) => ({
+          ...prev,
+          playerEmpire: response.empire,
+          draftOptions: response.draftOptions,
+          rerollInfo: response.rerollInfo,
+        }));
+        return true;
+      } else {
+        setError(response.error || 'Reroll failed');
+        return false;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reroll failed');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [game.gameId]);
+
+  // Dismiss advisor
+  const dismissAdvisor = useCallback(
+    async (advisorId: string) => {
+      if (!game.gameId) return false;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await client.dismissAdvisor(game.gameId, advisorId);
+        if (response.success) {
+          setGame((prev) => ({
+            ...prev,
+            playerEmpire: response.empire,
+            rerollInfo: prev.rerollInfo
+              ? { ...prev.rerollInfo, advisorCapacity: response.advisorCapacity }
+              : null,
+          }));
+          return true;
+        } else {
+          setError(response.error || 'Dismiss failed');
+          return false;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Dismiss failed');
         return false;
       } finally {
         setLoading(false);
@@ -365,9 +462,12 @@ export function useGame() {
     restoreSession,
     checkActiveGame,
     newGame,
+    abandonGame,
     executeAction,
     endPlayerPhase,
     selectDraft,
+    rerollDraft,
+    dismissAdvisor,
     endShopPhase,
     marketTransaction,
     bankTransaction,

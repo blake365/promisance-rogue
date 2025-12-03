@@ -857,13 +857,12 @@ export function processBuild(
   // the cost was already validated upfront)
   empire.resources.gold -= totalCost;
 
-  empire.buildings.bldpop += allocation.bldpop ?? 0;
+  // bldpop and blddef removed from game
   empire.buildings.bldcash += allocation.bldcash ?? 0;
   empire.buildings.bldtrp += allocation.bldtrp ?? 0;
   empire.buildings.bldcost += allocation.bldcost ?? 0;
   empire.buildings.bldfood += allocation.bldfood ?? 0;
   empire.buildings.bldwiz += allocation.bldwiz ?? 0;
-  empire.buildings.blddef += allocation.blddef ?? 0;
 
   empire.resources.freeland -= totalToConstruct;
 

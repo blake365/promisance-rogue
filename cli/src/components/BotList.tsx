@@ -17,19 +17,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
-const raceIcons: Record<string, string> = {
-  human: '👤',
-  elf: '🧝',
-  dwarf: '⛏️',
-  orc: '👹',
-  undead: '💀',
-  troll: '🧌',
-  gnome: '🧙',
-  gremlin: '👺',
-  drow: '🖤',
-  goblin: '👽',
-};
-
 const eraColors: Record<string, string> = {
   past: 'magenta',
   present: 'cyan',
@@ -147,23 +134,18 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
 
           return (
             <Box key={bot.id} gap={1}>
-              {selectable && (
-                <Text color={isSelected ? 'cyan' : 'gray'}>
-                  {isSelected ? '▶' : ' '}
-                </Text>
-              )}
-              {!selectable && (
-                <Text color={isSelected ? 'cyan' : 'gray'}>
-                  {isSelected ? '▶' : ' '}
-                </Text>
-              )}
-              <Text>{raceIcons[bot.race] || '?'}</Text>
+              <Text color={isSelected ? 'cyan' : 'gray'}>
+                {isSelected ? '▶' : ' '}
+              </Text>
               <Text bold color={isSelected ? 'white' : 'gray'}>
                 {bot.name}
               </Text>
-              <Text color={eraColors[bot.era]}>[{bot.era}]</Text>
-              <Text color="yellow">NW: {formatNumber(bot.networth)}</Text>
               <Text color="cyan">Land: {formatNumber(bot.land)}</Text>
+              <Text color="yellow">NW: {formatNumber(bot.networth)}</Text>
+              <Text color="gray">
+                {bot.race.charAt(0).toUpperCase() + bot.race.slice(1)}
+              </Text>
+              <Text color={eraColors[bot.era]}>[{bot.era}]</Text>
               {hasIntel && (
                 <Text color={isStale ? 'yellow' : 'magenta'}>
                   {isStale ? '[intel:old]' : '[intel]'}

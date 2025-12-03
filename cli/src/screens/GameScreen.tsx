@@ -18,6 +18,7 @@ import type {
   BankInfo,
   SpyIntel,
   DefeatReason,
+  RerollInfo,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -32,6 +33,8 @@ import { IndustryAllocationSelector } from '../components/IndustryAllocationSele
 import { TaxRateInput } from '../components/TaxRateInput.js';
 import { MarketView } from '../components/MarketView.js';
 import { BankView } from '../components/BankView.js';
+import { AdvisorList } from '../components/AdvisorList.js';
+import { GuideScreen } from '../components/GuideScreen.js';
 
 type ViewMode =
   | 'main'
@@ -50,7 +53,9 @@ type ViewMode =
   | 'action_result'
   | 'shop'
   | 'draft'
-  | 'bot_phase';
+  | 'advisors'
+  | 'bot_phase'
+  | 'guide';
 
 // Tech bonus percentages per level
 const TECH_BONUS: Record<string, number> = {
@@ -105,6 +110,7 @@ interface Props {
   bots: BotSummary[];
   intel: Record<string, SpyIntel>;
   draftOptions: DraftOption[] | null;
+  rerollInfo: RerollInfo | null;
   marketPrices: MarketPrices | null;
   shopStock: ShopStock | null;
   bankInfo: BankInfo | null;
@@ -114,10 +120,13 @@ interface Props {
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
   onEndPlayerPhase: () => Promise<boolean>;
   onSelectDraft: (index: number) => Promise<boolean>;
+  onRerollDraft: () => Promise<boolean>;
+  onDismissAdvisor: (advisorId: string) => Promise<boolean>;
   onEndShopPhase: () => Promise<boolean>;
   onMarketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   onBankTransaction: (transaction: BankTransaction) => Promise<boolean>;
   onExecuteBotPhase: () => Promise<any>;
+  onClearError: () => void;
   onQuit: () => void;
 }
 
@@ -127,6 +136,7 @@ export function GameScreen({
   bots,
   intel,
   draftOptions,
+  rerollInfo,
   marketPrices,
   shopStock,
   bankInfo,
@@ -136,10 +146,13 @@ export function GameScreen({
   onAction,
   onEndPlayerPhase,
   onSelectDraft,
+  onRerollDraft,
+  onDismissAdvisor,
   onEndShopPhase,
   onMarketTransaction,
   onBankTransaction,
   onExecuteBotPhase,
+  onClearError,
   onQuit,
 }: Props) {
   const { exit } = useApp();
@@ -153,6 +166,11 @@ export function GameScreen({
 
   // Handle global keys
   useInput((input, key) => {
+    // Clear error on any key press
+    if (error) {
+      onClearError();
+      return;
+    }
     if (key.return && view === 'action_result') {
       setLastResult(null);
       // Return to attack view if we still have a target, otherwise main
@@ -169,7 +187,7 @@ export function GameScreen({
 
   // Handle action selection from menu
   const handleActionSelect = useCallback(
-    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank') => {
+    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide') => {
       if (action === 'overview') {
         setView('overview');
       } else if (action === 'bots') {
@@ -178,6 +196,8 @@ export function GameScreen({
         setView('market');
       } else if (action === 'bank') {
         setView('bank');
+      } else if (action === 'guide') {
+        setView('guide');
       } else if (action === 'end_phase') {
         await onEndPlayerPhase();
         if (round.phase === 'shop') {
@@ -443,6 +463,7 @@ export function GameScreen({
               freeLand={empire.resources.freeland}
               gold={empire.resources.gold}
               landTotal={empire.resources.land}
+              currentBuildings={empire.buildings}
               onConfirm={handleBuildingConfirm}
               onCancel={() => setView('main')}
             />
@@ -570,6 +591,12 @@ export function GameScreen({
               onTransaction={onBankTransaction}
               onClose={() => setView('main')}
             />
+          </Box>
+        )}
+
+        {view === 'guide' && (
+          <Box marginTop={1}>
+            <GuideScreen onClose={() => setView('main')} />
           </Box>
         )}
 
@@ -873,6 +900,23 @@ export function GameScreen({
       );
     }
 
+    // Show advisors in shop phase
+    if (view === 'advisors') {
+      return (
+        <Box flexDirection="column" padding={1}>
+          <EmpireStatus empire={empire} round={round} />
+          <Box marginTop={1}>
+            <AdvisorList
+              advisors={empire.advisors}
+              maxAdvisors={rerollInfo?.advisorCapacity.max ?? 3}
+              onDismiss={onDismissAdvisor}
+              onClose={() => setView('shop')}
+            />
+          </Box>
+        </Box>
+      );
+    }
+
     return (
       <Box flexDirection="column" padding={1}>
         <EmpireStatus empire={empire} round={round} />
@@ -883,14 +927,18 @@ export function GameScreen({
           {draftOptions && draftOptions.length > 0 ? (
             <DraftPicker
               options={draftOptions}
+              rerollInfo={rerollInfo}
+              masteryLevels={empire.techs}
               onSelect={handleDraftSelect}
+              onReroll={onRerollDraft}
               onSkip={handleShopDone}
               onMarket={() => setView('market')}
+              onAdvisors={() => setView('advisors')}
             />
           ) : (
             <Box flexDirection="column" marginTop={1}>
               <Text color="gray">No draft options remaining.</Text>
-              <ShopDonePrompt onDone={handleShopDone} onMarket={() => setView('market')} />
+              <ShopDonePrompt onDone={handleShopDone} onMarket={() => setView('market')} onAdvisors={() => setView('advisors')} />
             </Box>
           )}
         </Box>
@@ -930,6 +978,11 @@ export function GameScreen({
         return {
           title: 'BANKRUPTCY',
           description: 'Your debts have exceeded all reasonable limits. The banks have seized your empire.',
+        };
+      case 'abandoned':
+        return {
+          title: 'ABANDONED',
+          description: 'You have abandoned your empire to start anew.',
         };
     }
   };
@@ -976,18 +1029,20 @@ export function GameScreen({
 }
 
 // Helper component for shop done
-function ShopDonePrompt({ onDone, onMarket }: { onDone: () => void; onMarket: () => void }) {
+function ShopDonePrompt({ onDone, onMarket, onAdvisors }: { onDone: () => void; onMarket: () => void; onAdvisors?: () => void }) {
   useInput((input, key) => {
     if (key.return) {
       onDone();
     } else if (input === 'p' || input === 'm') {
       onMarket();
+    } else if (input === 'a' && onAdvisors) {
+      onAdvisors();
     }
   });
 
   return (
     <Box flexDirection="column">
-      <Text color="gray">[p] market (better prices!) • [Enter] proceed to bot phase</Text>
+      <Text color="gray">[p] market (better prices!) • [a] advisors • [Enter] proceed to bot phase</Text>
     </Box>
   );
 }

@@ -366,20 +366,19 @@ export const COMBAT = {
 
   // Building destruction on victory [lossPercent, gainPercent]
   // From military.php destroyBuildings calls
+  // Note: bldpop and blddef removed from game
   buildingCapture: {
     bldcash: [0.07, 0.70],
-    bldpop: [0.07, 0.70],
     bldtrp: [0.07, 0.50],
     bldcost: [0.07, 0.70],
     bldfood: [0.07, 0.30],
     bldwiz: [0.07, 0.60],
-    blddef: [0.11, 0.60],   // Towers more likely to be taken
     freeland: [0.10, 0.00], // Free land destroyed but not gained as buildings
   } as Record<string, [number, number]>,
 
-  // Tower defense (from military.php line 130-131)
-  towerDefensePerBuilding: 450,
-  soldiersPerTower: 150,
+  // Tower defense - REMOVED (blddef no longer used)
+  // towerDefensePerBuilding: 450,
+  // soldiersPerTower: 150,
 };
 
 // ============================================

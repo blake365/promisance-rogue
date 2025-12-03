@@ -1,5 +1,6 @@
-import type { GameRun, LeaderboardEntry, Env } from '../types';
+import type { GameRun, LeaderboardEntry, Env, BotEmpire } from '../types';
 import { serializeGameRun, deserializeGameRun } from '../game/run';
+import { createEmptyMemory } from '../game/bot/memory';
 
 // ============================================
 // PLAYER OPERATIONS
@@ -124,11 +125,11 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
       JSON.stringify(run.marketPrices),
       run.shopStock ? JSON.stringify(run.shopStock) : null,
       run.draftOptions ? JSON.stringify(run.draftOptions) : null,
-      run.rerollCost,
-      run.rerollCount,
-      JSON.stringify(run.intel),
-      JSON.stringify(run.modifiers),
-      run.playerDefeated,
+      run.rerollCost ?? null,
+      run.rerollCount ?? 0,
+      JSON.stringify(run.intel ?? {}),
+      JSON.stringify(run.modifiers ?? []),
+      run.playerDefeated ?? null,
       run.createdAt,
       run.updatedAt,
       run.round.phase === 'complete' ? Date.now() : null,
@@ -186,6 +187,12 @@ export async function getPlayerGameRuns(
 }
 
 function reconstructGameRun(row: Record<string, unknown>): GameRun {
+  // Parse bot empires and ensure they have memory initialized
+  const botEmpires = (JSON.parse(row.bot_empires as string) as BotEmpire[]).map(bot => ({
+    ...bot,
+    memory: bot.memory ?? createEmptyMemory(),
+  }));
+
   return {
     id: row.id as string,
     playerId: row.player_id as string,
@@ -196,7 +203,7 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
       phase: row.phase as GameRun['round']['phase'],
     },
     playerEmpire: JSON.parse(row.player_empire as string),
-    botEmpires: JSON.parse(row.bot_empires as string),
+    botEmpires,
     marketPrices: JSON.parse(row.market_prices as string),
     shopStock: row.shop_stock ? JSON.parse(row.shop_stock as string) : null,
     draftOptions: row.draft_options ? JSON.parse(row.draft_options as string) : null,

@@ -62,13 +62,13 @@ export interface Resources {
 
 // Building names match QM Promisance (e_bld*)
 export interface Buildings {
-  bldpop: number;     // Homes - population capacity
+  bldpop: number;     // Homes - REMOVED (kept for DB compatibility, always 0)
   bldcash: number;    // Markets - income generation
   bldtrp: number;     // Barracks - troop production
   bldcost: number;    // Industry - expense reduction
   bldfood: number;    // Farms - food production
   bldwiz: number;     // Wizard towers - rune generation
-  blddef: number;     // Guard towers - defense bonus
+  blddef: number;     // Guard towers - REMOVED (kept for DB compatibility, always 0)
 }
 
 // Troop names match QM Promisance (e_trp*)
@@ -163,9 +163,8 @@ export interface AdvisorEffect {
 export interface Tech {
   id: string;
   name: string;
+  description: string;
   action: TurnAction;
-  level: number;
-  bonus: number;
 }
 
 export interface Edict {
@@ -433,7 +432,7 @@ export interface TurnActionRequest {
 export type TurnStopReason = 'food' | 'loan';
 
 // Reason player was defeated (game over conditions)
-export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan';
+export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan' | 'abandoned';
 
 export interface TurnActionResult {
   success: boolean;

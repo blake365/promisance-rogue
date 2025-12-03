@@ -41,6 +41,7 @@ type AppScreen = 'title' | 'game';
 function App() {
   const [screen, setScreen] = useState<AppScreen>('title');
   const [initialized, setInitialized] = useState(false);
+  const [hasActiveGame, setHasActiveGame] = useState(false);
 
   const {
     player,
@@ -53,9 +54,12 @@ function App() {
     restoreSession,
     checkActiveGame,
     newGame,
+    abandonGame,
     executeAction,
     endPlayerPhase,
     selectDraft,
+    rerollDraft,
+    dismissAdvisor,
     endShopPhase,
     marketTransaction,
     bankTransaction,
@@ -76,15 +80,13 @@ function App() {
       if (config.sessionId) {
         restoreSession(config.sessionId);
 
-        // Check for active game
+        // Check for active game (but don't auto-navigate)
         try {
           const response = await client.getCurrentGame();
-          if (response.hasActiveGame) {
-            await checkActiveGame();
-            setScreen('game');
-          }
+          setHasActiveGame(response.hasActiveGame);
         } catch {
           // Session might be expired, continue to title
+          setHasActiveGame(false);
         }
       }
 
@@ -116,6 +118,7 @@ function App() {
       if (client.getSession()) {
         saveConfig({ sessionId: client.getSession()! });
       }
+      setHasActiveGame(true);
       setScreen('game');
     }
     return success;
@@ -128,6 +131,15 @@ function App() {
       setScreen('game');
     }
     return hasGame;
+  };
+
+  // Handle abandon game
+  const handleAbandon = async () => {
+    const success = await abandonGame();
+    if (success) {
+      setHasActiveGame(false);
+    }
+    return success;
   };
 
   // Handle quit from game
@@ -149,7 +161,9 @@ function App() {
         onLogin={handleLogin}
         onNewGame={handleNewGame}
         onContinue={handleContinue}
+        onAbandon={handleAbandon}
         hasSession={!!player.sessionId || !!client.getSession()}
+        hasActiveGame={hasActiveGame}
         loading={loading}
         error={error}
       />
@@ -164,6 +178,7 @@ function App() {
         bots={game.botEmpires}
         intel={game.intel}
         draftOptions={game.draftOptions}
+        rerollInfo={game.rerollInfo}
         marketPrices={game.marketPrices}
         shopStock={game.shopStock}
         bankInfo={bankInfo}
@@ -173,10 +188,13 @@ function App() {
         onAction={executeAction}
         onEndPlayerPhase={endPlayerPhase}
         onSelectDraft={selectDraft}
+        onRerollDraft={rerollDraft}
+        onDismissAdvisor={dismissAdvisor}
         onEndShopPhase={endShopPhase}
         onMarketTransaction={marketTransaction}
         onBankTransaction={bankTransaction}
         onExecuteBotPhase={executeBotPhase}
+        onClearError={clearError}
         onQuit={handleQuit}
       />
     );

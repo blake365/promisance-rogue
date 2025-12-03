@@ -397,7 +397,8 @@ function castStorm(caster: Empire, target: Empire): SpellResult {
  * From struct.php: threshold 1.70
  * Normal: 3% of buildings
  * Shielded: 1% of buildings
- * Only destroys if building >= land/100 (or land/150 for blddef)
+ * Only destroys if building >= land/100
+ * Note: bldpop and blddef removed from game
  */
 function castStruct(caster: Empire, target: Empire): SpellResult {
   const power = getWizardPowerEnemy(caster, target);
@@ -433,32 +434,26 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
 
   const buildingsDestroyed: Partial<Buildings> = {
     bldcash: destroyBuilding(target.buildings.bldcash, 100),
-    bldpop: destroyBuilding(target.buildings.bldpop, 100),
     bldtrp: destroyBuilding(target.buildings.bldtrp, 100),
     bldcost: destroyBuilding(target.buildings.bldcost, 100),
     bldfood: destroyBuilding(target.buildings.bldfood, 100),
     bldwiz: destroyBuilding(target.buildings.bldwiz, 100),
-    blddef: destroyBuilding(target.buildings.blddef, 150), // Higher ratio for towers
   };
 
   // Apply building destruction
   target.buildings.bldcash -= buildingsDestroyed.bldcash ?? 0;
-  target.buildings.bldpop -= buildingsDestroyed.bldpop ?? 0;
   target.buildings.bldtrp -= buildingsDestroyed.bldtrp ?? 0;
   target.buildings.bldcost -= buildingsDestroyed.bldcost ?? 0;
   target.buildings.bldfood -= buildingsDestroyed.bldfood ?? 0;
   target.buildings.bldwiz -= buildingsDestroyed.bldwiz ?? 0;
-  target.buildings.blddef -= buildingsDestroyed.blddef ?? 0;
 
   // Buildings destroyed become free land
   const totalDestroyed =
     (buildingsDestroyed.bldcash ?? 0) +
-    (buildingsDestroyed.bldpop ?? 0) +
     (buildingsDestroyed.bldtrp ?? 0) +
     (buildingsDestroyed.bldcost ?? 0) +
     (buildingsDestroyed.bldfood ?? 0) +
-    (buildingsDestroyed.bldwiz ?? 0) +
-    (buildingsDestroyed.blddef ?? 0);
+    (buildingsDestroyed.bldwiz ?? 0);
 
   target.resources.freeland += totalDestroyed;
   target.networth = calculateNetworth(target);

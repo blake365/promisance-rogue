@@ -329,4 +329,91 @@ export const ADVISORS: Advisor[] = [
     rarity: 'legendary',
     effect: { type: 'permanent_shield', modifier: 1 },
   },
+
+  // ============================================
+  // CROSS-MASTERY SYNERGY ADVISORS
+  // Mastery in one area boosts effects in another
+  // ============================================
+  {
+    id: 'fertile_frontier',
+    name: 'Fertile Frontier',
+    description: '+15% food per Exploration mastery level',
+    rarity: 'common',
+    effect: { type: 'mastery_scaling', modifier: 0.15, condition: 'explore_boosts_food' },
+  },
+  {
+    id: 'trade_routes',
+    name: 'Trade Routes',
+    description: '+15% income per Exploration mastery level',
+    rarity: 'common',
+    effect: { type: 'mastery_scaling', modifier: 0.15, condition: 'explore_boosts_income' },
+  },
+  {
+    id: 'mystic_forges',
+    name: 'Mystic Forges',
+    description: '+15% troop production per Mysticism mastery level',
+    rarity: 'common',
+    effect: { type: 'mastery_scaling', modifier: 0.15, condition: 'meditate_boosts_industry' },
+  },
+  {
+    id: 'arcane_agriculture',
+    name: 'Arcane Agriculture',
+    description: '+15% food per Mysticism mastery level',
+    rarity: 'common',
+    effect: { type: 'mastery_scaling', modifier: 0.15, condition: 'meditate_boosts_food' },
+  },
+  {
+    id: 'war_economist',
+    name: 'War Economist',
+    description: '+10% offense per Commerce mastery level',
+    rarity: 'uncommon',
+    effect: { type: 'mastery_scaling', modifier: 0.10, condition: 'cash_boosts_offense' },
+  },
+  {
+    id: 'mercenary_captain',
+    name: 'Mercenary Captain',
+    description: '+15% troop production per Commerce mastery level',
+    rarity: 'uncommon',
+    effect: { type: 'mastery_scaling', modifier: 0.15, condition: 'cash_boosts_industry' },
+  },
+  {
+    id: 'battle_mages',
+    name: 'Battle Mages',
+    description: '+10% spell power per Industry mastery level',
+    rarity: 'uncommon',
+    effect: { type: 'mastery_scaling', modifier: 0.10, condition: 'industry_boosts_magic' },
+  },
+
+  // ============================================
+  // MULTI-MASTERY SYNERGY ADVISORS
+  // Reward having multiple different masteries
+  // ============================================
+  {
+    id: 'dabblers_luck',
+    name: "Dabbler's Luck",
+    description: '+10% all actions if 2+ unique masteries',
+    rarity: 'common',
+    effect: { type: 'multi_mastery_threshold', modifier: 0.10, condition: 'min_2_masteries' },
+  },
+  {
+    id: 'polymath',
+    name: 'Polymath',
+    description: '+5% all actions per unique mastery owned',
+    rarity: 'uncommon',
+    effect: { type: 'multi_mastery_scaling', modifier: 0.05 },
+  },
+  {
+    id: 'generalists_edge',
+    name: "Generalist's Edge",
+    description: '+25% offense/defense if 3+ unique masteries',
+    rarity: 'rare',
+    effect: { type: 'multi_mastery_threshold', modifier: 0.25, condition: 'min_3_masteries_combat' },
+  },
+  {
+    id: 'jack_of_all_trades',
+    name: 'Jack of All Trades',
+    description: '+20% all actions if all 5 masteries owned',
+    rarity: 'rare',
+    effect: { type: 'multi_mastery_threshold', modifier: 0.20, condition: 'all_5_masteries' },
+  },
 ];

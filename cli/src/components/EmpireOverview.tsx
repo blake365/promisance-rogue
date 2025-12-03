@@ -25,8 +25,8 @@ const RARITY_COLORS: Record<BonusRarity, string> = {
   legendary: 'yellow',
 };
 
-// Tech display names
-const TECH_NAMES: Record<string, string> = {
+// Mastery display names
+const MASTERY_NAMES: Record<string, string> = {
   farm: 'Farming',
   cash: 'Commerce',
   explore: 'Exploration',
@@ -34,14 +34,8 @@ const TECH_NAMES: Record<string, string> = {
   meditate: 'Mysticism',
 };
 
-// Policy display info
-const POLICY_INFO: Record<string, { name: string; description: string; rarity: BonusRarity }> = {
-  forced_march: { name: 'Forced March', description: 'Attack twice/round', rarity: 'rare' },
-  war_economy: { name: 'War Economy', description: 'Troops while farming', rarity: 'rare' },
-  open_borders: { name: 'Open Borders', description: '2x explore land', rarity: 'uncommon' },
-  bank_charter: { name: 'Bank Charter', description: '2x bank interest', rarity: 'uncommon' },
-  magical_immunity: { name: 'Magical Immunity', description: 'Permanent shield', rarity: 'legendary' },
-};
+// Roman numerals for mastery levels
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V'];
 
 // Section header component
 function SectionHeader({ title, color }: { title: string; color: string }) {
@@ -104,8 +98,7 @@ export function EmpireOverview({ empire, round, onClose }: Props) {
     empire.troops.trparm * 1 +
     empire.troops.trplnd * 2 +
     empire.troops.trpfly * 2 +
-    empire.troops.trpsea * 3 +
-    empire.buildings.blddef * 50;
+    empire.troops.trpsea * 3;
 
   // Combat success rates
   const offSuccessRate = empire.offTotal > 0
@@ -176,13 +169,11 @@ export function EmpireOverview({ empire, round, onClose }: Props) {
         {/* Land Division Section */}
         <Box flexDirection="column" borderStyle="single" borderColor="cyan" paddingX={1}>
           <SectionHeader title="Land Division" color="cyan" />
-          <Row label="Homes" value={`${formatNumber(empire.buildings.bldpop)} (${formatPercent(empire.buildings.bldpop, usedLand)})`} />
           <Row label="Markets" value={`${formatNumber(empire.buildings.bldcash)} (${formatPercent(empire.buildings.bldcash, usedLand)})`} />
           <Row label="Barracks" value={`${formatNumber(empire.buildings.bldtrp)} (${formatPercent(empire.buildings.bldtrp, usedLand)})`} />
           <Row label="Exchanges" value={`${formatNumber(empire.buildings.bldcost)} (${formatPercent(empire.buildings.bldcost, usedLand)})`} />
           <Row label="Farms" value={`${formatNumber(empire.buildings.bldfood)} (${formatPercent(empire.buildings.bldfood, usedLand)})`} />
           <Row label="Towers" value={`${formatNumber(empire.buildings.bldwiz)} (${formatPercent(empire.buildings.bldwiz, usedLand)})`} />
-          <Row label="Guard Posts" value={`${formatNumber(empire.buildings.blddef)} (${formatPercent(empire.buildings.blddef, usedLand)})`} />
           <Row label="Unused" value={`${formatNumber(empire.resources.freeland)} (${formatPercent(empire.resources.freeland, empire.resources.land)})`} valueColor="gray" />
           <Box marginTop={1}>
             <Row label="Total Land" value={empire.resources.land} valueColor="cyan" />
@@ -221,8 +212,8 @@ export function EmpireOverview({ empire, round, onClose }: Props) {
         </Box>
       </Box>
 
-      {/* Bonuses Row: Advisors, Techs, Policies */}
-      {(empire.advisors.length > 0 || Object.keys(empire.techs).length > 0 || empire.policies.length > 0) && (
+      {/* Bonuses Row: Advisors, Masteries */}
+      {(empire.advisors.length > 0 || Object.keys(empire.techs).length > 0) && (
         <Box gap={2} marginTop={1}>
           {/* Advisors Section */}
           <Box flexDirection="column" borderStyle="single" borderColor="magenta" paddingX={1} minWidth={26}>
@@ -239,38 +230,18 @@ export function EmpireOverview({ empire, round, onClose }: Props) {
             )}
           </Box>
 
-          {/* Techs Section */}
+          {/* Masteries Section */}
           <Box flexDirection="column" borderStyle="single" borderColor="cyan" paddingX={1} minWidth={20}>
-            <SectionHeader title="Technologies" color="cyan" />
+            <SectionHeader title="Masteries" color="cyan" />
             {Object.keys(empire.techs).length === 0 ? (
               <Text color="gray">None</Text>
             ) : (
               Object.entries(empire.techs).map(([action, level]) => (
                 <Box key={action} justifyContent="space-between" width={18}>
-                  <Text color="white">{TECH_NAMES[action] || action}</Text>
-                  <Text color="cyan">Lv.{level}</Text>
+                  <Text color="white">{MASTERY_NAMES[action] || action}</Text>
+                  <Text color="cyan">{ROMAN_NUMERALS[level - 1] || level}</Text>
                 </Box>
               ))
-            )}
-          </Box>
-
-          {/* Policies Section */}
-          <Box flexDirection="column" borderStyle="single" borderColor="green" paddingX={1} minWidth={24}>
-            <SectionHeader title="Policies" color="green" />
-            {empire.policies.length === 0 ? (
-              <Text color="gray">None</Text>
-            ) : (
-              empire.policies.map((policyId) => {
-                const info = POLICY_INFO[policyId];
-                return (
-                  <Box key={policyId} flexDirection="column">
-                    <Text color={info ? RARITY_COLORS[info.rarity] : 'white'}>
-                      {info?.name || policyId}
-                    </Text>
-                    {info && <Text color="gray" dimColor>  {info.description}</Text>}
-                  </Box>
-                );
-              })
             )}
           </Box>
         </Box>

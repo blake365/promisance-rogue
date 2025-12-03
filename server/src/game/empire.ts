@@ -22,7 +22,7 @@ import {
   PVTM_FOOD,
   ECONOMY,
 } from './constants';
-import { TECHS } from './bonuses/techs';
+import { MASTERY_BONUS_PER_LEVEL } from './bonuses/techs';
 
 // ============================================
 // EMPIRE CREATION
@@ -115,22 +115,91 @@ const TECH_ACTION_TO_STAT: Record<string, string> = {
   meditate: 'runepro',
 };
 
+// Count unique masteries owned (level > 0)
+function countUniqueMasteries(empire: Empire): number {
+  let count = 0;
+  for (const action of ['farm', 'cash', 'explore', 'industry', 'meditate']) {
+    if ((empire.techs[action] ?? 0) > 0) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Mastery scaling condition mappings: which mastery boosts which stat
+const MASTERY_SCALING_CONDITIONS: Record<string, { masteryAction: string; targetStat: string }> = {
+  explore_boosts_food: { masteryAction: 'explore', targetStat: 'foodpro' },
+  explore_boosts_income: { masteryAction: 'explore', targetStat: 'income' },
+  meditate_boosts_industry: { masteryAction: 'meditate', targetStat: 'industry' },
+  meditate_boosts_food: { masteryAction: 'meditate', targetStat: 'foodpro' },
+  cash_boosts_offense: { masteryAction: 'cash', targetStat: 'offense' },
+  cash_boosts_industry: { masteryAction: 'cash', targetStat: 'industry' },
+  industry_boosts_magic: { masteryAction: 'industry', targetStat: 'magic' },
+};
+
+// Stats that count as "all actions" for multi-mastery bonuses
+const ALL_ACTION_STATS = ['foodpro', 'income', 'explore', 'industry', 'runepro'];
+
 function getAdvisorBonusForStat(empire: Empire, stat: string): number {
   let bonus = 0;
+
   for (const advisor of empire.advisors) {
-    const mappedStats = ADVISOR_EFFECT_TO_STAT[advisor.effect.type];
+    const effectType = advisor.effect.type;
+    const modifier = advisor.effect.modifier;
+    const condition = advisor.effect.condition;
+
+    // Handle mastery_scaling: bonus scales with a mastery level
+    if (effectType === 'mastery_scaling' && condition) {
+      const scaling = MASTERY_SCALING_CONDITIONS[condition];
+      if (scaling && scaling.targetStat === stat) {
+        const masteryLevel = empire.techs[scaling.masteryAction] ?? 0;
+        bonus += modifier * masteryLevel;
+      }
+      continue;
+    }
+
+    // Handle multi_mastery_scaling: bonus per unique mastery owned
+    if (effectType === 'multi_mastery_scaling') {
+      const uniqueMasteries = countUniqueMasteries(empire);
+      if (ALL_ACTION_STATS.includes(stat)) {
+        bonus += modifier * uniqueMasteries;
+      }
+      continue;
+    }
+
+    // Handle multi_mastery_threshold: bonus if threshold met
+    if (effectType === 'multi_mastery_threshold' && condition) {
+      const uniqueMasteries = countUniqueMasteries(empire);
+      let applies = false;
+
+      if (condition === 'min_2_masteries' && uniqueMasteries >= 2) {
+        applies = ALL_ACTION_STATS.includes(stat);
+      } else if (condition === 'min_3_masteries_combat' && uniqueMasteries >= 3) {
+        applies = stat === 'offense' || stat === 'defense';
+      } else if (condition === 'all_5_masteries' && uniqueMasteries >= 5) {
+        applies = ALL_ACTION_STATS.includes(stat);
+      }
+
+      if (applies) {
+        bonus += modifier;
+      }
+      continue;
+    }
+
+    // Standard advisor effect handling
+    const mappedStats = ADVISOR_EFFECT_TO_STAT[effectType];
     if (mappedStats) {
       if (Array.isArray(mappedStats)) {
         if (mappedStats.includes(stat)) {
-          bonus += advisor.effect.modifier;
+          bonus += modifier;
         }
       } else if (mappedStats === stat) {
         // build_cost is inverted: -15% cost reduction means +15% building modifier
         // because building modifier divides cost (higher = cheaper)
-        if (advisor.effect.type === 'build_cost') {
-          bonus -= advisor.effect.modifier; // Invert the negative to positive
+        if (effectType === 'build_cost') {
+          bonus -= modifier; // Invert the negative to positive
         } else {
-          bonus += advisor.effect.modifier;
+          bonus += modifier;
         }
       }
     }
@@ -144,13 +213,11 @@ function getTechBonusForStat(empire: Empire, stat: string): number {
     if (mappedStat === stat) {
       const level = empire.techs[action] ?? 0;
       if (level > 0) {
-        // Sum all bonuses up to current level (since bonuses vary per level)
+        // Sum all bonuses up to current level
+        // MASTERY_BONUS_PER_LEVEL = [10, 10, 10, 15, 15] (percentage points)
         let totalBonus = 0;
-        for (let i = 1; i <= level; i++) {
-          const tech = TECHS.find((t) => t.action === action && t.level === i);
-          if (tech) {
-            totalBonus += tech.bonus;
-          }
+        for (let i = 0; i < level; i++) {
+          totalBonus += MASTERY_BONUS_PER_LEVEL[i] ?? 0;
         }
         return totalBonus / 100;
       }
@@ -210,17 +277,18 @@ export function calculateNetworth(empire: Empire): number {
 
 // ============================================
 // BUILDING HELPERS
+// Note: bldpop and blddef are removed from game but kept for DB compatibility (always 0)
 // ============================================
 
 export function getTotalBuildings(buildings: Buildings): number {
   return (
-    buildings.bldpop +
+    // bldpop removed (always 0)
     buildings.bldcash +
     buildings.bldtrp +
     buildings.bldcost +
     buildings.bldfood +
-    buildings.bldwiz +
-    buildings.blddef
+    buildings.bldwiz
+    // blddef removed (always 0)
   );
 }
 

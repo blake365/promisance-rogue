@@ -4,7 +4,7 @@ import type { TurnAction } from '../api/client.js';
 
 interface ActionItem {
   key: string;
-  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank';
+  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide';
   label: string;
   description: string;
   color: string;
@@ -28,6 +28,7 @@ const RIGHT_ACTIONS: ActionItem[] = [
   { key: 'a', action: 'attack', label: 'Attack', description: 'Attack enemy', color: 'red' },
   { key: 's', action: 'spell', label: 'Spell', description: 'Cast magic', color: 'magenta' },
   { key: 'v', action: 'bots', label: 'Enemies', description: 'See enemies', color: 'gray' },
+  { key: 'g', action: 'guide', label: 'Guide', description: 'Game help', color: 'cyan' },
   { key: 'x', action: 'end_phase', label: 'End Round', description: 'Skip turns', color: 'red' },
 ];
 
@@ -35,7 +36,7 @@ const RIGHT_ACTIONS: ActionItem[] = [
 const ALL_ACTIONS = [...LEFT_ACTIONS, ...RIGHT_ACTIONS];
 
 interface Props {
-  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank') => void;
+  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide') => void;
   disabled?: boolean;
 }
 

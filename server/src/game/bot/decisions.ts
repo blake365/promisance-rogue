@@ -217,7 +217,7 @@ function decideBuildAllocation(bot: BotEmpire): Partial<Buildings> {
 
   const allocation: Partial<Buildings> = {};
 
-  allocation.bldpop = Math.floor(maxBuildings * priorities.bldpop);
+  // bldpop and blddef removed from game
   allocation.bldfood = Math.floor(maxBuildings * priorities.bldfood);
   allocation.bldtrp = Math.floor(maxBuildings * priorities.bldtrp);
   allocation.bldcash = Math.floor(maxBuildings * priorities.bldcash);

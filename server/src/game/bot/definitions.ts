@@ -405,24 +405,23 @@ export const TARGETING_WEIGHTS = {
 // ============================================
 // BUILDING ALLOCATION BY DEFENSE FOCUS
 // Higher defenseFocus = more defensive buildings
+// Note: bldpop and blddef removed from game
 // ============================================
 
 export const BUILDING_PRIORITIES = {
   // Defensive-focused building ratios (defenseFocus > 0.5)
   defensive: {
-    bldpop: 0.3,
-    bldfood: 0.3,
-    bldtrp: 0.2,
-    bldcash: 0.1,
-    bldwiz: 0.1,
+    bldfood: 0.35,
+    bldtrp: 0.25,
+    bldcash: 0.2,
+    bldwiz: 0.2,
   },
   // Offensive-focused building ratios (defenseFocus <= 0.5)
   offensive: {
-    bldtrp: 0.3,
-    bldwiz: 0.2,
-    bldpop: 0.2,
-    bldfood: 0.2,
-    bldcash: 0.1,
+    bldtrp: 0.35,
+    bldwiz: 0.25,
+    bldfood: 0.25,
+    bldcash: 0.15,
   },
 };
 

@@ -3,14 +3,17 @@ import { Box, Text, useApp } from 'ink';
 import TextInput from 'ink-text-input';
 import SelectInput from 'ink-select-input';
 import type { Race } from '../api/client.js';
+import { LeaderboardView } from '../components/LeaderboardView.js';
 
-type Stage = 'menu' | 'login' | 'new_game_name' | 'new_game_race';
+type Stage = 'menu' | 'login' | 'new_game_name' | 'new_game_race' | 'leaderboard' | 'confirm_abandon';
 
 interface Props {
   onLogin: (displayName: string) => Promise<boolean>;
   onNewGame: (empireName: string, race: Race) => Promise<boolean>;
   onContinue: () => Promise<boolean>;
+  onAbandon: () => Promise<boolean>;
   hasSession: boolean;
+  hasActiveGame: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -39,7 +42,9 @@ export function TitleScreen({
   onLogin,
   onNewGame,
   onContinue,
+  onAbandon,
   hasSession,
+  hasActiveGame,
   loading,
   error,
 }: Props) {
@@ -50,23 +55,35 @@ export function TitleScreen({
   const [inputValue, setInputValue] = useState('');
 
   // Memoize menu items to prevent re-renders from causing instability
-  const menuItems = useMemo(
-    () =>
-      hasSession
-        ? [
-            { label: 'Continue Game', value: 'continue' },
-            { label: 'New Game', value: 'new' },
-            { label: 'Quit', value: 'quit' },
-          ]
-        : [
-            { label: 'New Game', value: 'login' },
-            { label: 'Quit', value: 'quit' },
-          ],
-    [hasSession]
-  );
+  const menuItems = useMemo(() => {
+    const items = [];
+
+    if (hasActiveGame) {
+      // Active game exists - show continue and abandon options
+      items.push({ label: 'Continue Game', value: 'continue' });
+      items.push({ label: 'Abandon Game', value: 'abandon' });
+    } else {
+      // No active game - show new game option
+      // Goes to 'new' (empire naming) if logged in, 'login' if not
+      items.push({ label: 'New Game', value: hasSession ? 'new' : 'login' });
+    }
+
+    items.push({ label: 'Leaderboard', value: 'leaderboard' });
+    items.push({ label: 'Quit', value: 'quit' });
+
+    return items;
+  }, [hasSession, hasActiveGame]);
 
   const raceItems = useMemo(
     () => [...RACES, { label: '← Back', value: 'back' as Race }],
+    []
+  );
+
+  const abandonConfirmItems = useMemo(
+    () => [
+      { label: 'Yes, abandon game', value: 'confirm' },
+      { label: 'No, go back', value: 'cancel' },
+    ],
     []
   );
 
@@ -80,9 +97,21 @@ export function TitleScreen({
       setStage('new_game_name');
     } else if (item.value === 'continue') {
       await onContinue();
+    } else if (item.value === 'abandon') {
+      setStage('confirm_abandon');
+    } else if (item.value === 'leaderboard') {
+      setStage('leaderboard');
     } else if (item.value === 'quit') {
       exit();
     }
+  };
+
+  const handleAbandonConfirm = async (item: { value: string }) => {
+    if (loading) return;
+    if (item.value === 'confirm') {
+      await onAbandon();
+    }
+    setStage('menu');
   };
 
   const handleLoginSubmit = async () => {
@@ -183,6 +212,25 @@ export function TitleScreen({
           <Box marginTop={1}>
             <SelectInput items={raceItems} onSelect={handleRaceSelect} />
           </Box>
+        </Box>
+      )}
+
+      {stage === 'confirm_abandon' && !loading && (
+        <Box flexDirection="column" alignItems="center" marginTop={1}>
+          <Text color="yellow">Are you sure you want to abandon your current game?</Text>
+          <Text color="gray">This cannot be undone.</Text>
+          <Box marginTop={1}>
+            <SelectInput items={abandonConfirmItems} onSelect={handleAbandonConfirm} />
+          </Box>
+        </Box>
+      )}
+
+      {stage === 'leaderboard' && (
+        <Box marginTop={1}>
+          <LeaderboardView
+            hasSession={hasSession}
+            onClose={() => setStage('menu')}
+          />
         </Box>
       )}
 

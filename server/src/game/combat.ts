@@ -89,14 +89,13 @@ export function calculateDefensePower(empire: Empire): number {
   power += empire.troops.trpsea * Math.max(0, stats.trpsea[1] - specialist.defensePenalty.trpsea);
   power += empire.troops.trpwiz * WIZARD_POWER;
 
-  // Tower defense: 450 per tower, but requires soldiers to man them
-  // From military.php line 130-131
-  const { blddef } = empire.buildings;
-  if (blddef > 0) {
-    const soldiersPerTower = COMBAT.soldiersPerTower;
-    const towerEfficiency = Math.min(1, empire.troops.trparm / (soldiersPerTower * blddef));
-    power += blddef * COMBAT.towerDefensePerBuilding * towerEfficiency;
-  }
+  // Tower defense: REMOVED - blddef no longer used
+  // const { blddef } = empire.buildings;
+  // if (blddef > 0) {
+  //   const soldiersPerTower = COMBAT.soldiersPerTower;
+  //   const towerEfficiency = Math.min(1, empire.troops.trparm / (soldiersPerTower * blddef));
+  //   power += blddef * COMBAT.towerDefensePerBuilding * towerEfficiency;
+  // }
 
   return Math.round(power * defenseModifier * healthModifier);
 }
@@ -167,16 +166,16 @@ export function resolveCombat(
   const offpower = calculateOffensePower(attacker);
   const defpower = calculateDefensePower(defender);
 
-  // Tower defense is included in defpower but not used for loss mod calculation
-  const { blddef } = defender.buildings;
-  const towerDef = blddef > 0
-    ? blddef * COMBAT.towerDefensePerBuilding * Math.min(1, defender.troops.trparm / (COMBAT.soldiersPerTower * blddef))
-    : 0;
+  // Tower defense: REMOVED - blddef no longer used
+  // const { blddef } = defender.buildings;
+  // const towerDef = blddef > 0
+  //   ? blddef * COMBAT.towerDefensePerBuilding * Math.min(1, defender.troops.trparm / (COMBAT.soldiersPerTower * blddef))
+  //   : 0;
 
   // Modification factors for losses
-  // omod = sqrt(defpower_without_towers / offpower)
+  // omod = sqrt(defpower / offpower)
   // dmod = sqrt(offpower / defpower)
-  const omod = Math.sqrt((defpower - towerDef) / (offpower + 1));
+  const omod = Math.sqrt(defpower / (offpower + 1));
   const dmod = Math.sqrt(offpower / (defpower + 1));
 
   // Perigord the Protector: casualty_reduction reduces attacker losses
@@ -233,7 +232,8 @@ export function resolveCombat(
 
   if (won) {
     // Process building destruction and capture
-    const buildingTypes = ['bldcash', 'bldpop', 'bldtrp', 'bldcost', 'bldfood', 'bldwiz', 'blddef'] as const;
+    // Note: bldpop and blddef removed from game
+    const buildingTypes = ['bldcash', 'bldtrp', 'bldcost', 'bldfood', 'bldwiz'] as const;
     const isStandardAttack = attackType === 'standard';
 
     for (const bldType of buildingTypes) {

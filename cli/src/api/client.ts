@@ -173,7 +173,7 @@ export interface TurnActionRequest {
 export type TurnStopReason = 'food' | 'loan';
 
 // Reason player was defeated (game over conditions)
-export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan';
+export type DefeatReason = 'no_land' | 'no_peasants' | 'excessive_loan' | 'abandoned';
 
 export interface TurnActionResult {
   success: boolean;
@@ -319,6 +319,32 @@ interface DraftResponse {
   draftOptions: DraftOption[] | null;
 }
 
+export interface RerollInfo {
+  cost: number | null;
+  canAfford: boolean;
+  rerollCount: number;
+  maxRerolls: number;
+  rerollsRemaining: number;
+  advisorCapacity: { current: number; max: number };
+}
+
+interface RerollResponse {
+  success: boolean;
+  error?: string;
+  cost?: number;
+  empire: Empire;
+  draftOptions: DraftOption[] | null;
+  rerollInfo: RerollInfo;
+}
+
+interface DismissAdvisorResponse {
+  success: boolean;
+  error?: string;
+  dismissed?: Advisor;
+  empire: Empire;
+  advisorCapacity: { current: number; max: number };
+}
+
 interface BankResponse {
   result: BankTransactionResult;
   empire: Empire;
@@ -416,6 +442,10 @@ export class PromisanceClient {
     return this.request('GET', `/api/game/${gameId}`);
   }
 
+  async abandonGame(): Promise<{ success: boolean; gameId: string }> {
+    return this.request('POST', '/api/game/abandon');
+  }
+
   // Actions
   async executeAction(
     gameId: string,
@@ -458,6 +488,20 @@ export class PromisanceClient {
   async selectDraft(gameId: string, optionIndex: number): Promise<DraftResponse> {
     return this.request<DraftResponse>('POST', `/api/game/${gameId}/draft`, {
       optionIndex,
+    });
+  }
+
+  async getRerollInfo(gameId: string): Promise<RerollInfo> {
+    return this.request<RerollInfo>('GET', `/api/game/${gameId}/reroll`);
+  }
+
+  async rerollDraft(gameId: string): Promise<RerollResponse> {
+    return this.request<RerollResponse>('POST', `/api/game/${gameId}/reroll`);
+  }
+
+  async dismissAdvisor(gameId: string, advisorId: string): Promise<DismissAdvisorResponse> {
+    return this.request<DismissAdvisorResponse>('POST', `/api/game/${gameId}/dismiss-advisor`, {
+      advisorId,
     });
   }
 
