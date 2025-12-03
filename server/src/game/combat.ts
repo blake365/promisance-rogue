@@ -70,7 +70,27 @@ export function calculateOffensePower(empire: Empire): number {
   power += empire.troops.trpsea * (stats.trpsea[0] + specialist.offenseBonus.trpsea);
   power += empire.troops.trpwiz * WIZARD_POWER;
 
-  return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus);
+  // Building offense bonus from building-based offense advisors
+  // Each advisor grants % offense per building of a specific type
+  let buildingOffenseBonus = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'building_offense' && advisor.effect.condition) {
+      const buildingType = advisor.effect.condition as keyof typeof empire.buildings;
+      const buildingCount = empire.buildings[buildingType] ?? 0;
+      buildingOffenseBonus += advisor.effect.modifier * buildingCount;
+    }
+  }
+
+  // Peasant Champion: +0.01% offense per peasant
+  const peasantChampionMod = getAdvisorEffectModifier(empire, 'peasant_champion');
+  const peasantBonus = peasantChampionMod * empire.peasants;
+
+  // Second Wind: +1% all stats per 10 health missing
+  const secondWindMod = getAdvisorEffectModifier(empire, 'second_wind');
+  const healthMissing = 100 - empire.health;
+  const secondWindBonus = secondWindMod * Math.floor(healthMissing / 10);
+
+  return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus * (1 + buildingOffenseBonus + peasantBonus + secondWindBonus));
 }
 
 export function calculateDefensePower(empire: Empire): number {
@@ -89,15 +109,23 @@ export function calculateDefensePower(empire: Empire): number {
   power += empire.troops.trpsea * Math.max(0, stats.trpsea[1] - specialist.defensePenalty.trpsea);
   power += empire.troops.trpwiz * WIZARD_POWER;
 
-  // Tower defense: REMOVED - blddef no longer used
-  // const { blddef } = empire.buildings;
-  // if (blddef > 0) {
-  //   const soldiersPerTower = COMBAT.soldiersPerTower;
-  //   const towerEfficiency = Math.min(1, empire.troops.trparm / (soldiersPerTower * blddef));
-  //   power += blddef * COMBAT.towerDefensePerBuilding * towerEfficiency;
-  // }
+  // Building defense bonus from guard tower advisors
+  // Each advisor grants % defense per building of a specific type
+  let buildingDefenseBonus = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'building_defense' && advisor.effect.condition) {
+      const buildingType = advisor.effect.condition as keyof typeof empire.buildings;
+      const buildingCount = empire.buildings[buildingType] ?? 0;
+      buildingDefenseBonus += advisor.effect.modifier * buildingCount;
+    }
+  }
 
-  return Math.round(power * defenseModifier * healthModifier);
+  // Second Wind: +1% all stats per 10 health missing
+  const secondWindMod = getAdvisorEffectModifier(empire, 'second_wind');
+  const healthMissing = 100 - empire.health;
+  const secondWindBonus = secondWindMod * Math.floor(healthMissing / 10);
+
+  return Math.round(power * defenseModifier * healthModifier * (1 + buildingDefenseBonus + secondWindBonus));
 }
 
 // ============================================
@@ -286,6 +314,25 @@ export function applyCombatResult(
   attacker.troops = subtractTroops(attacker.troops, result.attackerLosses as Troops);
   defender.troops = subtractTroops(defender.troops, result.defenderLosses as Troops);
 
+  // Salvage Expert: recover 10% of troops lost in combat (attacker only)
+  const salvageMod = getAdvisorEffectModifier(attacker, 'salvage');
+  if (salvageMod > 0) {
+    for (const [troopType, loss] of Object.entries(result.attackerLosses)) {
+      if (loss && loss > 0) {
+        const recovered = Math.floor(loss * salvageMod);
+        (attacker.troops as any)[troopType] += recovered;
+      }
+    }
+  }
+
+  // Toll Keeper: defender gains 5% of attacker's gold when attacked
+  const tollKeeperMod = getAdvisorEffectModifier(defender, 'toll_keeper');
+  if (tollKeeperMod > 0) {
+    const toll = Math.floor(attacker.resources.gold * tollKeeperMod);
+    defender.resources.gold += toll;
+    // Note: doesn't subtract from attacker (it's a "toll" on attacking, not theft)
+  }
+
   // Update combat stats
   attacker.offTotal++;
   defender.defTotal++;
@@ -464,8 +511,10 @@ export function processAttack(
   const combatResult = resolveCombat(attacker, defender, attackType);
   applyCombatResult(attacker, defender, combatResult);
 
-  // Apply health cost for attacking
-  attacker.health = Math.max(0, attacker.health - COMBAT.attackHealthCost);
+  // Apply health cost for attacking (reduced by battle_surgeon advisor)
+  const healthReduction = getAdvisorEffectModifier(attacker, 'attack_health_reduction');
+  const effectiveHealthCost = Math.floor(COMBAT.attackHealthCost * (1 - healthReduction));
+  attacker.health = Math.max(0, Math.floor(attacker.health - effectiveHealthCost));
 
   return {
     success: true,

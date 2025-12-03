@@ -71,6 +71,18 @@ export function canCastSpell(
     return { canCast: false, reason: 'No wizards available' };
   }
 
+  // Peaceful Channeler: cannot cast offensive spells
+  const offensiveSpells: SpellType[] = ['blast', 'steal', 'storm', 'struct', 'fight'];
+  if (offensiveSpells.includes(spell) && getAdvisorEffectModifier(empire, 'peaceful_channeler') > 0) {
+    return { canCast: false, reason: 'Peaceful Channeler forbids offensive spells' };
+  }
+
+  // Destruction Mage: cannot cast production spells
+  const productionSpells: SpellType[] = ['food', 'cash', 'runes'];
+  if (productionSpells.includes(spell) && getAdvisorEffectModifier(empire, 'destruction_mage') > 0) {
+    return { canCast: false, reason: 'Destruction Mage forbids production spells' };
+  }
+
   // Era change spells have cooldown
   if ((spell === 'advance' || spell === 'regress') && currentRound !== undefined) {
     if (!canChangeEra(empire, currentRound)) {
@@ -101,8 +113,15 @@ export function getWizardPowerEnemy(caster: Empire, target: Empire): number {
   const casterMagic = getModifier(caster, 'magic');
   const targetMagic = getModifier(target, 'magic');
 
+  // Blood Mage: +75% magic power
+  const bloodMageBoost = getAdvisorEffectModifier(caster, 'blood_mage');
+  const adjustedCasterMagic = casterMagic * (1 + bloodMageBoost);
+
+  // Destruction Mage: +40% offensive spell power
+  const destructionBoost = getAdvisorEffectModifier(caster, 'destruction_mage');
+
   const avgLand = (caster.resources.land + target.resources.land) / 2;
-  const uratio = caster.troops.trpwiz / avgLand * casterMagic;
+  const uratio = caster.troops.trpwiz / avgLand * adjustedCasterMagic * (1 + destructionBoost);
 
   // eratio = max(other.trpwiz, 1) / other.land * 1.05 * other.magic_modifier
   const eratio = Math.max(target.troops.trpwiz, 1) / target.resources.land * 1.05 * targetMagic;
@@ -148,10 +167,26 @@ function castShield(empire: Empire, currentRound: number): SpellResult {
 
 function castFood(empire: Empire): SpellResult {
   const magicModifier = getModifier(empire, 'magic');
-  const wizardPower = empire.troops.trpwiz * magicModifier;
+
+  // Blood Mage: +75% magic power
+  const bloodMageBoost = getAdvisorEffectModifier(empire, 'blood_mage');
+  const adjustedMagic = magicModifier * (1 + bloodMageBoost);
+
+  const wizardPower = empire.troops.trpwiz * adjustedMagic;
 
   // Food gained scales with wizard power
-  const foodGained = Math.floor(wizardPower * 50);
+  let foodGained = Math.floor(wizardPower * 50);
+
+  // Apply spell boost advisors
+  const conjureBoost = getAdvisorEffectModifier(empire, 'conjure_boost');
+  const foodSpellBoost = getAdvisorEffectModifier(empire, 'food_spell');
+  const peacefulBoost = getAdvisorEffectModifier(empire, 'peaceful_channeler');
+  const wildBoost = getAdvisorEffectModifier(empire, 'wild_channeler');
+
+  // Wild Channeler doubles output (modifier is 2.0, so we use it directly)
+  const wildMultiplier = wildBoost > 0 ? wildBoost : 1;
+
+  foodGained = Math.floor(foodGained * (1 + conjureBoost + foodSpellBoost + peacefulBoost) * wildMultiplier);
 
   empire.resources.food += foodGained;
 
@@ -164,10 +199,26 @@ function castFood(empire: Empire): SpellResult {
 
 function castCashSpell(empire: Empire): SpellResult {
   const magicModifier = getModifier(empire, 'magic');
-  const wizardPower = empire.troops.trpwiz * magicModifier;
+
+  // Blood Mage: +75% magic power
+  const bloodMageBoost = getAdvisorEffectModifier(empire, 'blood_mage');
+  const adjustedMagic = magicModifier * (1 + bloodMageBoost);
+
+  const wizardPower = empire.troops.trpwiz * adjustedMagic;
 
   // Gold gained scales with wizard power
-  const goldGained = Math.floor(wizardPower * 100);
+  let goldGained = Math.floor(wizardPower * 100);
+
+  // Apply spell boost advisors
+  const conjureBoost = getAdvisorEffectModifier(empire, 'conjure_boost');
+  const cashSpellBoost = getAdvisorEffectModifier(empire, 'cash_spell');
+  const peacefulBoost = getAdvisorEffectModifier(empire, 'peaceful_channeler');
+  const wildBoost = getAdvisorEffectModifier(empire, 'wild_channeler');
+
+  // Wild Channeler doubles output (modifier is 2.0, so we use it directly)
+  const wildMultiplier = wildBoost > 0 ? wildBoost : 1;
+
+  goldGained = Math.floor(goldGained * (1 + conjureBoost + cashSpellBoost + peacefulBoost) * wildMultiplier);
 
   empire.resources.gold += goldGained;
 
@@ -180,10 +231,24 @@ function castCashSpell(empire: Empire): SpellResult {
 
 function castRunesSpell(empire: Empire): SpellResult {
   const magicModifier = getModifier(empire, 'magic');
+
+  // Blood Mage: +75% magic power
+  const bloodMageBoost = getAdvisorEffectModifier(empire, 'blood_mage');
+  const adjustedMagic = magicModifier * (1 + bloodMageBoost);
+
   const towerBonus = empire.buildings.bldwiz * 0.5;
 
   // Runes gained scales with magic and towers
-  const runesGained = Math.floor((20 + towerBonus) * magicModifier);
+  let runesGained = Math.floor((20 + towerBonus) * adjustedMagic);
+
+  // Apply spell boost advisors
+  const peacefulBoost = getAdvisorEffectModifier(empire, 'peaceful_channeler');
+  const wildBoost = getAdvisorEffectModifier(empire, 'wild_channeler');
+
+  // Wild Channeler doubles output (modifier is 2.0, so we use it directly)
+  const wildMultiplier = wildBoost > 0 ? wildBoost : 1;
+
+  runesGained = Math.floor(runesGained * (1 + peacefulBoost) * wildMultiplier);
 
   empire.resources.runes += runesGained;
 
@@ -268,7 +333,13 @@ function castBlast(caster: Empire, target: Empire): SpellResult {
 
   // Success - destroy troops
   const hasShield = hasActiveShield(target);
-  const rate = hasShield ? 0.01 : 0.03;
+  let rate = hasShield ? 0.01 : 0.03;
+
+  // Wild Channeler: 2x spell effects
+  const wildBoost = getAdvisorEffectModifier(caster, 'wild_channeler');
+  if (wildBoost > 0) {
+    rate *= wildBoost;
+  }
 
   const troopsDestroyed: Partial<Troops> = {
     trparm: Math.ceil(target.troops.trparm * rate),
@@ -323,7 +394,16 @@ function castSteal(caster: Empire, target: Empire): SpellResult {
   const maxRate = hasShield ? 5000 : 15000;  // 5% or 15%
   const rate = minRate + Math.random() * (maxRate - minRate);
 
-  const goldStolen = Math.round(target.resources.gold / 100000 * rate);
+  let goldStolen = Math.round(target.resources.gold / 100000 * rate);
+
+  // Shadow Siphon: +40% gold stolen
+  const stealBoost = getAdvisorEffectModifier(caster, 'steal_spell');
+  // Wild Channeler: 2x spell effects
+  const wildBoost = getAdvisorEffectModifier(caster, 'wild_channeler');
+  const wildMultiplier = wildBoost > 0 ? wildBoost : 1;
+
+  goldStolen = Math.floor(goldStolen * (1 + stealBoost) * wildMultiplier);
+
   target.resources.gold -= goldStolen;
   caster.resources.gold += goldStolen;
 
@@ -369,8 +449,15 @@ function castStorm(caster: Empire, target: Empire): SpellResult {
 
   // Success - destroy food and cash
   const hasShield = hasActiveShield(target);
-  const foodRate = hasShield ? 0.0304 : 0.0912;
-  const cashRate = hasShield ? 0.0422 : 0.1266;
+  let foodRate = hasShield ? 0.0304 : 0.0912;
+  let cashRate = hasShield ? 0.0422 : 0.1266;
+
+  // Wild Channeler: 2x spell effects
+  const wildBoost = getAdvisorEffectModifier(caster, 'wild_channeler');
+  if (wildBoost > 0) {
+    foodRate *= wildBoost;
+    cashRate *= wildBoost;
+  }
 
   const foodDestroyed = Math.ceil(target.resources.food * foodRate);
   const cashDestroyed = Math.ceil(target.resources.gold * cashRate);
@@ -421,7 +508,14 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
 
   // Success - destroy buildings
   const hasShield = hasActiveShield(target);
-  const rate = hasShield ? 0.01 : 0.03;
+  let rate = hasShield ? 0.01 : 0.03;
+
+  // Wild Channeler: 2x spell effects
+  const wildBoost = getAdvisorEffectModifier(caster, 'wild_channeler');
+  if (wildBoost > 0) {
+    rate *= wildBoost;
+  }
+
   const land = target.resources.land;
 
   // Helper to destroy buildings with minimum ratio check
@@ -567,7 +661,7 @@ function castFight(caster: Empire, target: Empire): SpellResult {
   target.buildings.blddef -= buildingsDestroyed.blddef ?? 0;
 
   // Total destroyed becomes land transferred
-  const landGained =
+  let landGained =
     (buildingsDestroyed.bldcash ?? 0) +
     (buildingsDestroyed.bldpop ?? 0) +
     (buildingsDestroyed.bldtrp ?? 0) +
@@ -577,7 +671,17 @@ function castFight(caster: Empire, target: Empire): SpellResult {
     (buildingsDestroyed.blddef ?? 0);
 
   // Also destroy some freeland and transfer it
-  const freelandLost = Math.ceil(target.resources.freeland * 0.10 / 3);
+  let freelandLost = Math.ceil(target.resources.freeland * 0.10 / 3);
+
+  // Arcane Duelist: +30% land gained from fight spell
+  const fightBoost = getAdvisorEffectModifier(caster, 'fight_spell');
+  // Wild Channeler: 2x spell effects
+  const wildBoost = getAdvisorEffectModifier(caster, 'wild_channeler');
+  const wildMultiplier = wildBoost > 0 ? wildBoost : 1;
+
+  landGained = Math.floor(landGained * (1 + fightBoost) * wildMultiplier);
+  freelandLost = Math.floor(freelandLost * (1 + fightBoost) * wildMultiplier);
+
   target.resources.freeland -= freelandLost;
   target.resources.land -= landGained + freelandLost;
   caster.resources.land += landGained + freelandLost;
@@ -707,6 +811,28 @@ export function castSelfSpell(
   // Deduct rune cost
   empire.resources.runes -= cost;
 
+  // Wild Channeler: 25% chance to fizzle (runes spent, no effect)
+  const wildChanneler = getAdvisorEffectModifier(empire, 'wild_channeler');
+  if (wildChanneler > 0 && Math.random() < 0.25) {
+    empire.networth = calculateNetworth(empire);
+    return {
+      success: false,
+      turnsSpent: turnsNeeded,
+      turnsRemaining: turnsRemaining - turnsNeeded,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes - cost,
+      troopsProduced: totalTroopsProduced,
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      spellResult: { success: false, spell, effectApplied: 'fizzled' },
+      empire,
+    };
+  }
+
   // Cast the spell
   let spellResult: SpellResult;
 
@@ -734,6 +860,12 @@ export function castSelfSpell(
       break;
     default:
       spellResult = { success: false, spell };
+  }
+
+  // Blood Mage: all spells cost 5 health
+  const bloodMage = getAdvisorEffectModifier(empire, 'blood_mage');
+  if (bloodMage > 0) {
+    empire.health = Math.max(0, empire.health - 5);
   }
 
   empire.networth = calculateNetworth(empire);
@@ -854,6 +986,35 @@ export function castEnemySpell(
   // Deduct rune cost
   caster.resources.runes -= cost;
 
+  // Wild Channeler: 25% chance to fizzle (runes spent, no effect)
+  const wildChanneler = getAdvisorEffectModifier(caster, 'wild_channeler');
+  if (wildChanneler > 0 && Math.random() < 0.25) {
+    // Still pay health cost for offensive spell attempt
+    caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+    // Blood Mage: additional 5 health
+    const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');
+    if (bloodMage > 0) {
+      caster.health = Math.max(0, caster.health - 5);
+    }
+    caster.networth = calculateNetworth(caster);
+    return {
+      success: false,
+      turnsSpent: turnsNeeded,
+      turnsRemaining: turnsRemaining - turnsNeeded,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes - cost,
+      troopsProduced: totalTroopsProduced,
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      spellResult: { success: false, spell, effectApplied: 'fizzled' },
+      empire: caster,
+    };
+  }
+
   // Cast the spell
   let spellResult: SpellResult;
 
@@ -882,6 +1043,12 @@ export function castEnemySpell(
 
   // Apply health cost for offensive spells
   caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+
+  // Blood Mage: additional 5 health cost for all spells
+  const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');
+  if (bloodMage > 0) {
+    caster.health = Math.max(0, caster.health - 5);
+  }
 
   caster.networth = calculateNetworth(caster);
 

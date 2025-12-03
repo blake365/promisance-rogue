@@ -69,8 +69,16 @@ export function calcFinances(empire: Empire): FinanceResult {
   const healthFactor = empire.health / 100;
 
   const peasantIncome = pci * taxFactor * healthFactor * empire.peasants;
-  const buildingIncome = empire.buildings.bldcash * ECONOMY.cashBuildingIncome;
-  const income = Math.round((peasantIncome + buildingIncome) / sizeBonus);
+
+  // Market Master: +50% market building income
+  const marketBoost = getAdvisorEffectModifier(empire, 'market_boost');
+  const buildingIncome = empire.buildings.bldcash * ECONOMY.cashBuildingIncome * (1 + marketBoost);
+
+  let income = Math.round((peasantIncome + buildingIncome) / sizeBonus);
+
+  // Tax Collector / Treasury Master: +25%/+50% income
+  const incomeBoost = getAdvisorEffectModifier(empire, 'income_boost');
+  income = Math.round(income * (1 + incomeBoost));
 
   // Loan payment = loan / 200
   const loanPayment = Math.round(empire.loan / 200);
@@ -88,7 +96,12 @@ export function calcFinances(empire: Empire): FinanceResult {
   // Expense bonus = min(0.5, (expense_modifier - 1) + (bldcost / land))
   const expenseModifier = getModifier(empire, 'expenses');
   const land = Math.max(empire.resources.land, 1);
-  const expBonus = Math.min(0.5, (expenseModifier - 1) + (empire.buildings.bldcost / land));
+
+  // Trade Network: +50% exchange effectiveness
+  const exchangeBoost = getAdvisorEffectModifier(empire, 'exchange_boost');
+  const exchangeContribution = (empire.buildings.bldcost / land) * (1 + exchangeBoost);
+
+  const expBonus = Math.min(0.5, (expenseModifier - 1) + exchangeContribution);
   const expenses = baseExpenses - Math.round(baseExpenses * expBonus);
 
   return {
@@ -155,6 +168,9 @@ export function calcTroopProduction(empire: Empire): Partial<Troops> {
   const eraIndustryModifier = getEraModifier(empire, 'industry');
   const totalProduction = baseProduction * industryModifier * eraIndustryModifier;
 
+  // Advisor bonuses for troop production
+  const troopProductionBonus = getAdvisorEffectModifier(empire, 'troop_production');
+
   // Production rates for each unit type (from QM Promisance)
   // trparm: 1.2x, trplnd: 0.6x, trpfly: 0.3x, trpsea: 0.2x
   const productionRates = {
@@ -164,11 +180,22 @@ export function calcTroopProduction(empire: Empire): Partial<Troops> {
     trpsea: 0.2,
   };
 
+  // Get unit-specific production bonuses
+  const getUnitBonus = (unitType: string): number => {
+    let bonus = 0;
+    for (const advisor of empire.advisors) {
+      if (advisor.effect.type === 'unit_production' && advisor.effect.condition === unitType) {
+        bonus += advisor.effect.modifier;
+      }
+    }
+    return bonus;
+  };
+
   return {
-    trparm: Math.floor(totalProduction * (industryAllocation.trparm / 100) * productionRates.trparm),
-    trplnd: Math.floor(totalProduction * (industryAllocation.trplnd / 100) * productionRates.trplnd),
-    trpfly: Math.floor(totalProduction * (industryAllocation.trpfly / 100) * productionRates.trpfly),
-    trpsea: Math.floor(totalProduction * (industryAllocation.trpsea / 100) * productionRates.trpsea),
+    trparm: Math.floor(totalProduction * (industryAllocation.trparm / 100) * productionRates.trparm * (1 + troopProductionBonus + getUnitBonus('trparm'))),
+    trplnd: Math.floor(totalProduction * (industryAllocation.trplnd / 100) * productionRates.trplnd * (1 + troopProductionBonus + getUnitBonus('trplnd'))),
+    trpfly: Math.floor(totalProduction * (industryAllocation.trpfly / 100) * productionRates.trpfly * (1 + troopProductionBonus + getUnitBonus('trpfly'))),
+    trpsea: Math.floor(totalProduction * (industryAllocation.trpsea / 100) * productionRates.trpsea * (1 + troopProductionBonus + getUnitBonus('trpsea'))),
   };
 }
 
@@ -271,6 +298,32 @@ export function processEconomy(empire: Empire, actionBonus?: TurnAction): Econom
     };
   }
 
+  // Farm Profiteer: +25% troop production during farm turns
+  if (actionBonus === 'farm') {
+    const farmIndustryBoost = getAdvisorEffectModifier(empire, 'farm_industry_boost');
+    if (farmIndustryBoost > 0) {
+      troopsProduced = {
+        trparm: Math.round((troopsProduced.trparm ?? 0) * (1 + farmIndustryBoost)),
+        trplnd: Math.round((troopsProduced.trplnd ?? 0) * (1 + farmIndustryBoost)),
+        trpfly: Math.round((troopsProduced.trpfly ?? 0) * (1 + farmIndustryBoost)),
+        trpsea: Math.round((troopsProduced.trpsea ?? 0) * (1 + farmIndustryBoost)),
+      };
+    }
+  }
+
+  // Trade Profiteer: +25% troop production during cash turns
+  if (actionBonus === 'cash') {
+    const cashIndustryBoost = getAdvisorEffectModifier(empire, 'cash_industry_boost');
+    if (cashIndustryBoost > 0) {
+      troopsProduced = {
+        trparm: Math.round((troopsProduced.trparm ?? 0) * (1 + cashIndustryBoost)),
+        trplnd: Math.round((troopsProduced.trplnd ?? 0) * (1 + cashIndustryBoost)),
+        trpfly: Math.round((troopsProduced.trpfly ?? 0) * (1 + cashIndustryBoost)),
+        trpsea: Math.round((troopsProduced.trpsea ?? 0) * (1 + cashIndustryBoost)),
+      };
+    }
+  }
+
   // Wizard training
   const wizardsProduced = calcWizardTraining(empire);
 
@@ -346,26 +399,34 @@ export function applyEconomyResult(empire: Empire, result: EconomyResult): Apply
   // PEASANT GROWTH (from prom_empire.php lines 960-974)
   // Population grows toward base capacity, modified by tax rate
   // Bella of Doublehomes multiplies peasants per acre
+  // Lenient Collector: peasants ignore tax rate effects
   // ============================================
   const taxRate = empire.taxRate / 100;
+  const hasLenientTaxes = getAdvisorEffectModifier(empire, 'lenient_taxes') > 0;
+
   // Base population capacity: (land * 2 + freeland * 5 + bldpop * 60) / (0.95 + taxrate)
   // Bella multiplies the land-based capacity (default 1.0 if no advisor)
+  // Lenient Collector: tax rate doesn't affect capacity
   const peasantDensity = getAdvisorEffectModifier(empire, 'peasant_density') || 1.0;
+  const taxDivisor = hasLenientTaxes ? 0.95 : (0.95 + taxRate);
   const popbase = Math.round(
     (empire.resources.land * 2 * peasantDensity + empire.resources.freeland * 5 + empire.buildings.bldpop * 60) /
-    (0.95 + taxRate)
+    taxDivisor
   );
 
   if (empire.peasants !== popbase) {
     // Base growth/decline: move 1/20th toward capacity each turn
     let peasantChange = (popbase - empire.peasants) / 20;
 
-    // Tax multiplier affects growth rate
+    // Tax multiplier affects growth rate (unless Lenient Collector)
     // Higher taxes slow growth, accelerate decline
-    const taxFactor = (4 / ((empire.taxRate + 15) / 20)) - (7 / 9);
-    const peasMult = peasantChange > 0 ? taxFactor : (1 / taxFactor);
+    if (!hasLenientTaxes) {
+      const taxFactor = (4 / ((empire.taxRate + 15) / 20)) - (7 / 9);
+      const peasMult = peasantChange > 0 ? taxFactor : (1 / taxFactor);
+      peasantChange = peasantChange * peasMult * peasMult;
+    }
 
-    peasantChange = Math.round(peasantChange * peasMult * peasMult);
+    peasantChange = Math.round(peasantChange);
 
     // Don't let population reach zero
     if (empire.peasants + peasantChange < 1) {
@@ -531,7 +592,16 @@ function processSimpleTurns(empire: Empire, turns: number, action?: TurnAction):
 
 export function processExplore(empire: Empire, turns: number): TurnActionResult {
   const totals = initTotals();
-  const exploreMultiplier = hasAdvisorEffect(empire, 'double_explore') ? 2 : 1;
+  // Calculate explore multiplier from advisors
+  // Frontier Scout (double_explore) = 2x, Expansionist = 3x (uses modifier value)
+  let exploreMultiplier = 1;
+  if (hasAdvisorEffect(empire, 'double_explore')) {
+    exploreMultiplier = 2;
+  }
+  const expansionistMod = getAdvisorEffectModifier(empire, 'expansionist');
+  if (expansionistMod > 0) {
+    exploreMultiplier = Math.max(exploreMultiplier, expansionistMod);
+  }
 
   for (let i = 0; i < turns; i++) {
     const economy = processEconomy(empire);
@@ -544,6 +614,13 @@ export function processExplore(empire: Empire, turns: number): TurnActionResult 
     empire.resources.land += landGain;
     empire.resources.freeland += landGain;
     totals.land += landGain;
+
+    // Pioneer: gain peasants when exploring
+    const pioneerMod = getAdvisorEffectModifier(empire, 'pioneer');
+    if (pioneerMod > 0) {
+      const peasantsGained = Math.floor(landGain * pioneerMod);
+      empire.peasants += peasantsGained;
+    }
   }
 
   empire.networth = calculateNetworth(empire);
@@ -636,14 +713,32 @@ export function processBuild(
   const baseCostPerBuilding = ECONOMY.buildingBaseCost +
     empire.resources.land * ECONOMY.buildingLandMultiplier;
   const buildingModifier = getModifier(empire, 'building');
-  const totalCost = Math.round((baseCostPerBuilding * totalToConstruct) / buildingModifier);
+
+  // build_rate advisors with 'per_turn_with_discount' also reduce cost by 20%
+  let costMultiplier = 1.0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'build_rate' && advisor.effect.condition === 'per_turn_with_discount') {
+      costMultiplier *= 0.80; // 20% discount per master_builder
+    } else if (advisor.effect.type === 'build_rate' && advisor.effect.condition === 'per_turn') {
+      costMultiplier *= 0.75; // 25% discount for royal_architect
+    }
+  }
+
+  const totalCost = Math.round((baseCostPerBuilding * totalToConstruct * costMultiplier) / buildingModifier);
 
   if (totalCost > empire.resources.gold) {
     return failedBuildResult(empire);
   }
 
   // Calculate turns needed - build rate scales with land (1 building per 20 acres)
-  const buildRate = Math.max(1, Math.floor(empire.resources.land / 20));
+  // build_rate advisors add bonus buildings per turn
+  let buildRateBonus = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'build_rate') {
+      buildRateBonus += advisor.effect.modifier;
+    }
+  }
+  const buildRate = Math.max(1, Math.floor(empire.resources.land / 20) + buildRateBonus);
   const turnsNeeded = Math.max(1, Math.ceil(totalToConstruct / buildRate));
 
   // Process economy for build turns

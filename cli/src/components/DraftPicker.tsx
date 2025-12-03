@@ -6,6 +6,7 @@ interface Props {
   options: DraftOption[];
   rerollInfo: RerollInfo | null;
   masteryLevels?: Record<string, number>; // Current mastery levels by action
+  extraPicks?: number; // Extra picks remaining (from Extra Draft Pick edict)
   onSelect: (index: number) => void;
   onReroll: () => void;
   onSkip: () => void;
@@ -74,7 +75,7 @@ function formatEffectShort(effect: AdvisorEffect): { text: string; color: string
   return null;
 }
 
-export function DraftPicker({ options, rerollInfo, masteryLevels, onSelect, onReroll, onSkip, onMarket, onAdvisors }: Props) {
+export function DraftPicker({ options, rerollInfo, masteryLevels, extraPicks, onSelect, onReroll, onSkip, onMarket, onAdvisors }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useInput((input, key) => {
@@ -139,7 +140,14 @@ export function DraftPicker({ options, rerollInfo, masteryLevels, onSelect, onRe
   return (
     <Box flexDirection="column" borderStyle="double" borderColor="yellow" paddingX={1}>
       <Box justifyContent="space-between">
-        <Text bold color="yellow">DRAFT - Choose Your Bonus</Text>
+        <Box gap={2}>
+          <Text bold color="yellow">DRAFT - Choose Your Bonus</Text>
+          {extraPicks !== undefined && extraPicks > 0 && (
+            <Text color="green" bold>
+              (+{extraPicks} extra pick{extraPicks > 1 ? 's' : ''})
+            </Text>
+          )}
+        </Box>
         {advisorCapacity && (
           <Text color={isAtAdvisorCapacity ? 'red' : 'gray'}>
             Advisors: {advisorCapacity.current}/{advisorCapacity.max}

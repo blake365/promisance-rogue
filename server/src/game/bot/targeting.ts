@@ -9,7 +9,7 @@ import type { Empire, BotEmpire } from '../../types';
 import type { TargetScore } from './types';
 import { TARGETING_WEIGHTS } from './definitions';
 import { calculateOffensePower, calculateDefensePower } from '../combat';
-import { canAttackEra } from '../empire';
+import { canAttackEra, hasAdvisorEffect } from '../empire';
 
 // ============================================
 // TARGET SCORING
@@ -100,6 +100,13 @@ function scoreTarget(
   if (isPlayer) {
     score += TARGETING_WEIGHTS.playerBias;
     reasons.push('player');
+  }
+
+  // Expansionist bias - empires with expansionist advisor are more attractive targets
+  // The advisor grants 2x explore but makes the player a bigger target
+  if (hasAdvisorEffect(target, 'expansionist')) {
+    score += 15; // Significant bonus to target expansionist players
+    reasons.push('expansionist');
   }
 
   // Retaliation target - if this target just attacked us

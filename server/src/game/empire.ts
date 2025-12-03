@@ -73,10 +73,18 @@ export function createEmpire(
 
     shieldExpiresRound: null,
     gateExpiresRound: null,
+    pacificationExpiresRound: null,
+    divineProtectionExpiresRound: null,
+
+    bonusTurnsNextRound: 0,
+    guaranteedRareDraft: false,
+    extraDraftPicks: 0,
 
     advisors: [],
     techs: {},
     policies: [],
+    bonusAdvisorSlots: 0,
+    bonusDraftOptions: 0,
   };
 
   empire.networth = calculateNetworth(empire);

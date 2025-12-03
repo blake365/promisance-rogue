@@ -1,6 +1,6 @@
 import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason } from '../types';
 import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT, SHOP } from './constants';
-import { createEmpire, calculateNetworth, hasAdvisorEffect } from './empire';
+import { createEmpire, calculateNetworth, hasAdvisorEffect, getAdvisorEffectModifier } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
 import { isLoanEmergency } from './bank';
 import { processAttack } from './combat';
@@ -32,7 +32,7 @@ export function createGameRun(
 
   // Generate initial shop stock and draft options for the starting shop
   const initialShopStock = generateShopStock(playerEmpire, marketPrices);
-  const initialDraftOptions = generateDraftOptions(gameSeed + 500, playerEmpire);
+  const initialDraftResult = generateDraftOptions(gameSeed + 500, playerEmpire, []);
   const initialRerollCost = calculateRerollCost(playerEmpire, marketPrices);
 
   return {
@@ -51,11 +51,14 @@ export function createGameRun(
 
     marketPrices,
     shopStock: initialShopStock,
-    draftOptions: initialDraftOptions,
+    draftOptions: initialDraftResult.options,
 
     // Reroll system - initialized for initial shop
     rerollCost: initialRerollCost,
     rerollCount: 0,
+
+    // Track offered advisor IDs from initial draft
+    offeredAdvisorIds: initialDraftResult.newOfferedAdvisorIds,
 
     intel: {},
 
@@ -139,8 +142,27 @@ export function executeTurn(
         };
       }
 
-      // Check attack limit per round (Warmaster advisor grants +1 attack)
-      const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
+      // Pacifist advisor blocks all attacks
+      if (hasAdvisorEffect(empire, 'pacifist')) {
+        return {
+          success: false,
+          turnsSpent: 0,
+          turnsRemaining: run.round.turnsRemaining,
+          income: 0,
+          expenses: 0,
+          foodProduction: 0,
+          foodConsumption: 0,
+          runeChange: 0,
+          troopsProduced: {},
+          loanPayment: 0,
+          bankInterest: 0,
+          loanInterest: 0,
+          empire,
+        };
+      }
+
+      // Check attack limit per round (sum all extra_attacks modifiers from advisors)
+      const extraAttacks = getAdvisorEffectModifier(empire, 'extra_attacks');
       if (empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks) {
         return {
           success: false,
@@ -311,7 +333,27 @@ export function executeTurn(
 
         // Fight spell uses attack counter, other offensive spells use spell counter
         const isFightSpell = request.spell === 'fight';
-        const extraAttacks = hasAdvisorEffect(empire, 'extra_attacks') ? 1 : 0;
+
+        // Pacifist blocks fight spell (it's like an attack)
+        if (isFightSpell && hasAdvisorEffect(empire, 'pacifist')) {
+          return {
+            success: false,
+            turnsSpent: 0,
+            turnsRemaining: run.round.turnsRemaining,
+            income: 0,
+            expenses: 0,
+            foodProduction: 0,
+            foodConsumption: 0,
+            runeChange: 0,
+            troopsProduced: {},
+            loanPayment: 0,
+            bankInterest: 0,
+            loanInterest: 0,
+            empire,
+          };
+        }
+
+        const extraAttacks = getAdvisorEffectModifier(empire, 'extra_attacks');
         const limitReached = isFightSpell
           ? empire.attacksThisRound >= COMBAT.attacksPerRound + extraAttacks
           : empire.offensiveSpellsThisRound >= COMBAT.offensiveSpellsPerRound;
@@ -430,7 +472,14 @@ export function endPlayerPhase(run: GameRun): void {
   const phaseSeed = run.seed + run.round.number * 1000;
   run.marketPrices = generateMarketPrices(phaseSeed);
   run.shopStock = generateShopStock(run.playerEmpire, run.marketPrices);
-  run.draftOptions = generateDraftOptions(phaseSeed + 500, run.playerEmpire);
+
+  const draftResult = generateDraftOptions(phaseSeed + 500, run.playerEmpire, run.offeredAdvisorIds);
+  run.draftOptions = draftResult.options;
+  // Track newly offered advisors
+  run.offeredAdvisorIds = [...run.offeredAdvisorIds, ...draftResult.newOfferedAdvisorIds];
+
+  // Reset guaranteed rare flag after draft generation (it's consumed)
+  run.playerEmpire.guaranteedRareDraft = false;
 
   // Lock reroll cost at 20% of liquidation value (paid in gold, prevents gaming by selling assets first)
   run.rerollCost = calculateRerollCost(run.playerEmpire, run.marketPrices);
@@ -439,7 +488,7 @@ export function endPlayerPhase(run: GameRun): void {
   run.updatedAt = Date.now();
 }
 
-export function selectDraft(run: GameRun, optionIndex: number): { success: boolean; error?: string } {
+export function selectDraft(run: GameRun, optionIndex: number): { success: boolean; error?: string; picksRemaining?: number } {
   if (run.round.phase !== 'shop' || !run.draftOptions) {
     return { success: false, error: 'Not in shop phase' };
   }
@@ -449,16 +498,42 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
   }
 
   const option = run.draftOptions[optionIndex];
-  const result = applyDraftSelection(run.playerEmpire, option, run.botEmpires);
+  const result = applyDraftSelection(run.playerEmpire, option, {
+    bots: run.botEmpires,
+    currentRound: run.round.number,
+    seed: run.seed + run.round.number * 1000,
+    clearOfferedCallback: () => {
+      run.offeredAdvisorIds = [];
+    },
+  });
 
   if (!result.success) {
     return result;
   }
 
+  // Check for extra draft picks
+  const extraPicks = run.playerEmpire.extraDraftPicks ?? 0;
+
+  if (extraPicks > 0) {
+    // Remove the selected option from the list and decrement picks
+    run.draftOptions = run.draftOptions.filter((_, i) => i !== optionIndex);
+    run.playerEmpire.extraDraftPicks = extraPicks - 1;
+
+    // If no more options left, close the draft even if picks remain
+    if (run.draftOptions.length === 0) {
+      run.draftOptions = null;
+      run.playerEmpire.extraDraftPicks = 0;
+    }
+
+    run.updatedAt = Date.now();
+    return { success: true, picksRemaining: run.playerEmpire.extraDraftPicks };
+  }
+
+  // Normal case - close the draft
   run.draftOptions = null;
   run.updatedAt = Date.now();
 
-  return { success: true };
+  return { success: true, picksRemaining: 0 };
 }
 
 export function rerollDraft(run: GameRun): { success: boolean; error?: string; cost?: number } {
@@ -490,7 +565,10 @@ export function rerollDraft(run: GameRun): { success: boolean; error?: string; c
 
   // Generate new draft options with a different seed
   const rerollSeed = run.seed + run.round.number * 1000 + 500 + run.rerollCount * 100;
-  run.draftOptions = generateDraftOptions(rerollSeed, run.playerEmpire);
+  const draftResult = generateDraftOptions(rerollSeed, run.playerEmpire, run.offeredAdvisorIds);
+  run.draftOptions = draftResult.options;
+  // Track newly offered advisors
+  run.offeredAdvisorIds = [...run.offeredAdvisorIds, ...draftResult.newOfferedAdvisorIds];
 
   run.updatedAt = Date.now();
 
@@ -578,6 +656,18 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
         baseTurns += advisor.effect.modifier;
       }
     }
+
+    // Add efficiency_training policy bonus (+5 turns every round)
+    if (run.playerEmpire.policies.includes('efficiency_training')) {
+      baseTurns += 5;
+    }
+
+    // Add one-time bonus turns from edicts (e.g., Overtime)
+    if (run.playerEmpire.bonusTurnsNextRound > 0) {
+      baseTurns += run.playerEmpire.bonusTurnsNextRound;
+      run.playerEmpire.bonusTurnsNextRound = 0;  // Consume the bonus
+    }
+
     run.round.turnsRemaining = baseTurns;
     run.round.phase = 'player';
   }

@@ -34,6 +34,47 @@ function mapBotToSummary(bot: BotEmpire): BotSummaryResponse {
   };
 }
 
+// Generate intel for a bot (used for full_intel policy)
+function generateBotIntel(bot: BotEmpire, round: number): SpyIntel {
+  return {
+    targetId: bot.id,
+    targetName: bot.personality.name,
+    round,
+    era: bot.era,
+    race: bot.race,
+    land: bot.resources.land,
+    networth: bot.networth,
+    peasants: bot.peasants,
+    health: bot.health,
+    taxRate: bot.taxRate,
+    gold: bot.resources.gold,
+    food: bot.resources.food,
+    runes: bot.resources.runes,
+    troops: { ...bot.troops },
+  };
+}
+
+// Get intel with full_intel policy check
+function getIntelWithPolicy(
+  existingIntel: Record<string, SpyIntel>,
+  bots: BotEmpire[],
+  hasFullIntel: boolean,
+  currentRound: number
+): Record<string, SpyIntel> {
+  if (!hasFullIntel) {
+    return existingIntel;
+  }
+
+  // Generate fresh intel for all living bots
+  const fullIntel: Record<string, SpyIntel> = {};
+  for (const bot of bots) {
+    if (bot.health > 0) {
+      fullIntel[bot.id] = generateBotIntel(bot, currentRound);
+    }
+  }
+  return fullIntel;
+}
+
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // CORS for frontend
@@ -181,6 +222,7 @@ app.get('/api/game/current', async (c) => {
     return c.json({ hasActiveGame: false });
   }
 
+  const hasFullIntel = run.playerEmpire.policies.includes('full_intel');
   return c.json({
     hasActiveGame: true,
     game: {
@@ -188,7 +230,7 @@ app.get('/api/game/current', async (c) => {
       round: run.round,
       playerEmpire: run.playerEmpire,
       botEmpires: run.botEmpires.map(mapBotToSummary),
-      intel: run.intel,
+      intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
@@ -213,13 +255,14 @@ app.get('/api/game/:id', async (c) => {
     return c.json({ error: 'Unauthorized' }, 403);
   }
 
+  const hasFullIntel = run.playerEmpire.policies.includes('full_intel');
   return c.json({
     game: {
       id: run.id,
       round: run.round,
       playerEmpire: run.playerEmpire,
       botEmpires: run.botEmpires.map(mapBotToSummary),
-      intel: run.intel,
+      intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
@@ -575,13 +618,14 @@ app.post('/api/game/:id/bot-phase', async (c) => {
     await db.updatePlayerStats(c.env.DB, playerId, run.playerEmpire.networth);
   }
 
+  const hasFullIntel = run.playerEmpire.policies.includes('full_intel');
   return c.json({
     news: result.news,
     standings: result.standings,
     round: run.round,
     playerEmpire: run.playerEmpire,
     botEmpires: run.botEmpires.map(mapBotToSummary),
-    intel: run.intel,
+    intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
     isComplete: isGameComplete(run),
     playerDefeated: run.playerDefeated,
   });

@@ -130,11 +130,20 @@ export interface Empire {
   // Effects (round-based for roguelike)
   shieldExpiresRound: number | null;  // Shield lasts until end of this round's bot phase
   gateExpiresRound: number | null;    // Gate lasts until end of this round
+  pacificationExpiresRound: number | null;  // Bots won't attack until this round ends
+  divineProtectionExpiresRound: number | null;  // Immune to bot attacks until this round ends
+
+  // Edict-granted bonuses (one-time or next-round effects)
+  bonusTurnsNextRound: number;  // Extra turns to add at next round start
+  guaranteedRareDraft: boolean;  // Next draft will have at least one rare+ advisor
+  extraDraftPicks: number;  // Extra picks allowed in next draft
 
   // Bonuses (from shop)
   advisors: Advisor[];
   techs: Record<string, number>;
   policies: string[];
+  bonusAdvisorSlots: number;  // Extra advisor slots from edicts
+  bonusDraftOptions: number;  // Extra draft options from edicts
 }
 
 // ============================================
@@ -177,7 +186,7 @@ export interface Edict {
 
 export interface EdictEffect {
   type: string;
-  value: number;
+  value: number | string; // number for most edicts, string for policy names
 }
 
 export interface Policy {
@@ -303,6 +312,10 @@ export interface GameRun {
   // Reroll system - cost locked when shop phase starts
   rerollCost: number | null; // 20% of gold, locked at shop start
   rerollCount: number; // Number of rerolls used this shop phase
+
+  // Track advisors that have been offered in previous drafts
+  // These won't appear again unless player has "Fresh Prospects" edict
+  offeredAdvisorIds: string[];
 
   // Spy intel gathered on bots (keyed by bot id)
   intel: Record<string, SpyIntel>;

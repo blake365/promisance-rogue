@@ -79,9 +79,16 @@ export interface Empire {
   kills: number;
   shieldExpiresRound: number | null;
   gateExpiresRound: number | null;
+  pacificationExpiresRound: number | null;
+  divineProtectionExpiresRound: number | null;
+  bonusTurnsNextRound: number;
+  guaranteedRareDraft: boolean;
+  extraDraftPicks: number;
   advisors: Advisor[];
   techs: Record<string, number>;
   policies: string[];
+  bonusAdvisorSlots: number;
+  bonusDraftOptions: number;
 }
 
 export interface GameRound {
@@ -318,6 +325,7 @@ interface DraftResponse {
   success: boolean;
   empire: Empire;
   draftOptions: DraftOption[] | null;
+  picksRemaining?: number;
 }
 
 export interface RerollInfo {

@@ -109,9 +109,9 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
       `INSERT OR REPLACE INTO game_runs
        (id, player_id, seed, round_number, turns_remaining, phase,
         player_empire, bot_empires, market_prices, shop_stock, draft_options,
-        reroll_cost, reroll_count, intel, modifiers,
+        reroll_cost, reroll_count, intel, offered_advisor_ids, modifiers,
         player_defeated, created_at, updated_at, completed_at, final_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       run.id,
@@ -128,6 +128,7 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
       run.rerollCost ?? null,
       run.rerollCount ?? 0,
       JSON.stringify(run.intel ?? {}),
+      JSON.stringify(run.offeredAdvisorIds ?? []),
       JSON.stringify(run.modifiers ?? []),
       run.playerDefeated ?? null,
       run.createdAt,
@@ -210,6 +211,7 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
     rerollCost: row.reroll_cost as number | null,
     rerollCount: (row.reroll_count as number) ?? 0,
     intel: row.intel ? JSON.parse(row.intel as string) : {},
+    offeredAdvisorIds: row.offered_advisor_ids ? JSON.parse(row.offered_advisor_ids as string) : [],
     modifiers: JSON.parse(row.modifiers as string),
     playerDefeated: row.player_defeated ? (row.player_defeated as string) as GameRun['playerDefeated'] : null,
     createdAt: row.created_at as number,

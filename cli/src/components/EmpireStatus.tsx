@@ -132,6 +132,56 @@ export function EmpireStatus({ empire, round }: Props) {
           ))}
         </Box>
       )}
+
+      {/* Active Effects */}
+      {(() => {
+        const effects: Array<{ name: string; color: string; expires?: number }> = [];
+
+        if (empire.shieldExpiresRound !== null && empire.shieldExpiresRound >= round.number) {
+          effects.push({ name: '🛡️ Shield', color: 'blue', expires: empire.shieldExpiresRound });
+        }
+        if (empire.gateExpiresRound !== null && empire.gateExpiresRound >= round.number) {
+          effects.push({ name: '🌀 Gate', color: 'magenta', expires: empire.gateExpiresRound });
+        }
+        if (empire.pacificationExpiresRound !== null && empire.pacificationExpiresRound >= round.number) {
+          effects.push({ name: '🕊️ Pacification', color: 'green', expires: empire.pacificationExpiresRound });
+        }
+        if (empire.divineProtectionExpiresRound !== null && empire.divineProtectionExpiresRound >= round.number) {
+          effects.push({ name: '✨ Divine Protection', color: 'yellow', expires: empire.divineProtectionExpiresRound });
+        }
+        if (empire.bonusTurnsNextRound > 0) {
+          effects.push({ name: `⏰ +${empire.bonusTurnsNextRound} turns next round`, color: 'cyan' });
+        }
+
+        if (effects.length === 0) return null;
+
+        return (
+          <Box gap={1}>
+            <Text color="gray">Effects:</Text>
+            {effects.map((eff, idx) => (
+              <React.Fragment key={eff.name}>
+                <Text color={eff.color}>
+                  {eff.name}{eff.expires !== undefined ? ` (R${eff.expires})` : ''}
+                </Text>
+                {idx < effects.length - 1 && <Text color="gray">,</Text>}
+              </React.Fragment>
+            ))}
+          </Box>
+        );
+      })()}
+
+      {/* Policies */}
+      {empire.policies.length > 0 && (
+        <Box gap={1}>
+          <Text color="gray">Policies:</Text>
+          {empire.policies.map((policy, idx) => (
+            <React.Fragment key={policy}>
+              <Text color="magenta">{policy.replace(/_/g, ' ')}</Text>
+              {idx < empire.policies.length - 1 && <Text color="gray">,</Text>}
+            </React.Fragment>
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

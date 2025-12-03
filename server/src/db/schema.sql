@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS game_runs (
   reroll_cost INTEGER,
   reroll_count INTEGER DEFAULT 0,
   intel TEXT DEFAULT '{}',
+  offered_advisor_ids TEXT DEFAULT '[]',
   modifiers TEXT DEFAULT '[]',
 
   -- Game over state

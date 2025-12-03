@@ -1,6 +1,6 @@
 import type { Empire, BankTransaction, BankTransactionResult, BankOperation } from '../types';
 import { ECONOMY } from './constants';
-import { calculateNetworth } from './empire';
+import { calculateNetworth, getAdvisorEffectModifier } from './empire';
 
 /**
  * Maximum loan amount is based on current networth
@@ -155,8 +155,14 @@ export function isLoanEmergency(empire: Empire): boolean {
 export function applyBankInterest(empire: Empire, turnsPerRound: number, hasDoubleInterest: boolean = false): number {
   if (empire.bank <= 0) return 0;
 
-  const annualRate = hasDoubleInterest ? ECONOMY.savingsRate * 2 : ECONOMY.savingsRate;
-  const perTurnRate = annualRate / turnsPerRound;
+  // Base rate, doubled with Royal Banker
+  let rate = hasDoubleInterest ? ECONOMY.savingsRate * 2 : ECONOMY.savingsRate;
+
+  // War Bonds: +2% flat bonus to interest rate
+  const bankInterestBonus = getAdvisorEffectModifier(empire, 'bank_interest');
+  rate += bankInterestBonus;
+
+  const perTurnRate = rate / turnsPerRound;
   const interest = Math.floor(empire.bank * perTurnRate);
   empire.bank += interest;
   return interest;
@@ -170,7 +176,11 @@ export function applyBankInterest(empire: Empire, turnsPerRound: number, hasDoub
 export function applyLoanInterest(empire: Empire, turnsPerRound: number): number {
   if (empire.loan <= 0) return 0;
 
-  const perTurnRate = ECONOMY.loanRate / turnsPerRound;
+  // Debt Eraser: reduces loan interest to near-zero
+  const zeroInterestMod = getAdvisorEffectModifier(empire, 'zero_interest');
+  const rate = zeroInterestMod > 0 ? zeroInterestMod : ECONOMY.loanRate;
+
+  const perTurnRate = rate / turnsPerRound;
   const interest = Math.floor(empire.loan * perTurnRate);
   empire.loan += interest;
   return interest;

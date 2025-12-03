@@ -145,6 +145,19 @@ function processSingleBotTurn(
       if (decision.targetId) {
         const target = findTarget(decision.targetId, player, allBots);
         if (target) {
+          // Check if target is player and has protection
+          if (target.id === player.id) {
+            const hasPacification = player.pacificationExpiresRound !== null &&
+              player.pacificationExpiresRound >= roundNumber;
+            const hasDivineProtection = player.divineProtectionExpiresRound !== null &&
+              player.divineProtectionExpiresRound >= roundNumber;
+
+            if (hasPacification || hasDivineProtection) {
+              // Player is protected, bot skips attack
+              break;
+            }
+          }
+
           const result = processAttack(bot, target, turnsRemaining, 'standard');
 
           if (result.success) {
@@ -264,6 +277,17 @@ function processSpell(
   const target = findTarget(targetId, player, allBots);
   if (!target) {
     return { turnsSpent: 2, success: false };
+  }
+
+  // Check if target is player and has protection (divine protection blocks spells too)
+  if (target.id === player.id) {
+    const hasDivineProtection = player.divineProtectionExpiresRound !== null &&
+      player.divineProtectionExpiresRound >= roundNumber;
+
+    if (hasDivineProtection) {
+      // Player is protected from offensive spells
+      return { turnsSpent: 2, success: false };
+    }
   }
 
   const result = castEnemySpell(bot, target, spell, turnsRemaining);

@@ -932,6 +932,7 @@ export function GameScreen({
               options={draftOptions}
               rerollInfo={rerollInfo}
               masteryLevels={empire.techs}
+              extraPicks={empire.extraDraftPicks}
               onSelect={handleDraftSelect}
               onReroll={onRerollDraft}
               onSkip={handleShopDone}

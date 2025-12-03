@@ -246,20 +246,72 @@ function selectRandomItem<T>(items: T[], seed: number): T {
 }
 
 // Helper to generate a single advisor option
-function generateAdvisorOption(empire: Empire, rng: number): { option: DraftOption | null; rng: number } {
-  rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-  const rarity = selectRarity(rng);
-  const advisors = getItemsByRarity(ADVISORS, rarity);
+// Will retry up to MAX_RETRIES times to find an unowned, unoffered advisor
+function generateAdvisorOption(
+  empire: Empire,
+  rng: number,
+  offeredAdvisorIds: Set<string>,
+  hasSecondChance: boolean
+): { option: DraftOption | null; rng: number } {
+  const MAX_RETRIES = 10;
+  const ownedIds = new Set(empire.advisors.map((a) => a.id));
 
-  if (advisors.length > 0) {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    const rarity = selectRarity(rng);
+    const advisors = getItemsByRarity(ADVISORS, rarity);
+
+    if (advisors.length === 0) continue;
+
     rng = (rng * 1103515245 + 12345) & 0x7fffffff;
     const advisor = selectRandomItem(advisors, rng);
-    // Don't offer advisors already owned
-    if (!empire.advisors.find((a) => a.id === advisor.id)) {
-      return { option: { type: 'advisor', item: advisor }, rng };
-    }
+
+    // Skip if already owned
+    if (ownedIds.has(advisor.id)) continue;
+
+    // Skip if previously offered (unless hasSecondChance edict)
+    if (!hasSecondChance && offeredAdvisorIds.has(advisor.id)) continue;
+
+    return { option: { type: 'advisor', item: advisor }, rng };
   }
+
   return { option: null, rng };
+}
+
+// Helper to generate a rare or legendary advisor option (for guaranteed rare edict)
+function generateRarePlusAdvisorOption(
+  empire: Empire,
+  rng: number,
+  offeredAdvisorIds: Set<string>,
+  hasSecondChance: boolean
+): { option: DraftOption | null; rng: number } {
+  const MAX_RETRIES = 10;
+  const ownedIds = new Set(empire.advisors.map((a) => a.id));
+
+  // Get only rare and legendary advisors
+  const rareAdvisors = ADVISORS.filter(
+    (a) => a.rarity === 'rare' || a.rarity === 'legendary'
+  );
+
+  if (rareAdvisors.length === 0) {
+    return { option: null, rng };
+  }
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    const advisor = selectRandomItem(rareAdvisors, rng);
+
+    // Skip if already owned
+    if (ownedIds.has(advisor.id)) continue;
+
+    // Skip if previously offered (unless hasSecondChance edict)
+    if (!hasSecondChance && offeredAdvisorIds.has(advisor.id)) continue;
+
+    return { option: { type: 'advisor', item: advisor }, rng };
+  }
+
+  // Fallback to regular generation if no valid rare+ found
+  return generateAdvisorOption(empire, rng, offeredAdvisorIds, hasSecondChance);
 }
 
 // Helper to generate a single non-advisor option (mastery or edict)
@@ -295,35 +347,68 @@ function generateOtherOption(empire: Empire, rng: number): { option: DraftOption
   return { option, rng };
 }
 
+export interface DraftResult {
+  options: DraftOption[];
+  newOfferedAdvisorIds: string[];
+}
+
 export function generateDraftOptions(
   seed: number,
-  empire: Empire
-): DraftOption[] {
+  empire: Empire,
+  previouslyOfferedIds: string[] = []
+): DraftResult {
   const options: DraftOption[] = [];
+  const newOfferedAdvisorIds: string[] = [];
   let rng = seed;
 
-  // Determine number of advisor slots (1-2)
+  // Check if player has Second Chance edict (allows previously offered advisors)
+  const hasSecondChance = hasEdictEffect(empire, 'second_chance');
+
+  // Build set of previously offered IDs for lookup
+  const offeredSet = new Set(previouslyOfferedIds);
+
+  // Determine number of advisor slots (1-2 base + bonus from edicts)
   rng = (rng * 1103515245 + 12345) & 0x7fffffff;
-  const advisorSlots = SHOP.advisorOptionsMin +
+  const baseAdvisorSlots = SHOP.advisorOptionsMin +
     (rng % (SHOP.advisorOptionsMax - SHOP.advisorOptionsMin + 1));
+  const advisorSlots = baseAdvisorSlots + (empire.bonusDraftOptions ?? 0);
 
   // Determine number of other slots (2-3)
   rng = (rng * 1103515245 + 12345) & 0x7fffffff;
   const otherSlots = SHOP.otherOptionsMin +
     (rng % (SHOP.otherOptionsMax - SHOP.otherOptionsMin + 1));
 
+  // Check for guaranteed rare advisor
+  const hasGuaranteedRare = empire.guaranteedRareDraft ?? false;
+
   // Generate advisor options (may get fewer if not enough unique advisors available)
-  const usedAdvisorIds = new Set(empire.advisors.map(a => a.id));
+  const thisRoundIds = new Set<string>();
+  let hasRarePlus = false;  // Track if we've added a rare+ advisor
+
   for (let i = 0; i < advisorSlots; i++) {
-    const result = generateAdvisorOption(empire, rng);
+    // Force rare+ for first slot if guaranteed and we haven't added one yet
+    const forceRarePlus = hasGuaranteedRare && !hasRarePlus && i === 0;
+
+    const result = forceRarePlus
+      ? generateRarePlusAdvisorOption(empire, rng, offeredSet, hasSecondChance)
+      : generateAdvisorOption(empire, rng, offeredSet, hasSecondChance);
     rng = result.rng;
 
     if (result.option) {
-      const advisorId = (result.option.item as Advisor).id;
+      const advisor = result.option.item as Advisor;
+      const advisorId = advisor.id;
       // Avoid duplicate advisors in same draft
-      if (!usedAdvisorIds.has(advisorId)) {
+      if (!thisRoundIds.has(advisorId)) {
         options.push(result.option);
-        usedAdvisorIds.add(advisorId);
+        thisRoundIds.add(advisorId);
+        newOfferedAdvisorIds.push(advisorId);
+        // Add to offered set so next slot in this draft doesn't pick same one
+        offeredSet.add(advisorId);
+
+        // Track if we added a rare+ advisor
+        if (advisor.rarity === 'rare' || advisor.rarity === 'legendary') {
+          hasRarePlus = true;
+        }
       }
     }
   }
@@ -335,7 +420,7 @@ export function generateDraftOptions(
     options.push(result.option);
   }
 
-  return options;
+  return { options, newOfferedAdvisorIds };
 }
 
 // ============================================
@@ -382,16 +467,24 @@ export function calculateRerollCost(empire: Empire, prices: MarketPrices): numbe
 // APPLY DRAFT SELECTION
 // ============================================
 
+export interface DraftSelectionContext {
+  bots?: import('../types').BotEmpire[];
+  currentRound?: number;
+  seed?: number;
+  clearOfferedCallback?: () => void;
+}
+
 export function applyDraftSelection(
   empire: Empire,
   option: DraftOption,
-  bots?: import('../types').BotEmpire[]
+  context: DraftSelectionContext = {}
 ): { success: boolean; error?: string } {
   switch (option.type) {
     case 'advisor': {
-      // Check advisor limit
-      if (empire.advisors.length >= SHOP.maxAdvisors) {
-        return { success: false, error: `Cannot have more than ${SHOP.maxAdvisors} advisors. Dismiss one first.` };
+      // Check advisor limit (base + bonus slots from edicts)
+      const maxAdvisors = SHOP.maxAdvisors + (empire.bonusAdvisorSlots ?? 0);
+      if (empire.advisors.length >= maxAdvisors) {
+        return { success: false, error: `Cannot have more than ${maxAdvisors} advisors. Dismiss one first.` };
       }
       const advisor = option.item as Advisor;
       empire.advisors.push(advisor);
@@ -411,7 +504,7 @@ export function applyDraftSelection(
 
     case 'edict': {
       const edict = option.item as Edict;
-      applyEdictEffect(empire, edict, bots);
+      applyEdictEffect(empire, edict, context);
       break;
     }
   }
@@ -445,57 +538,66 @@ export function dismissAdvisor(
 // ============================================
 
 export function canAddAdvisor(empire: Empire): boolean {
-  return empire.advisors.length < SHOP.maxAdvisors;
+  const maxAdvisors = SHOP.maxAdvisors + (empire.bonusAdvisorSlots ?? 0);
+  return empire.advisors.length < maxAdvisors;
 }
 
 export function getAdvisorCapacity(empire: Empire): { current: number; max: number } {
   return {
     current: empire.advisors.length,
-    max: SHOP.maxAdvisors,
+    max: SHOP.maxAdvisors + (empire.bonusAdvisorSlots ?? 0),
   };
+}
+
+interface ApplyEdictContext {
+  bots?: import('../types').BotEmpire[];
+  currentRound?: number;
+  seed?: number;
+  clearOfferedCallback?: () => void;  // Callback to clear offered advisor IDs on the run
 }
 
 function applyEdictEffect(
   empire: Empire,
   edict: Edict,
-  bots?: import('../types').BotEmpire[]
+  context: ApplyEdictContext = {}
 ): void {
   const { type, value } = edict.effect;
+  const { bots, currentRound = 1, seed = Date.now() } = context;
 
   switch (type) {
     case 'gold':
-      empire.resources.gold += value;
+      empire.resources.gold += value as number;
       break;
 
     case 'food':
-      empire.resources.food += value;
+      empire.resources.food += value as number;
       break;
 
     case 'runes':
-      empire.resources.runes += value;
+      empire.resources.runes += value as number;
       break;
 
     case 'land':
-      empire.resources.land += value;
-      empire.resources.freeland += value;
+      empire.resources.land += value as number;
+      empire.resources.freeland += value as number;
       break;
 
     case 'health':
-      empire.health = Math.min(100, value);
+      empire.health = Math.min(100, value as number);
       break;
 
     case 'conscript': {
-      const conscripted = Math.floor(empire.peasants * value);
+      const conscripted = Math.floor(empire.peasants * (value as number));
       empire.peasants -= conscripted;
       empire.troops.trparm += conscripted;
       break;
     }
 
     case 'troops':
-      empire.troops.trparm += value;
-      empire.troops.trplnd += value;
-      empire.troops.trpfly += value;
-      empire.troops.trpsea += value;
+      empire.troops.trparm += value as number;
+      empire.troops.trplnd += value as number;
+      empire.troops.trpfly += value as number;
+      empire.troops.trpsea += value as number;
       break;
 
     case 'steal_gold':
@@ -504,7 +606,7 @@ function applyEdictEffect(
         const richest = bots.reduce((a, b) =>
           a.resources.gold > b.resources.gold ? a : b
         );
-        const stolen = Math.floor(richest.resources.gold * value);
+        const stolen = Math.floor(richest.resources.gold * (value as number));
         richest.resources.gold -= stolen;
         empire.resources.gold += stolen;
       }
@@ -518,7 +620,122 @@ function applyEdictEffect(
       }
       break;
     }
+
+    case 'advisor_slot':
+      // Permanently increase max advisor slots
+      empire.bonusAdvisorSlots = (empire.bonusAdvisorSlots ?? 0) + (value as number);
+      break;
+
+    case 'bonus_draft_options':
+      // Permanently increase draft options shown
+      empire.bonusDraftOptions = (empire.bonusDraftOptions ?? 0) + (value as number);
+      break;
+
+    case 'policy':
+      // Add permanent policy to empire
+      if (typeof value === 'string' && !empire.policies.includes(value)) {
+        empire.policies.push(value);
+      }
+      break;
+
+    // ============================================
+    // NEW SPECTRAL-STYLE EDICTS
+    // ============================================
+
+    case 'percent_gold':
+      // Gain percentage of current gold
+      empire.resources.gold += Math.floor(empire.resources.gold * (value as number));
+      break;
+
+    case 'percent_food':
+      // Gain percentage of current food
+      empire.resources.food += Math.floor(empire.resources.food * (value as number));
+      break;
+
+    case 'percent_land': {
+      // Gain percentage of current land (as freeland)
+      const extraLand = Math.floor(empire.resources.land * (value as number));
+      empire.resources.land += extraLand;
+      empire.resources.freeland += extraLand;
+      break;
+    }
+
+    case 'clear_offered':
+      // Clear offered advisor history - handled via callback
+      if (context.clearOfferedCallback) {
+        context.clearOfferedCallback();
+      }
+      break;
+
+    case 'bonus_turns_next':
+      // Add bonus turns for next round
+      empire.bonusTurnsNextRound = (empire.bonusTurnsNextRound ?? 0) + (value as number);
+      break;
+
+    case 'pacification':
+      // Bots won't attack for N rounds (value = number of rounds)
+      empire.pacificationExpiresRound = currentRound + (value as number);
+      break;
+
+    case 'divine_protection':
+      // Immune to bot attacks for N rounds
+      empire.divineProtectionExpiresRound = currentRound + (value as number);
+      break;
+
+    case 'guaranteed_rare':
+      // Next draft will have at least one rare+ advisor
+      empire.guaranteedRareDraft = true;
+      break;
+
+    case 'extra_draft_pick':
+      // Add extra picks for next draft
+      empire.extraDraftPicks = (empire.extraDraftPicks ?? 0) + (value as number);
+      break;
+
+    case 'elite_corps': {
+      // +50% to one random troop type, zero out all others
+      const troopTypes: (keyof typeof empire.troops)[] = ['trparm', 'trplnd', 'trpfly', 'trpsea'];
+      // Use seed for deterministic random selection
+      let rng = seed;
+      rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+      const chosenType = troopTypes[rng % troopTypes.length];
+
+      // Calculate the boost before zeroing
+      const boostedAmount = Math.floor(empire.troops[chosenType] * (1 + (value as number)));
+
+      // Zero all troops then set the boosted one
+      for (const t of troopTypes) {
+        empire.troops[t] = 0;
+      }
+      empire.troops[chosenType] = boostedAmount;
+      // Keep wizards unchanged
+      break;
+    }
+
+    case 'advisor_mastery': {
+      // Double one random advisor's modifier, dismiss all others
+      if (empire.advisors.length > 0) {
+        let rng = seed;
+        rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+        const chosenIndex = rng % empire.advisors.length;
+        const chosenAdvisor = empire.advisors[chosenIndex];
+
+        // Double the modifier
+        chosenAdvisor.effect.modifier *= value as number;
+
+        // Keep only the chosen advisor
+        empire.advisors = [chosenAdvisor];
+      }
+      break;
+    }
   }
+}
+
+/**
+ * Check if empire has a specific policy/edict effect active
+ */
+export function hasEdictEffect(empire: Empire, policyName: string): boolean {
+  return empire.policies.includes(policyName);
 }
 
 // ============================================
