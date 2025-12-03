@@ -55,16 +55,22 @@ export function IndustryAllocationSelector({ currentAllocation, maxTurns, techBo
 
     if (mode === 'turns') {
       // Turns mode - adjust turn count
-      if (key.upArrow || input === '+' || input === '=') {
+      if (key.rightArrow || input === '+' || input === '=') {
         setTurns((t) => Math.min(t + 1, maxTurns));
-      } else if (key.downArrow || input === '-') {
+      } else if (key.leftArrow || input === '-') {
         setTurns((t) => Math.max(t - 1, 1));
-      } else if (key.rightArrow) {
+      } else if (input === ']') {
         setTurns((t) => Math.min(t + 10, maxTurns));
-      } else if (key.leftArrow) {
+      } else if (input === '[') {
         setTurns((t) => Math.max(t - 10, 1));
+      } else if (input === '}') {
+        setTurns((t) => Math.min(t + 100, maxTurns));
+      } else if (input === '{') {
+        setTurns((t) => Math.max(t - 100, 1));
       } else if (input === 'a') {
         setTurns(maxTurns);
+      } else if (input === 'z') {
+        setTurns(1);
       } else if (!isNaN(parseInt(input))) {
         const digit = parseInt(input);
         const newValue = turns * 10 + digit;
@@ -212,8 +218,8 @@ export function IndustryAllocationSelector({ currentAllocation, maxTurns, techBo
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        <Text color="gray">[Tab] switch • [↑↓] ±1 / select • [←→] ±10 / ±5%</Text>
-        <Text color="gray">[e]qual [r]emainder [z]ero • [Enter] confirm [Esc] cancel</Text>
+        <Text color="gray">[Tab] switch • [↑↓] select • [←→] ±1 / ±5% • [[ ]] ±10 / ±10%</Text>
+        <Text color="gray">[a]ll • [z]ero • [e]qual [r]emainder • [Enter] confirm [Esc] cancel</Text>
       </Box>
     </Box>
   );

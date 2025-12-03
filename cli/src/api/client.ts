@@ -296,6 +296,7 @@ interface NewGameResponse {
 interface ActionResponse {
   result: TurnActionResult;
   summary: GameSummary;
+  botEmpires: BotSummary[];
 }
 
 interface CombatPreviewResponse {

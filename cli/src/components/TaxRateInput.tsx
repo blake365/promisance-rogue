@@ -36,13 +36,13 @@ export function TaxRateInput({ currentRate, maxTurns, techBonus = 0, onConfirm, 
     }
 
     if (mode === 'tax') {
-      if (key.upArrow || input === '+' || input === '=') {
+      if (key.rightArrow || input === '+' || input === '=') {
         setTaxRate((r) => Math.min(r + 5, 100));
-      } else if (key.downArrow || input === '-') {
+      } else if (key.leftArrow || input === '-') {
         setTaxRate((r) => Math.max(r - 5, 0));
-      } else if (key.rightArrow) {
+      } else if (input === ']') {
         setTaxRate((r) => Math.min(r + 10, 100));
-      } else if (key.leftArrow) {
+      } else if (input === '[') {
         setTaxRate((r) => Math.max(r - 10, 0));
       } else if (input === 'l') {
         setTaxRate(20); // Low
@@ -55,16 +55,22 @@ export function TaxRateInput({ currentRate, maxTurns, techBonus = 0, onConfirm, 
       }
     } else {
       // turns mode
-      if (key.upArrow || input === '+' || input === '=') {
+      if (key.rightArrow || input === '+' || input === '=') {
         setTurns((t) => Math.min(t + 1, maxTurns));
-      } else if (key.downArrow || input === '-') {
+      } else if (key.leftArrow || input === '-') {
         setTurns((t) => Math.max(t - 1, 1));
-      } else if (key.rightArrow) {
+      } else if (input === ']') {
         setTurns((t) => Math.min(t + 10, maxTurns));
-      } else if (key.leftArrow) {
+      } else if (input === '[') {
         setTurns((t) => Math.max(t - 10, 1));
+      } else if (input === '}') {
+        setTurns((t) => Math.min(t + 100, maxTurns));
+      } else if (input === '{') {
+        setTurns((t) => Math.max(t - 100, 1));
       } else if (input === 'a') {
         setTurns(maxTurns);
+      } else if (input === 'z') {
+        setTurns(1);
       } else if (!isNaN(parseInt(input))) {
         const digit = parseInt(input);
         const newValue = turns * 10 + digit;
@@ -142,8 +148,8 @@ export function TaxRateInput({ currentRate, maxTurns, techBonus = 0, onConfirm, 
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        <Text color="gray">[Tab] switch field [↑↓] ±5% / ±1 [←→] ±10%</Text>
-        <Text color="gray">[Enter] confirm [Esc] cancel</Text>
+        <Text color="gray">[Tab] switch field • [←→] ±5% / ±1 • [[ ]] ±10% / ±10</Text>
+        <Text color="gray">[a]ll • [z]ero • [Enter] confirm • [Esc] cancel</Text>
       </Box>
     </Box>
   );

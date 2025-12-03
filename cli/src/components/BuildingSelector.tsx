@@ -40,7 +40,9 @@ export function BuildingSelector({ freeLand, gold, landTotal, currentBuildings, 
   const costPerBuilding = Math.floor(1500 + landTotal * 0.05);
   const totalBuildings = Object.values(allocation).reduce((a, b) => a + b, 0);
   const totalCost = totalBuildings * costPerBuilding;
-  const turnsNeeded = Math.ceil(totalBuildings / 4) || 0;
+  // Build rate scales with land (1 building per 20 acres) - matches server turns.ts
+  const buildRate = Math.max(1, Math.floor(landTotal / 20));
+  const turnsNeeded = totalBuildings > 0 ? Math.max(1, Math.ceil(totalBuildings / buildRate)) : 0;
 
   const canAfford = totalCost <= gold;
   const hasLand = totalBuildings <= freeLand;
@@ -94,6 +96,18 @@ export function BuildingSelector({ freeLand, gold, landTotal, currentBuildings, 
       setAllocation((prev) => ({
         ...prev,
         [currentType.key]: Math.max(0, (prev[currentType.key] || 0) - 10),
+      }));
+    } else if (input === '}') {
+      // +100
+      const add = Math.min(100, maxCanAdd);
+      if (add > 0) {
+        setAllocation((prev) => ({ ...prev, [currentType.key]: (prev[currentType.key] || 0) + add }));
+      }
+    } else if (input === '{') {
+      // -100
+      setAllocation((prev) => ({
+        ...prev,
+        [currentType.key]: Math.max(0, (prev[currentType.key] || 0) - 100),
       }));
     } else if (input === 'a') {
       // All remaining to this type
@@ -167,7 +181,7 @@ export function BuildingSelector({ freeLand, gold, landTotal, currentBuildings, 
 
       <Box marginTop={1}>
         <Text color="gray">
-          [↑↓] select [←→] ±1 [[ ]] ±10 [a]ll [c]lear [x] reset [Enter] build [Esc] cancel
+          [↑↓] select [←→] ±1 [[ ]] ±10 [{'{ }'} ] ±100 [a]ll [c]lear [x] reset [Enter] build [Esc] cancel
         </Text>
       </Box>
     </Box>

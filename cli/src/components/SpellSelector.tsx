@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { SpellType } from '../api/client.js';
+import type { SpellType, Era } from '../api/client.js';
 
 interface SpellInfo {
   type: SpellType;
@@ -24,12 +24,35 @@ const SELF_SPELLS: SpellInfo[] = [
 interface Props {
   runes: number;
   wizards: number;
+  era: Era;
+  eraChangedRound: number;
+  currentRound: number;
   onSelect: (spell: SpellType) => void;
   onCancel: () => void;
 }
 
-export function SpellSelector({ runes, wizards, onSelect, onCancel }: Props) {
+export function SpellSelector({ runes, wizards, era, eraChangedRound, currentRound, onSelect, onCancel }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Era change cooldown: can only change era if currentRound > eraChangedRound
+  const canChangeEra = currentRound > eraChangedRound;
+
+  // Check if a spell can be cast
+  const canCastSpell = (spell: SpellInfo): { canCast: boolean; reason?: string } => {
+    if (wizards <= 0) return { canCast: false, reason: 'no wizards' };
+    if (runes < spell.runeCost) return { canCast: false, reason: 'insufficient runes' };
+
+    if (spell.type === 'advance') {
+      if (era === 'future') return { canCast: false, reason: 'already in future' };
+      if (!canChangeEra) return { canCast: false, reason: 'on cooldown' };
+    }
+    if (spell.type === 'regress') {
+      if (era === 'past') return { canCast: false, reason: 'already in past' };
+      if (!canChangeEra) return { canCast: false, reason: 'on cooldown' };
+    }
+
+    return { canCast: true };
+  };
 
   useInput((input, key) => {
     if (key.escape) {
@@ -39,7 +62,7 @@ export function SpellSelector({ runes, wizards, onSelect, onCancel }: Props) {
 
     if (key.return) {
       const spell = SELF_SPELLS[selectedIndex];
-      if (runes >= spell.runeCost && wizards > 0) {
+      if (canCastSpell(spell).canCast) {
         onSelect(spell.type);
       }
       return;
@@ -55,7 +78,7 @@ export function SpellSelector({ runes, wizards, onSelect, onCancel }: Props) {
     const index = SELF_SPELLS.findIndex((s) => s.shortKey === input.toLowerCase());
     if (index >= 0) {
       const spell = SELF_SPELLS[index];
-      if (runes >= spell.runeCost && wizards > 0) {
+      if (canCastSpell(spell).canCast) {
         onSelect(spell.type);
       }
     }
@@ -63,17 +86,17 @@ export function SpellSelector({ runes, wizards, onSelect, onCancel }: Props) {
 
   const renderSpell = (spell: SpellInfo, index: number) => {
     const isSelected = index === selectedIndex;
-    const canCast = runes >= spell.runeCost && wizards > 0;
+    const { canCast, reason } = canCastSpell(spell);
     const textColor = canCast ? (isSelected ? 'cyan' : 'white') : 'gray';
 
     return (
       <Box key={spell.type}>
         <Text color={isSelected ? 'cyan' : 'gray'}>{isSelected ? '>' : ' '} </Text>
-        <Text color="yellow">[{spell.shortKey}]</Text>
+        <Text color={canCast ? 'yellow' : 'gray'}>[{spell.shortKey}]</Text>
         <Text color={textColor}> {spell.name.padEnd(14)}</Text>
         <Text color={canCast ? 'magenta' : 'gray'}> {spell.runeCost.toString().padStart(4)} runes</Text>
         <Text color="gray"> - {spell.description}</Text>
-        {!canCast && <Text color="red"> (insufficient)</Text>}
+        {!canCast && reason && <Text color="red"> ({reason})</Text>}
       </Box>
     );
   };

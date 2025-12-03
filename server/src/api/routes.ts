@@ -264,6 +264,8 @@ app.post('/api/game/:id/action', async (c) => {
   return c.json({
     result,
     summary: getGameSummary(run),
+    // Include updated bot data after attacks so client can reflect land changes
+    botEmpires: run.botEmpires.map(mapBotToSummary),
   });
 });
 

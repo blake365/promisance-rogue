@@ -146,10 +146,10 @@ export function AdvisorList({ advisors, maxAdvisors, onDismiss, onClose }: Props
       } else {
         onClose();
       }
-    } else if (key.upArrow && advisors.length > 0) {
+    } else if ((key.upArrow || input === 'k') && advisors.length > 0) {
       setSelectedIndex((i) => (i > 0 ? i - 1 : advisors.length - 1));
       setConfirmDismiss(false);
-    } else if (key.downArrow && advisors.length > 0) {
+    } else if ((key.downArrow || input === 'j') && advisors.length > 0) {
       setSelectedIndex((i) => (i < advisors.length - 1 ? i + 1 : 0));
       setConfirmDismiss(false);
     } else if (input === 'd' && advisors.length > 0) {
@@ -231,7 +231,7 @@ export function AdvisorList({ advisors, maxAdvisors, onDismiss, onClose }: Props
 
       <Box marginTop={1}>
         <Text color="gray">
-          ↑↓ select • [1-3] quick select • {advisors.length > 0 ? '[d] dismiss • ' : ''}[Esc] back
+          [↑↓/jk] select • [1-3] quick select • {advisors.length > 0 ? '[d] dismiss • ' : ''}[Esc] back
         </Text>
       </Box>
     </Box>

@@ -407,6 +407,7 @@ export function processAttack(
   let totalLoanInterest = 0;
   let turnsActuallySpent = 0;
   let stoppedEarly: TurnStopReason | undefined;
+  const totalTroopsProduced: Partial<Troops> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0, trpwiz: 0 };
 
   for (let i = 0; i < turnsNeeded; i++) {
     const economyResult = processEconomy(attacker);
@@ -421,6 +422,12 @@ export function processAttack(
     totalLoanPayment += economyResult.loanPayment;
     totalBankInterest += extras.bankInterest;
     totalLoanInterest += extras.loanInterest;
+    // Track troops produced during attack turns
+    totalTroopsProduced.trparm! += economyResult.troopsProduced.trparm ?? 0;
+    totalTroopsProduced.trplnd! += economyResult.troopsProduced.trplnd ?? 0;
+    totalTroopsProduced.trpfly! += economyResult.troopsProduced.trpfly ?? 0;
+    totalTroopsProduced.trpsea! += economyResult.troopsProduced.trpsea ?? 0;
+    totalTroopsProduced.trpwiz! += economyResult.wizardsProduced;
 
     // Check for emergency conditions - cancel attack if emergency occurs
     if (extras.foodEmergency) {
@@ -444,7 +451,7 @@ export function processAttack(
       foodProduction: totalFoodPro,
       foodConsumption: totalFoodCon,
       runeChange: totalRunes,
-      troopsProduced: {},
+      troopsProduced: totalTroopsProduced,
       loanPayment: totalLoanPayment,
       bankInterest: totalBankInterest,
       loanInterest: totalLoanInterest,
@@ -469,7 +476,7 @@ export function processAttack(
     foodProduction: totalFoodPro,
     foodConsumption: totalFoodCon,
     runeChange: totalRunes,
-    troopsProduced: {},
+    troopsProduced: totalTroopsProduced,
     loanPayment: totalLoanPayment,
     bankInterest: totalBankInterest,
     loanInterest: totalLoanInterest,

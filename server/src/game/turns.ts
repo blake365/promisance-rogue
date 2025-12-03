@@ -430,326 +430,185 @@ function createTurnResult(
 }
 
 // ============================================
-// TURN ACTIONS
+// TURN ACTIONS - Generic turn processor
 // ============================================
 
-export function processExplore(empire: Empire, turns: number): TurnActionResult {
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalTroops: Partial<Troops> = {};
-  let totalLand = 0;
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
+interface TurnTotals {
+  income: number;
+  expenses: number;
+  foodPro: number;
+  foodCon: number;
+  runes: number;
+  troops: Partial<Troops>;
+  land: number;
+  loanPayment: number;
+  bankInterest: number;
+  loanInterest: number;
+  turnsSpent: number;
+  stoppedEarly?: TurnStopReason;
+}
 
-  // Check for Frontier Scout advisor (double_explore)
+function initTotals(): TurnTotals {
+  return {
+    income: 0,
+    expenses: 0,
+    foodPro: 0,
+    foodCon: 0,
+    runes: 0,
+    troops: { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0, trpwiz: 0 },
+    land: 0,
+    loanPayment: 0,
+    bankInterest: 0,
+    loanInterest: 0,
+    turnsSpent: 0,
+  };
+}
+
+function accumulateEconomy(totals: TurnTotals, economy: EconomyResult, extras: ApplyEconomyExtra): void {
+  totals.income += economy.income;
+  totals.expenses += economy.expenses;
+  totals.foodPro += economy.foodProduction;
+  totals.foodCon += economy.foodConsumption;
+  totals.runes += economy.runeProduction;
+  totals.loanPayment += economy.loanPayment;
+  totals.bankInterest += extras.bankInterest;
+  totals.loanInterest += extras.loanInterest;
+  totals.troops.trparm! += economy.troopsProduced.trparm ?? 0;
+  totals.troops.trplnd! += economy.troopsProduced.trplnd ?? 0;
+  totals.troops.trpfly! += economy.troopsProduced.trpfly ?? 0;
+  totals.troops.trpsea! += economy.troopsProduced.trpsea ?? 0;
+  totals.troops.trpwiz! += economy.wizardsProduced;
+  totals.turnsSpent++;
+}
+
+function checkEmergency(totals: TurnTotals, extras: ApplyEconomyExtra): boolean {
+  if (extras.foodEmergency) {
+    totals.stoppedEarly = 'food';
+    return true;
+  }
+  if (extras.loanEmergency) {
+    totals.stoppedEarly = 'loan';
+    return true;
+  }
+  return false;
+}
+
+function buildResult(totals: TurnTotals, empire: Empire, extra?: Partial<TurnActionResult>): TurnActionResult {
+  return {
+    success: true,
+    turnsSpent: totals.turnsSpent,
+    turnsRemaining: 0,
+    income: totals.income,
+    expenses: totals.expenses,
+    foodProduction: totals.foodPro,
+    foodConsumption: totals.foodCon,
+    runeChange: totals.runes,
+    troopsProduced: totals.troops,
+    loanPayment: totals.loanPayment,
+    bankInterest: totals.bankInterest,
+    loanInterest: totals.loanInterest,
+    stoppedEarly: totals.stoppedEarly,
+    empire,
+    ...extra,
+  };
+}
+
+/**
+ * Generic turn processor for simple actions (cash, meditate, industry)
+ */
+function processSimpleTurns(empire: Empire, turns: number, action?: TurnAction): TurnActionResult {
+  const totals = initTotals();
+
+  for (let i = 0; i < turns; i++) {
+    const economy = processEconomy(empire, action);
+    const extras = applyEconomyResult(empire, economy);
+    accumulateEconomy(totals, economy, extras);
+    if (checkEmergency(totals, extras)) break;
+  }
+
+  return buildResult(totals, empire);
+}
+
+export function processExplore(empire: Empire, turns: number): TurnActionResult {
+  const totals = initTotals();
   const exploreMultiplier = hasAdvisorEffect(empire, 'double_explore') ? 2 : 1;
 
   for (let i = 0; i < turns; i++) {
-    // Process economy (no bonus for explore)
-    const economyResult = processEconomy(empire);
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
-
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
+    const economy = processEconomy(empire);
+    const extras = applyEconomyResult(empire, economy);
+    accumulateEconomy(totals, economy, extras);
+    if (checkEmergency(totals, extras)) break;
 
     // Gain land (doubled with Frontier Scout advisor)
     const landGain = calcLandGain(empire) * exploreMultiplier;
     empire.resources.land += landGain;
     empire.resources.freeland += landGain;
-    totalLand += landGain;
+    totals.land += landGain;
   }
 
   empire.networth = calculateNetworth(empire);
-
-  return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
-    turnsRemaining: 0,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroops,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
-    landGained: totalLand,
-    empire,
-  };
+  return buildResult(totals, empire, { landGained: totals.land });
 }
 
 export function processFarm(empire: Empire, turns: number): TurnActionResult {
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalTroops: Partial<Troops> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
-
-  // Check for War Profiteer advisor (farm_industry) - produces troops while farming
+  const totals = initTotals();
   const producesTroops = hasAdvisorEffect(empire, 'farm_industry');
 
   for (let i = 0; i < turns; i++) {
-    const economyResult = processEconomy(empire, 'farm');
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
+    const economy = processEconomy(empire, 'farm');
+    const extras = applyEconomyResult(empire, economy);
+    accumulateEconomy(totals, economy, extras);
+    if (checkEmergency(totals, extras)) break;
 
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
-
-    // With war_economy, also produce troops (at 50% rate)
+    // With farm_industry advisor, also produce extra troops (at 50% rate)
     if (producesTroops) {
-      const troopProduction = calcTroopProduction(empire);
-      const halfTroops = {
-        trparm: Math.floor((troopProduction.trparm ?? 0) * 0.5),
-        trplnd: Math.floor((troopProduction.trplnd ?? 0) * 0.5),
-        trpfly: Math.floor((troopProduction.trpfly ?? 0) * 0.5),
-        trpsea: Math.floor((troopProduction.trpsea ?? 0) * 0.5),
+      const troopProd = calcTroopProduction(empire);
+      const half = {
+        trparm: Math.floor((troopProd.trparm ?? 0) * 0.5),
+        trplnd: Math.floor((troopProd.trplnd ?? 0) * 0.5),
+        trpfly: Math.floor((troopProd.trpfly ?? 0) * 0.5),
+        trpsea: Math.floor((troopProd.trpsea ?? 0) * 0.5),
       };
-      empire.troops.trparm += halfTroops.trparm;
-      empire.troops.trplnd += halfTroops.trplnd;
-      empire.troops.trpfly += halfTroops.trpfly;
-      empire.troops.trpsea += halfTroops.trpsea;
-      totalTroops.trparm! += halfTroops.trparm;
-      totalTroops.trplnd! += halfTroops.trplnd;
-      totalTroops.trpfly! += halfTroops.trpfly;
-      totalTroops.trpsea! += halfTroops.trpsea;
+      empire.troops.trparm += half.trparm;
+      empire.troops.trplnd += half.trplnd;
+      empire.troops.trpfly += half.trpfly;
+      empire.troops.trpsea += half.trpsea;
+      totals.troops.trparm! += half.trparm;
+      totals.troops.trplnd! += half.trplnd;
+      totals.troops.trpfly! += half.trpfly;
+      totals.troops.trpsea! += half.trpsea;
     }
   }
 
-  return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
-    turnsRemaining: 0,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroops,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
-    empire,
-  };
+  return buildResult(totals, empire);
 }
 
 export function processCash(empire: Empire, turns: number): TurnActionResult {
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalTroops: Partial<Troops> = {};
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
-
-  for (let i = 0; i < turns; i++) {
-    const economyResult = processEconomy(empire, 'cash');
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
-
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
-  }
-
-  return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
-    turnsRemaining: 0,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroops,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
-    empire,
-  };
+  return processSimpleTurns(empire, turns, 'cash');
 }
 
 export function processMeditate(empire: Empire, turns: number): TurnActionResult {
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalTroops: Partial<Troops> = {};
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
-
-  for (let i = 0; i < turns; i++) {
-    const economyResult = processEconomy(empire, 'meditate');
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
-
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
-  }
-
-  return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
-    turnsRemaining: 0,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroops,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
-    empire,
-  };
+  return processSimpleTurns(empire, turns, 'meditate');
 }
 
 export function processIndustry(empire: Empire, turns: number): TurnActionResult {
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalTroops: Partial<Troops> = { trparm: 0, trplnd: 0, trpfly: 0, trpsea: 0 };
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
+  return processSimpleTurns(empire, turns, 'industry');
+}
 
-  for (let i = 0; i < turns; i++) {
-    const economyResult = processEconomy(empire, 'industry');
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
-
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    totalTroops.trparm! += economyResult.troopsProduced.trparm ?? 0;
-    totalTroops.trplnd! += economyResult.troopsProduced.trplnd ?? 0;
-    totalTroops.trpfly! += economyResult.troopsProduced.trpfly ?? 0;
-    totalTroops.trpsea! += economyResult.troopsProduced.trpsea ?? 0;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
-  }
-
+function failedBuildResult(empire: Empire): TurnActionResult {
   return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
+    success: false,
+    turnsSpent: 0,
     turnsRemaining: 0,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroops,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
+    income: 0,
+    expenses: 0,
+    foodProduction: 0,
+    foodConsumption: 0,
+    runeChange: 0,
+    troopsProduced: {},
+    loanPayment: 0,
+    bankInterest: 0,
+    loanInterest: 0,
     empire,
   };
 }
@@ -770,46 +629,17 @@ export function processBuild(
 
   // Validate free land
   if (totalToConstruct > empire.resources.freeland) {
-    return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining: 0,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire,
-    };
+    return failedBuildResult(empire);
   }
 
   // Calculate cost: BUILD_COST + (land * multiplier) per building, reduced by race building modifier
   const baseCostPerBuilding = ECONOMY.buildingBaseCost +
     empire.resources.land * ECONOMY.buildingLandMultiplier;
   const buildingModifier = getModifier(empire, 'building');
-  // Higher building modifier = cheaper buildings (divide by modifier)
   const totalCost = Math.round((baseCostPerBuilding * totalToConstruct) / buildingModifier);
 
   if (totalCost > empire.resources.gold) {
-    return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining: 0,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire,
-    };
+    return failedBuildResult(empire);
   }
 
   // Calculate turns needed - build rate scales with land (1 building per 20 acres)
@@ -817,40 +647,13 @@ export function processBuild(
   const turnsNeeded = Math.max(1, Math.ceil(totalToConstruct / buildRate));
 
   // Process economy for build turns
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalFoodPro = 0;
-  let totalFoodCon = 0;
-  let totalRunes = 0;
-  let totalLoanPayment = 0;
-  let totalBankInterest = 0;
-  let totalLoanInterest = 0;
-  let turnsActuallySpent = 0;
-  let stoppedEarly: TurnStopReason | undefined;
+  const totals = initTotals();
 
   for (let i = 0; i < turnsNeeded; i++) {
-    const economyResult = processEconomy(empire);
-    const extras = applyEconomyResult(empire, economyResult);
-    turnsActuallySpent++;
-
-    totalIncome += economyResult.income;
-    totalExpenses += economyResult.expenses;
-    totalFoodPro += economyResult.foodProduction;
-    totalFoodCon += economyResult.foodConsumption;
-    totalRunes += economyResult.runeProduction;
-    totalLoanPayment += economyResult.loanPayment;
-    totalBankInterest += extras.bankInterest;
-    totalLoanInterest += extras.loanInterest;
-
-    // Check for emergency conditions (QM Promisance interruptable turn processing)
-    if (extras.foodEmergency) {
-      stoppedEarly = 'food';
-      break;
-    }
-    if (extras.loanEmergency) {
-      stoppedEarly = 'loan';
-      break;
-    }
+    const economy = processEconomy(empire);
+    const extras = applyEconomyResult(empire, economy);
+    accumulateEconomy(totals, economy, extras);
+    if (checkEmergency(totals, extras)) break;
   }
 
   // Apply building construction (buildings still complete even if stopped early -
@@ -865,26 +668,12 @@ export function processBuild(
   empire.buildings.bldwiz += allocation.bldwiz ?? 0;
 
   empire.resources.freeland -= totalToConstruct;
-
   empire.networth = calculateNetworth(empire);
 
-  return {
-    success: true,
-    turnsSpent: turnsActuallySpent,
-    turnsRemaining: 0,
-    income: totalIncome - totalCost,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: {},
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    stoppedEarly,
-    buildingsConstructed: allocation,
-    empire,
-  };
+  // Adjust income to reflect building cost
+  totals.income -= totalCost;
+
+  return buildResult(totals, empire, { buildingsConstructed: allocation });
 }
 
 // ============================================
@@ -912,38 +701,10 @@ export function executeTurnAction(
       return processIndustry(empire, turns);
     case 'build':
       if (!options?.buildingAllocation) {
-        return {
-          success: false,
-          turnsSpent: 0,
-          turnsRemaining: 0,
-          income: 0,
-          expenses: 0,
-          foodProduction: 0,
-          foodConsumption: 0,
-          runeChange: 0,
-          troopsProduced: {},
-          loanPayment: 0,
-          bankInterest: 0,
-          loanInterest: 0,
-          empire,
-        };
+        return failedBuildResult(empire);
       }
       return processBuild(empire, options.buildingAllocation);
     default:
-      return {
-        success: false,
-        turnsSpent: 0,
-        turnsRemaining: 0,
-        income: 0,
-        expenses: 0,
-        foodProduction: 0,
-        foodConsumption: 0,
-        runeChange: 0,
-        troopsProduced: {},
-        loanPayment: 0,
-        bankInterest: 0,
-        loanInterest: 0,
-        empire,
-      };
+      return failedBuildResult(empire);
   }
 }

@@ -39,9 +39,9 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
     if (key.escape && onClose) {
       onClose();
     } else if (selectable) {
-      if (key.upArrow) {
+      if (key.upArrow || input === 'k') {
         setSelectedIndex((i) => (i > 0 ? i - 1 : bots.length - 1));
-      } else if (key.downArrow) {
+      } else if (key.downArrow || input === 'j') {
         setSelectedIndex((i) => (i < bots.length - 1 ? i + 1 : 0));
       } else if (key.return && onSelect) {
         onSelect(bots[selectedIndex].id);
@@ -54,9 +54,9 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
       }
     } else {
       // Non-selectable mode - use up/down to browse, 'i' to view intel
-      if (key.upArrow) {
+      if (key.upArrow || input === 'k') {
         setSelectedIndex((i) => (i > 0 ? i - 1 : bots.length - 1));
-      } else if (key.downArrow) {
+      } else if (key.downArrow || input === 'j') {
         setSelectedIndex((i) => (i < bots.length - 1 ? i + 1 : 0));
       } else if (input === 'i' || input === 'I') {
         const selectedBot = bots[selectedIndex];
@@ -158,8 +158,8 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, onSele
       <Box marginTop={1}>
         <Text color="gray">
           {selectable
-            ? '[Enter] select • [i] view intel • [Esc] cancel'
-            : '[↑↓] browse • [i] view intel • [Esc] close'}
+            ? '[↑↓/jk] select • [Enter] confirm • [i] view intel • [Esc] cancel'
+            : '[↑↓/jk] browse • [i] view intel • [Esc] close'}
         </Text>
       </Box>
     </Box>

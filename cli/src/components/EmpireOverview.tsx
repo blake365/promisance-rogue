@@ -58,11 +58,12 @@ function Row({ label, value, valueColor = 'white' }: { label: string; value: str
 }
 
 export function EmpireOverview({ empire, round, onClose }: Props) {
+  // isActive: true ensures input is captured even when focus might shift
   useInput((_, key) => {
     if (key.escape) {
       onClose();
     }
-  });
+  }, { isActive: true });
 
   // Calculate estimates (per-turn values)
   const totalBuildings = Object.values(empire.buildings).reduce((a: number, b: number) => a + b, 0);

@@ -158,10 +158,10 @@ export function MarketView({ empire, phase, marketPrices, shopStock, onTransacti
     }
 
     // Navigation
-    if (key.upArrow) {
+    if (key.upArrow || input === 'k') {
       setSelectedIndex((i) => (i > 0 ? i - 1 : MARKET_ITEMS.length - 1));
       setAmount(0);
-    } else if (key.downArrow) {
+    } else if (key.downArrow || input === 'j') {
       setSelectedIndex((i) => (i < MARKET_ITEMS.length - 1 ? i + 1 : 0));
       setAmount(0);
     }
@@ -311,7 +311,7 @@ export function MarketView({ empire, phase, marketPrices, shopStock, onTransacti
 
       {/* Controls */}
       <Box marginTop={1} flexDirection="column">
-        <Text color="gray">[↑↓] select item • [←→] ±1 • [[ ]] ±10 • {'{ }'} ±100</Text>
+        <Text color="gray">[↑↓/jk] select • [←→] ±1 • [[ ]] ±10 • {'{ }'} ±100</Text>
         <Text color="gray">[a]ll • [z]ero • [Tab] buy/sell • [Enter] confirm</Text>
         <Text color="gray">[Esc] {amount > 0 ? 'clear' : 'close'}</Text>
       </Box>

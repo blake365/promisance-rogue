@@ -199,6 +199,8 @@ export function useGame() {
               ...prev,
               playerEmpire: response.result.empire,
               intel: newIntel,
+              // Update bot data to reflect land/resource changes from attacks
+              botEmpires: response.botEmpires,
               round: prev.round
                 ? {
                     ...prev.round,

@@ -166,10 +166,10 @@ export function GameScreen({
 
   // Handle global keys
   useInput((input, key) => {
-    // Clear error on any key press
+    // Clear error on any key press (but don't block other handlers)
     if (error) {
       onClearError();
-      return;
+      // Don't return - let subviews also handle the key
     }
     if (key.return && view === 'action_result') {
       setLastResult(null);
@@ -440,7 +440,7 @@ export function GameScreen({
         {view === 'turns_input' && pendingAction && (
           <Box marginTop={1}>
             <TurnsInput
-              maxTurns={round.turnsRemaining}
+              maxTurns={pendingAction === 'spell' ? Math.floor(round.turnsRemaining / 2) : round.turnsRemaining}
               actionLabel={
                 pendingAction === 'spell' && selectedSpell
                   ? `Cast ${selectedSpell.charAt(0).toUpperCase()}${selectedSpell.slice(1)}`
@@ -524,6 +524,9 @@ export function GameScreen({
             <SpellSelector
               runes={empire.resources.runes}
               wizards={empire.troops.trpwiz}
+              era={empire.era}
+              eraChangedRound={empire.eraChangedRound}
+              currentRound={round.number}
               onSelect={handleSpellSelect}
               onCancel={() => setView('main')}
             />
@@ -794,7 +797,7 @@ export function GameScreen({
                 {lastResult.spellResult.effectApplied && (
                   <Text color="cyan">
                     Effect: {lastResult.spellResult.effectApplied}
-                    {lastResult.spellResult.effectDuration && ` (${lastResult.spellResult.effectDuration} turns)`}
+                    {lastResult.spellResult.effectDuration && ` (${lastResult.spellResult.effectDuration} round)`}
                   </Text>
                 )}
                 {lastResult.spellResult.goldStolen !== undefined && lastResult.spellResult.goldStolen > 0 && (
