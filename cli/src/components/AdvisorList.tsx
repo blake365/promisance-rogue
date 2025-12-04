@@ -209,7 +209,7 @@ export function AdvisorList({ advisors, maxAdvisors, onDismiss, onClose }: Props
                 </Box>
                 {/* Description */}
                 <Box marginLeft={4}>
-                  <Text color="gray">{advisor.description}</Text>
+                  <Text color="gray" wrap="wrap">{advisor.description}</Text>
                 </Box>
                 {/* Effect details */}
                 <Box marginLeft={4}>

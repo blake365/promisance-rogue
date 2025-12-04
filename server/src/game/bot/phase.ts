@@ -500,7 +500,7 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
     if (result.success && result.combatResult) {
       bot.attacksThisRound++;
       const combatWon = result.combatResult.won;
-      const landGained = combatWon ? (result.landGained ?? 0) : 0;
+      const landGained = combatWon ? (result.combatResult.landGained ?? 0) : 0;
 
       // Record combat intel for tactical adaptation
       updateBotCombatIntel(bot, target.id, result.combatResult, attackType, roundNumber);

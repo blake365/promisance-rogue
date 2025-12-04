@@ -467,6 +467,7 @@ export interface CombatResult {
 
   landGained: number;      // Land attacker receives (may include bonus)
   landLost: number;        // Land defender loses (base amount, no bonus)
+  freelandTaken: number;   // Freeland portion taken from defender
   buildingsGained: Partial<Buildings>;
   buildingsDestroyed: Partial<Buildings>;
 

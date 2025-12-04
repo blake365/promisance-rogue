@@ -478,12 +478,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const response = await client.marketTransaction(game.gameId, transaction);
       if (response.result.success) {
+        // Refresh reroll info since gold changed (affects canAfford)
+        const rerollInfo = game.round?.phase === 'shop'
+          ? await client.getRerollInfo(game.gameId)
+          : game.rerollInfo;
+
         set({
           game: {
             ...game,
             playerEmpire: response.empire,
             shopStock: response.shopStock,
             effectivePrices: response.effectivePrices ?? game.effectivePrices,
+            rerollInfo,
           },
           loading: false,
         });
@@ -523,10 +529,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const response = await client.bankTransaction(game.gameId, transaction);
       if (response.result.success) {
+        // Refresh reroll info since gold changed (affects canAfford)
+        const rerollInfo = game.round?.phase === 'shop'
+          ? await client.getRerollInfo(game.gameId)
+          : game.rerollInfo;
+
         set({
           game: {
             ...game,
             playerEmpire: response.empire,
+            rerollInfo,
           },
           bankInfo: response.bankInfo,
           loading: false,
