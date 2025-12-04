@@ -1,16 +1,44 @@
 {
-  "name": "promisance-rogue-cli",
+  "name": "promisance-rogue",
   "version": "0.1.0",
-  "private": true,
+  "description": "A roguelike turn-based strategy game in the terminal. Build your empire, manage resources, cast spells, and conquer AI opponents.",
   "type": "module",
   "bin": {
+    "promisance-rogue": "./dist/index.js",
     "prom-rogue": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.tsx",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "game",
+    "roguelike",
+    "strategy",
+    "cli",
+    "terminal",
+    "turn-based",
+    "empire",
+    "promisance"
+  ],
+  "author": "blake365",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blake365/promisance-rogue.git"
+  },
+  "bugs": {
+    "url": "https://github.com/blake365/promisance-rogue/issues"
+  },
+  "homepage": "https://github.com/blake365/promisance-rogue#readme",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "ink": "^5.0.1",
