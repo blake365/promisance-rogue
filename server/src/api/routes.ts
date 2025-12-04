@@ -698,4 +698,22 @@ app.get('/health', (c) => {
   return c.json({ status: 'ok', timestamp: Date.now() });
 });
 
+// ============================================
+// STATIC ASSETS FALLBACK
+// ============================================
+
+// Serve static assets for non-API routes
+app.get('*', async (c) => {
+  // Let the ASSETS binding handle static files
+  const response = await c.env.ASSETS.fetch(c.req.raw);
+
+  // If asset not found, serve index.html for SPA routing
+  if (response.status === 404) {
+    const indexRequest = new Request(new URL('/', c.req.url).toString(), c.req.raw);
+    return c.env.ASSETS.fetch(indexRequest);
+  }
+
+  return response;
+});
+
 export default app;
