@@ -71,7 +71,7 @@ interface GameStore {
   selectDraft: (optionIndex: number) => Promise<boolean>;
   rerollDraft: () => Promise<boolean>;
   dismissAdvisor: (advisorId: string) => Promise<boolean>;
-  endShopPhase: () => Promise<boolean>;
+  endShopPhase: () => Promise<string | null>;
   marketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   fetchBankInfo: () => Promise<void>;
   bankTransaction: (transaction: BankTransaction) => Promise<boolean>;
@@ -444,10 +444,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // End shop phase
+  // End shop phase - returns the new phase or null on failure
   endShopPhase: async () => {
     const { game } = get();
-    if (!game.gameId) return false;
+    if (!game.gameId) return null;
 
     set({ loading: true, error: null });
     try {
@@ -459,13 +459,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
         loading: false,
       });
-      return true;
+      return response.phase;
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to end shop',
         loading: false,
       });
-      return false;
+      return null;
     }
   },
 
