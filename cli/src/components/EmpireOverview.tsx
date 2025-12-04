@@ -225,7 +225,7 @@ export function EmpireOverview({ empire, round, onClose }: Props) {
               empire.advisors.map((advisor) => (
                 <Box key={advisor.id} flexDirection="column">
                   <Text color={RARITY_COLORS[advisor.rarity]}>{advisor.name}</Text>
-                  <Text color="gray" dimColor>  {advisor.description}</Text>
+                  <Text color="gray" dimColor wrap="wrap">  {advisor.description}</Text>
                 </Box>
               ))
             )}

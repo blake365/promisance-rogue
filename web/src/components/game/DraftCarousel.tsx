@@ -179,7 +179,7 @@ export function DraftCarousel({
 
                 {/* Description */}
                 <p className={clsx(
-                  'text-sm line-clamp-2',
+                  'text-sm line-clamp-3',
                   isAdvisorBlocked ? 'text-red-400' : 'text-text-secondary'
                 )}>
                   {isAdvisorBlocked ? 'SLOTS FULL' : details.description}
