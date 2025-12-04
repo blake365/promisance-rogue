@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction, BotEmpire, SpyIntel } from '../types';
 import { createGameRun, executeTurn, endPlayerPhase, selectDraft, rerollDraft, getRerollInfo, endShopPhase, executeBotPhase, getGameSummary, isGameComplete } from '../game/run';
 import { executeMarketTransaction, dismissAdvisor, getAdvisorCapacity, getEffectiveTroopPrices } from '../game/shop';
+import { calculateNetworth } from '../game/empire';
 import { getCombatPreview } from '../game/combat';
 import { processBankTransaction, getBankInfo } from '../game/bank';
 import * as db from '../db/operations';
@@ -410,6 +411,8 @@ app.post('/api/game/:id/market', async (c) => {
   );
 
   if (result.success) {
+    // Update networth after market transaction
+    run.playerEmpire.networth = calculateNetworth(run.playerEmpire);
     await db.saveGameRun(c.env.DB, run);
   }
 
