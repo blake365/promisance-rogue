@@ -483,7 +483,7 @@ export const SHOP = {
   maxAdvisors: 3, // Maximum number of advisors an empire can have
 
   // Reroll system - cost locked when shop phase starts to prevent gaming
-  rerollCostPercent: 0.20, // 20% of networth, paid in gold
+  rerollCostPercent: 0.10, // 10% of networth, paid in gold
   maxRerolls: 2, // Maximum paid rerolls per shop phase
 
   rarityWeights: {
