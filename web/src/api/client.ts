@@ -11,6 +11,7 @@ import type {
   BankTransactionResult,
   Empire,
   GameRound,
+  GamePhase,
   MarketPrices,
   ShopStock,
   DraftOption,
@@ -298,7 +299,7 @@ export class PromisanceClient {
     });
   }
 
-  async endShopPhase(gameId: string): Promise<{ phase: string }> {
+  async endShopPhase(gameId: string): Promise<{ phase: GamePhase }> {
     return this.request('POST', `/api/game/${gameId}/end-shop-phase`);
   }
 

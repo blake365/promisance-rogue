@@ -84,6 +84,8 @@ export function GamePage() {
       setViewMode('draft');
     } else if (game.round?.phase === 'bot') {
       setViewMode('bot_phase');
+    } else if (game.round?.phase === 'player') {
+      setViewMode('main');
     } else if (game.isComplete || game.playerDefeated) {
       setViewMode('game_over');
     }
@@ -225,7 +227,7 @@ export function GamePage() {
 
   const handleSkipDraft = async () => {
     await endShopPhase();
-    setViewMode('bot_phase');
+    // The useEffect watching game.round?.phase will handle viewMode transition
   };
 
   // Execute bot phase

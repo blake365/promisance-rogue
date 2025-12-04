@@ -346,10 +346,10 @@ export function useGame() {
     setLoading(true);
     setError(null);
     try {
-      await client.endShopPhase(game.gameId);
+      const response = await client.endShopPhase(game.gameId);
       setGame((prev) => ({
         ...prev,
-        round: prev.round ? { ...prev.round, phase: 'bot' as const } : null,
+        round: prev.round ? { ...prev.round, phase: response.phase } : null,
       }));
       return true;
     } catch (err) {

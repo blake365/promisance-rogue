@@ -392,7 +392,7 @@ export function GameScreen({
   // Handle shop phase completion
   const handleShopDone = useCallback(async () => {
     await onEndShopPhase();
-    setView('bot_phase');
+    // The useEffect watching round.phase will handle view transition
   }, [onEndShopPhase]);
 
   // Handle bot phase
@@ -410,9 +410,11 @@ export function GameScreen({
   useEffect(() => {
     if (round.phase === 'shop' && view === 'main') {
       setView('shop');
-    }
-    if (round.phase === 'bot' && view !== 'bot_phase') {
+    } else if (round.phase === 'bot' && view !== 'bot_phase' && view !== 'bot_phase_results') {
       setView('bot_phase');
+    } else if (round.phase === 'player' && view === 'shop') {
+      // Transition from initial shop to player phase
+      setView('main');
     }
   }, [round.phase, view]);
 

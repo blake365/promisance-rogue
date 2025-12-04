@@ -71,9 +71,9 @@ function App() {
     const init = async () => {
       const config = loadConfig();
 
-      // Set API URL if configured
+      // Set API URL if configured (allows overriding the default)
       if (config.apiUrl) {
-        // Could add client.setBaseUrl() if needed
+        client.setBaseUrl(config.apiUrl);
       }
 
       // Restore session if exists

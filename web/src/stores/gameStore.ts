@@ -418,11 +418,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      await client.endShopPhase(game.gameId);
+      const response = await client.endShopPhase(game.gameId);
       set({
         game: {
           ...game,
-          round: game.round ? { ...game.round, phase: 'bot' } : null,
+          round: game.round ? { ...game.round, phase: response.phase } : null,
         },
         loading: false,
       });

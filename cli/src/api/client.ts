@@ -446,8 +446,16 @@ export class PromisanceClient {
   private baseUrl: string;
   private sessionId: string | null = null;
 
-  constructor(baseUrl: string = 'http://localhost:8787') {
+  constructor(baseUrl: string = 'https://promisance-rogue.blake365morgan.workers.dev') {
     this.baseUrl = baseUrl;
+  }
+
+  setBaseUrl(url: string) {
+    this.baseUrl = url;
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   setSession(sessionId: string) {
@@ -581,7 +589,7 @@ export class PromisanceClient {
     });
   }
 
-  async endShopPhase(gameId: string): Promise<{ phase: string }> {
+  async endShopPhase(gameId: string): Promise<{ phase: GamePhase }> {
     return this.request('POST', `/api/game/${gameId}/end-shop-phase`);
   }
 
