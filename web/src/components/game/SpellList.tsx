@@ -174,12 +174,14 @@ export function SpellList({
 
 // Attack type selector (for military attacks)
 interface AttackTypeSelectorProps {
+  attacksRemaining: number;
+  maxAttacks: number;
   onSelect: (attackType: 'standard' | 'trparm' | 'trplnd' | 'trpfly' | 'trpsea') => void;
   onSpell: () => void;
   onCancel: () => void;
 }
 
-export function AttackTypeSelector({ onSelect, onSpell, onCancel }: AttackTypeSelectorProps) {
+export function AttackTypeSelector({ attacksRemaining, maxAttacks, onSelect, onSpell, onCancel }: AttackTypeSelectorProps) {
   const attackTypes = [
     { type: 'standard', name: 'Standard Attack', icon: '⚔️', description: 'All units (+15% land bonus)', extra: '-6 health' },
     { type: 'trparm', name: 'Infantry Only', icon: '🗡️', description: 'Infantry units only', extra: '-5 health' },
@@ -190,7 +192,12 @@ export function AttackTypeSelector({ onSelect, onSpell, onCancel }: AttackTypeSe
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display text-lg text-red-400">⚔️ Choose Attack Type</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg text-red-400">⚔️ Choose Attack Type</h2>
+        <span className="text-sm text-gray-400">
+          <span className="font-stats text-white">{attacksRemaining}</span>/{maxAttacks} attacks left
+        </span>
+      </div>
 
       <div className="space-y-2">
         {attackTypes.map((attack) => (

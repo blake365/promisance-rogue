@@ -183,17 +183,6 @@ function CombatResultDisplay({ combat }: { combat: NonNullable<TurnActionResult[
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <div className="text-gray-500 text-xs mb-1">Your Power</div>
-          <div className="font-stats text-cyan-400">{formatNumber(combat.offpower)}</div>
-        </div>
-        <div>
-          <div className="text-gray-500 text-xs mb-1">Enemy Defense</div>
-          <div className="font-stats text-red-400">{formatNumber(combat.defpower)}</div>
-        </div>
-      </div>
-
       {combat.won && combat.landGained > 0 && (
         <div className="mt-2 flex justify-between text-sm">
           <span className="text-gray-400">Land Captured:</span>

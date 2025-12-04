@@ -566,14 +566,23 @@ export function GamePage() {
           />
         );
 
-      case 'attack_type':
+      case 'attack_type': {
+        // Calculate max attacks (base 10 + extra_attacks from advisors)
+        const extraAttacks = playerEmpire.advisors
+          .filter(a => a.effect.type === 'extra_attacks')
+          .reduce((sum, a) => sum + a.effect.modifier, 0);
+        const maxAttacks = 10 + extraAttacks;
+        const attacksRemaining = maxAttacks - playerEmpire.attacksThisRound;
         return (
           <AttackTypeSelector
+            attacksRemaining={attacksRemaining}
+            maxAttacks={maxAttacks}
             onSelect={handleAttackTypeSelect}
             onSpell={() => setViewMode('offensive_spell_select')}
             onCancel={() => setViewMode('main')}
           />
         );
+      }
 
       case 'target_select':
         return (

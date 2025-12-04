@@ -78,6 +78,7 @@ export interface Empire {
   defTotal: number;
   defSucc: number;
   kills: number;
+  attacksThisRound: number;
   shieldExpiresRound: number | null;
   gateExpiresRound: number | null;
   pacificationExpiresRound: number | null;
