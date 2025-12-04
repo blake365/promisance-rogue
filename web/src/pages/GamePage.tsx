@@ -5,7 +5,6 @@ import { Panel } from '@/components/ui';
 import {
   EmpireStatus,
   ActionGrid,
-  ActionBar,
   TurnSlider,
   BuildingPanel,
   MarketPanel,
@@ -566,14 +565,23 @@ export function GamePage() {
           />
         );
 
-      case 'attack_type':
+      case 'attack_type': {
+        // Calculate max attacks (base 10 + extra_attacks from advisors)
+        const extraAttacks = playerEmpire.advisors
+          .filter(a => a.effect.type === 'extra_attacks')
+          .reduce((sum, a) => sum + a.effect.modifier, 0);
+        const maxAttacks = 10 + extraAttacks;
+        const attacksRemaining = maxAttacks - playerEmpire.attacksThisRound;
         return (
           <AttackTypeSelector
+            attacksRemaining={attacksRemaining}
+            maxAttacks={maxAttacks}
             onSelect={handleAttackTypeSelect}
             onSpell={() => setViewMode('offensive_spell_select')}
             onCancel={() => setViewMode('main')}
           />
         );
+      }
 
       case 'target_select':
         return (
@@ -697,7 +705,14 @@ export function GamePage() {
         ) : null;
 
       case 'overview':
-        return <EmpireStatus empire={playerEmpire} round={round} expanded />;
+        return (
+          <EmpireStatus
+            empire={playerEmpire}
+            round={round}
+            expanded
+            onClose={() => setViewMode('main')}
+          />
+        );
 
       case 'main':
       default:
@@ -721,7 +736,7 @@ export function GamePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pb-16">
+    <div className="min-h-screen flex flex-col">
       {/* Error Toast */}
       {error && (
         <div className="fixed top-0 left-0 right-0 z-50 p-4">
@@ -745,19 +760,6 @@ export function GamePage() {
       <main className="flex-1 p-4 overflow-auto">
         {renderContent()}
       </main>
-
-      {/* Bottom Navigation - Show in main/overview view during player phase */}
-      {(viewMode === 'main' || viewMode === 'overview') && round.phase === 'player' && (
-        <ActionBar
-          onAction={(action) => {
-            if (action === 'overview') setViewMode('overview');
-            else if (action === 'explore') setViewMode('main');
-            else if (action === 'market') setViewMode('market');
-            else if (action === 'enemies') setViewMode('enemies');
-          }}
-          activeAction={viewMode === 'overview' ? 'overview' : 'explore'}
-        />
-      )}
     </div>
   );
 }
