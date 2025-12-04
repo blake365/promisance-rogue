@@ -451,6 +451,13 @@ export function executeTurn(
     }
 
     default:
+      // Apply tax rate and industry allocation changes before executing action
+      if (action === 'cash' && request.taxRate !== undefined) {
+        empire.taxRate = Math.max(0, Math.min(100, request.taxRate));
+      }
+      if (action === 'industry' && request.industryAllocation !== undefined) {
+        empire.industryAllocation = { ...request.industryAllocation };
+      }
       result = executeTurnAction(empire, action, turns, {
         buildingAllocation: request.buildingAllocation,
         demolishAllocation: request.demolishAllocation,

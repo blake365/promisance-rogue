@@ -538,6 +538,8 @@ export interface TurnActionRequest {
 
   buildingAllocation?: Partial<Buildings>;
   demolishAllocation?: Partial<Buildings>;
+  industryAllocation?: IndustryAllocation;
+  taxRate?: number;
   targetId?: string;
   attackType?: AttackType;
   spell?: SpellType;
