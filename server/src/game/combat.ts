@@ -13,6 +13,7 @@ import {
   subtractBuildings,
   canAttackEra,
   getAdvisorEffectModifier,
+  getTotalBuildings,
 } from './empire';
 import { processEconomy, applyEconomyResult } from './turns';
 import { getBotInnateBonusValue } from './bot/strategies';
@@ -262,6 +263,7 @@ export function resolveCombat(
   const won = offpower > defpower * COMBAT.winThreshold;
 
   let landGained = 0;
+  let freelandTaken = 0;
   const buildingsGained: Partial<Buildings> = {};
   const buildingsDestroyed: Partial<Buildings> = {};
 
@@ -296,8 +298,8 @@ export function resolveCombat(
 
     // Free land handling (also boosted for standard attacks)
     const freelandRates = COMBAT.buildingCapture.freeland;
-    const freelandLoss = Math.ceil(defender.resources.freeland * freelandRates[0] * destructionMultiplier);
-    landGained += freelandLoss; // Attacker gets some of defender's free land
+    freelandTaken = Math.ceil(defender.resources.freeland * freelandRates[0] * destructionMultiplier);
+    landGained += freelandTaken; // Attacker gets some of defender's free land
   }
 
   return {
@@ -306,6 +308,7 @@ export function resolveCombat(
     defenderLosses,
     landGained,
     landLost: landGained, // Defender loses same amount attacker gains
+    freelandTaken,
     buildingsGained,
     buildingsDestroyed,
     offpower,
@@ -354,24 +357,26 @@ export function applyCombatResult(
 
     // Transfer land
     attacker.resources.land += result.landGained;
-    attacker.resources.freeland += result.landGained;
     defender.resources.land -= result.landGained;
 
-    // Process building transfers
+    // Process building destruction on defender
     for (const [bldType, loss] of Object.entries(result.buildingsDestroyed)) {
       if (loss && loss > 0) {
         (defender.buildings as any)[bldType] -= loss;
-        defender.resources.freeland += loss; // Destroyed buildings become free land first
-        defender.resources.freeland -= loss; // Then land is taken
       }
     }
 
+    // Process building capture (standard attacks only)
     for (const [bldType, gain] of Object.entries(result.buildingsGained)) {
       if (gain && gain > 0) {
         (attacker.buildings as any)[bldType] += gain;
-        attacker.resources.freeland -= gain; // Buildings take up land
       }
     }
+
+    // Recalculate freeland for both empires based on land - buildings
+    // This ensures freeland is always consistent after combat
+    attacker.resources.freeland = attacker.resources.land - getTotalBuildings(attacker.buildings);
+    defender.resources.freeland = defender.resources.land - getTotalBuildings(defender.buildings);
 
     // Check if defender was killed
     if (defender.resources.land <= 0) {
