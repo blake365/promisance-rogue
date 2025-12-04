@@ -180,6 +180,7 @@ function App() {
         draftOptions={game.draftOptions}
         rerollInfo={game.rerollInfo}
         marketPrices={game.marketPrices}
+        effectivePrices={game.effectivePrices}
         shopStock={game.shopStock}
         bankInfo={bankInfo}
         playerDefeated={game.playerDefeated}

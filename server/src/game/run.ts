@@ -1,4 +1,4 @@
-import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason, RngState } from '../types';
+import type { GameRun, Empire, BotEmpire, Race, TurnActionRequest, TurnActionResult, DraftOption, SpellResult, BotPhaseResult, DefeatReason, RngState, EdictResult } from '../types';
 import { TOTAL_ROUNDS, TURNS_PER_ROUND, COMBAT, SHOP } from './constants';
 import { createEmpire, calculateNetworth, hasAdvisorEffect, getAdvisorEffectModifier } from './empire';
 import { executeTurnAction, processEconomy, applyEconomyResult } from './turns';
@@ -546,7 +546,7 @@ export function endPlayerPhase(run: GameRun): void {
   run.updatedAt = Date.now();
 }
 
-export function selectDraft(run: GameRun, optionIndex: number): { success: boolean; error?: string; picksRemaining?: number } {
+export function selectDraft(run: GameRun, optionIndex: number): { success: boolean; error?: string; picksRemaining?: number; edictResult?: EdictResult } {
   if (run.round.phase !== 'shop' || !run.draftOptions) {
     return { success: false, error: 'Not in shop phase' };
   }
@@ -588,14 +588,14 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
     }
 
     run.updatedAt = Date.now();
-    return { success: true, picksRemaining: run.playerEmpire.extraDraftPicks };
+    return { success: true, picksRemaining: run.playerEmpire.extraDraftPicks, edictResult: result.edictResult };
   }
 
   // Normal case - close the draft
   run.draftOptions = null;
   run.updatedAt = Date.now();
 
-  return { success: true, picksRemaining: 0 };
+  return { success: true, picksRemaining: 0, edictResult: result.edictResult };
 }
 
 export function rerollDraft(run: GameRun): { success: boolean; error?: string; cost?: number } {

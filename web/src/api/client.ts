@@ -13,6 +13,7 @@ import type {
   GameRound,
   GamePhase,
   MarketPrices,
+  EffectiveTroopPrices,
   ShopStock,
   DraftOption,
   BotSummary,
@@ -23,6 +24,7 @@ import type {
   LeaderboardEntry,
   DefeatReason,
   GameStats,
+  EdictResult,
 } from '@/types';
 
 // API Response types
@@ -56,6 +58,7 @@ interface CurrentGameResponse {
     botEmpires: BotSummary[];
     intel: Record<string, SpyIntel>;
     marketPrices: MarketPrices;
+    effectivePrices: EffectiveTroopPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
     playerDefeated: DefeatReason | null;
@@ -87,13 +90,16 @@ interface MarketResponse {
   result: { success: boolean; error?: string };
   empire: Empire;
   shopStock: ShopStock | null;
+  effectivePrices?: EffectiveTroopPrices;
 }
 
 interface DraftResponse {
   success: boolean;
+  error?: string;
   empire: Empire;
   draftOptions: DraftOption[] | null;
   picksRemaining?: number;
+  edictResult?: EdictResult;
 }
 
 interface RerollResponse {
@@ -263,6 +269,9 @@ export class PromisanceClient {
     marketPrices: MarketPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
+    isComplete?: boolean;
+    stats?: GameStats;
+    playerDefeated?: DefeatReason | null;
   }> {
     return this.request('POST', `/api/game/${gameId}/end-player-phase`);
   }

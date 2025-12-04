@@ -1,17 +1,7 @@
 import { useState, useMemo } from 'react';
 import { clsx } from 'clsx';
-import type { Empire, MarketPrices, ShopStock, Troops, GamePhase, ShopTransaction } from '@/types';
+import type { Empire, MarketPrices, EffectiveTroopPrices, ShopStock, Troops, GamePhase, ShopTransaction } from '@/types';
 import { formatNumber } from '@/utils/format';
-import { TROOP_BASE_PRICES } from '@/utils/calculations';
-
-// Player phase (private market) prices - worse deals
-const PLAYER_PRICES = {
-  food: { buy: 30, sell: 6 },
-  trparm: { buy: 500, sell: 160 },
-  trplnd: { buy: 1000, sell: 340 },
-  trpfly: { buy: 2000, sell: 720 },
-  trpsea: { buy: 3000, sell: 1140 },
-};
 
 interface MarketItem {
   key: string;
@@ -32,6 +22,7 @@ interface MarketPanelProps {
   empire: Empire;
   phase: GamePhase;
   marketPrices: MarketPrices | null;
+  effectivePrices: EffectiveTroopPrices | null;
   shopStock: ShopStock | null;
   onTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   onClose: () => void;
@@ -41,6 +32,7 @@ export function MarketPanel({
   empire,
   phase,
   marketPrices,
+  effectivePrices,
   shopStock,
   onTransaction,
   onClose,
@@ -52,31 +44,26 @@ export function MarketPanel({
 
   const isShopPhase = phase === 'shop';
 
-  // Calculate prices based on phase
+  // Use effective prices from server (includes race/building modifiers)
   const prices = useMemo(() => {
-    if (isShopPhase && marketPrices) {
+    if (effectivePrices && marketPrices) {
       return {
         food: { buy: marketPrices.foodBuyPrice, sell: marketPrices.foodSellPrice },
-        trparm: {
-          buy: Math.floor(TROOP_BASE_PRICES.trparm * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_PRICES.trparm * marketPrices.troopSellMultiplier),
-        },
-        trplnd: {
-          buy: Math.floor(TROOP_BASE_PRICES.trplnd * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_PRICES.trplnd * marketPrices.troopSellMultiplier),
-        },
-        trpfly: {
-          buy: Math.floor(TROOP_BASE_PRICES.trpfly * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_PRICES.trpfly * marketPrices.troopSellMultiplier),
-        },
-        trpsea: {
-          buy: Math.floor(TROOP_BASE_PRICES.trpsea * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_PRICES.trpsea * marketPrices.troopSellMultiplier),
-        },
+        trparm: effectivePrices.trparm,
+        trplnd: effectivePrices.trplnd,
+        trpfly: effectivePrices.trpfly,
+        trpsea: effectivePrices.trpsea,
       };
     }
-    return PLAYER_PRICES;
-  }, [isShopPhase, marketPrices]);
+    // Fallback prices if server didn't provide effective prices
+    return {
+      food: { buy: 30, sell: 6 },
+      trparm: { buy: 500, sell: 160 },
+      trplnd: { buy: 1000, sell: 340 },
+      trpfly: { buy: 2000, sell: 720 },
+      trpsea: { buy: 3000, sell: 1140 },
+    };
+  }, [effectivePrices, marketPrices]);
 
   const getOwned = (type: string): number => {
     if (type === 'food') return empire.resources.food;
@@ -139,7 +126,7 @@ export function MarketPanel({
           {isShopPhase ? '🏪 Shop Market' : '💰 Private Market'}
         </h2>
         <div className="text-right">
-          <div className="text-xs text-gray-500">Gold</div>
+          <div className="text-label">Gold</div>
           <div className="font-stats text-gold">{formatNumber(empire.resources.gold)}</div>
         </div>
       </div>
@@ -200,10 +187,10 @@ export function MarketPanel({
               )}
             >
               <span className="text-xl">{item.icon}</span>
-              <span className="text-xs mt-1">{item.name}</span>
-              <span className="text-xs text-gray-500">{formatNumber(itemOwned)}</span>
+              <span className="text-sm mt-1">{item.name}</span>
+              <span className="text-xs text-text-muted">{formatNumber(itemOwned)}</span>
               {isShopPhase && mode === 'buy' && itemStock !== null && (
-                <span className={clsx('text-[10px]', itemStock > 0 ? 'text-cyan-400' : 'text-red-400')}>
+                <span className={clsx('text-xs', itemStock > 0 ? 'text-cyan-400' : 'text-red-400')}>
                   Stock: {formatNumber(itemStock)}
                 </span>
               )}
@@ -223,15 +210,15 @@ export function MarketPanel({
           <span className="text-red-400">{formatNumber(currentPrice.sell)} gold</span>
         </div>
         {isShopPhase && mode === 'sell' && selectedItem.type !== 'food' && (
-          <p className="text-xs text-gray-500 mt-2">Sell limit: 50% of owned troops</p>
+          <p className="text-sm text-text-muted mt-2">Sell limit: 50% of owned troops</p>
         )}
       </div>
 
       {/* Amount Selection */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-gray-400">Amount:</span>
-          <span className="text-xs text-gray-500">Max: {formatNumber(maxAmount)}</span>
+          <span className="text-text-secondary">Amount:</span>
+          <span className="text-sm text-text-muted">Max: {formatNumber(maxAmount)}</span>
         </div>
 
         <div className="flex items-center justify-center gap-2">

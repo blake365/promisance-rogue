@@ -106,6 +106,13 @@ export interface MarketPrices {
   runeSellPrice: number;
 }
 
+export interface EffectiveTroopPrices {
+  trparm: { buy: number; sell: number };
+  trplnd: { buy: number; sell: number };
+  trpfly: { buy: number; sell: number };
+  trpsea: { buy: number; sell: number };
+}
+
 export interface ShopStock {
   food: number;
   trparm: number;
@@ -248,6 +255,8 @@ export interface BankInfo {
   gold: number;
   maxLoan: number;
   availableLoan: number;
+  maxSavings: number;
+  availableSavings: number;
   savingsRate: number;
   loanRate: number;
 }
@@ -353,6 +362,7 @@ interface CurrentGameResponse {
     botEmpires: BotSummary[];
     intel: Record<string, SpyIntel>;
     marketPrices: MarketPrices;
+    effectivePrices: EffectiveTroopPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
     playerDefeated: DefeatReason | null;
@@ -384,13 +394,30 @@ interface MarketResponse {
   result: { success: boolean; error?: string };
   empire: Empire;
   shopStock: ShopStock | null;
+  effectivePrices?: EffectiveTroopPrices;
+}
+
+// Result information from applying an edict (for display to user)
+export interface EdictResult {
+  edictId: string;
+  edictName: string;
+  message: string;
+  details?: {
+    amountGained?: number;
+    chosenTroopType?: 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
+    boostedAmount?: number;
+    chosenAdvisorName?: string;
+    newModifier?: number;
+  };
 }
 
 interface DraftResponse {
   success: boolean;
+  error?: string;
   empire: Empire;
   draftOptions: DraftOption[] | null;
   picksRemaining?: number;
+  edictResult?: EdictResult;
 }
 
 export interface RerollInfo {
@@ -553,6 +580,9 @@ export class PromisanceClient {
     marketPrices: MarketPrices;
     shopStock: ShopStock | null;
     draftOptions: DraftOption[] | null;
+    isComplete?: boolean;
+    stats?: GameStats;
+    playerDefeated?: DefeatReason | null;
   }> {
     return this.request('POST', `/api/game/${gameId}/end-player-phase`);
   }

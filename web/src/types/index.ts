@@ -107,6 +107,13 @@ export interface MarketPrices {
   runeSellPrice: number;
 }
 
+export interface EffectiveTroopPrices {
+  trparm: { buy: number; sell: number };
+  trplnd: { buy: number; sell: number };
+  trpfly: { buy: number; sell: number };
+  trpsea: { buy: number; sell: number };
+}
+
 export interface ShopStock {
   food: number;
   trparm: number;
@@ -245,6 +252,8 @@ export interface BankInfo {
   gold: number;
   maxLoan: number;
   availableLoan: number;
+  maxSavings: number;
+  availableSavings: number;
   savingsRate: number;
   loanRate: number;
 }
@@ -328,4 +337,18 @@ export interface BotPhaseResponse {
   isComplete: boolean;
   playerDefeated: DefeatReason | null;
   stats: GameStats;
+}
+
+// Result information from applying an edict (for display to user)
+export interface EdictResult {
+  edictId: string;
+  edictName: string;
+  message: string;
+  details?: {
+    amountGained?: number;
+    chosenTroopType?: 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
+    boostedAmount?: number;
+    chosenAdvisorName?: string;
+    newModifier?: number;
+  };
 }

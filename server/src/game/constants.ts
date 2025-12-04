@@ -8,9 +8,9 @@ export const STARTING_LAND = 2000;
 export const STARTING_PEASANTS = 500;
 export const STARTING_HEALTH = 100;
 export const STARTING_TAX_RATE = 35;
-export const STARTING_GOLD = 50000;
-export const STARTING_FOOD = 10000;
-export const STARTING_RUNES = 500;
+export const STARTING_GOLD = 1000000;
+export const STARTING_FOOD = 100000;
+export const STARTING_RUNES = 10000;
 
 export const STARTING_BUILDINGS: Buildings = {
   bldpop: 0,        // Homes (removed - population tied to land)
@@ -350,7 +350,7 @@ export const ECONOMY = {
 export const COMBAT = {
   winThreshold: 1.05,      // Attacker needs 5% more power to win
   turnsPerAttack: 2,
-  attackHealthCost: 5,     // Health lost per attack (net -3 after turn regen)
+  attackHealthCost: 4,     // Health lost per attack (net -2 after turn regen)
   standardAttackHealthBonus: 1, // Additional health cost for standard attacks
   standardAttackLandBonus: 0.15, // 15% more land gained from standard attacks
   offensiveSpellHealthCost: 5, // Health lost per offensive spell (net -3 after turn regen)

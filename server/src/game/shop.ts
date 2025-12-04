@@ -6,12 +6,13 @@ import type {
   Advisor,
   Tech,
   Edict,
+  EdictResult,
   BonusRarity,
   ShopTransaction,
   RngState,
 } from '../types';
-import { SHOP, UNIT_COSTS } from './constants';
-import { calculateNetworth, addTroops } from './empire';
+import { SHOP, UNIT_COSTS, ECONOMY } from './constants';
+import { calculateNetworth, addTroops, getModifier } from './empire';
 import { ADVISORS } from './bonuses/advisors';
 import { MASTERIES, MASTERY_BONUS_PER_LEVEL, MAX_MASTERY_LEVEL } from './bonuses/techs';
 import { EDICTS } from './bonuses/edicts';
@@ -59,7 +60,7 @@ export function generateMarketPrices(rngState: RngState): MarketPriceResult {
 // ============================================
 
 // Stock multiplier - what fraction of networth worth of each item is available
-const STOCK_MULTIPLIER = 0.05; // 5% of networth per item type
+const STOCK_MULTIPLIER = 0.50; // 50% of networth per item type
 
 export function generateShopStock(empire: Empire, prices: MarketPrices): ShopStock {
   const networth = empire.networth;
@@ -85,6 +86,66 @@ export function generateShopStock(empire: Empire, prices: MarketPrices): ShopSto
 
 // Sell limit - can only sell 50% of troops, unlimited food
 const TROOP_SELL_LIMIT = 0.5;
+
+// Shop bonus from pvtmarketbuy.php - affects how bldcash contributes to cost reduction
+const PVTM_SHOPBONUS = 0.5;
+
+/**
+ * Calculate effective troop cost based on empire buildings and race modifiers
+ * From QM Promisance pvtmarketbuy.php getCost()
+ */
+export function getEffectiveTroopCost(empire: Empire, baseCost: number, priceMultiplier: number = 1.0): number {
+  const land = empire.resources.land;
+  if (land <= 0) return Math.round(baseCost * priceMultiplier);
+
+  const exchangeRatio = empire.buildings.bldcost / land;
+  const marketRatio = empire.buildings.bldcash / land;
+
+  // Cost bonus from buildings (exchanges reduce cost more, markets provide smaller bonus)
+  const costBonus = 1 - ((1 - PVTM_SHOPBONUS) * exchangeRatio + PVTM_SHOPBONUS * marketRatio);
+
+  // Race market modifier (higher is better, so 2 - modifier means gnomes pay less)
+  const raceMarketMod = getModifier(empire, 'market');
+
+  let cost = baseCost * priceMultiplier;
+  cost *= costBonus;
+  cost *= (2 - raceMarketMod);
+
+  // Minimum cost is 60% of base
+  const minCost = baseCost * priceMultiplier * 0.6;
+  if (cost < minCost) cost = minCost;
+
+  return Math.round(cost);
+}
+
+/**
+ * Get effective troop prices for display in UI
+ */
+export function getEffectiveTroopPrices(empire: Empire, prices: MarketPrices): {
+  trparm: { buy: number; sell: number };
+  trplnd: { buy: number; sell: number };
+  trpfly: { buy: number; sell: number };
+  trpsea: { buy: number; sell: number };
+} {
+  return {
+    trparm: {
+      buy: getEffectiveTroopCost(empire, UNIT_COSTS.trparm.buyPrice, prices.troopBuyMultiplier),
+      sell: Math.floor(UNIT_COSTS.trparm.buyPrice * prices.troopSellMultiplier),
+    },
+    trplnd: {
+      buy: getEffectiveTroopCost(empire, UNIT_COSTS.trplnd.buyPrice, prices.troopBuyMultiplier),
+      sell: Math.floor(UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultiplier),
+    },
+    trpfly: {
+      buy: getEffectiveTroopCost(empire, UNIT_COSTS.trpfly.buyPrice, prices.troopBuyMultiplier),
+      sell: Math.floor(UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultiplier),
+    },
+    trpsea: {
+      buy: getEffectiveTroopCost(empire, UNIT_COSTS.trpsea.buyPrice, prices.troopBuyMultiplier),
+      sell: Math.floor(UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultiplier),
+    },
+  };
+}
 
 export function executeMarketTransaction(
   empire: Empire,
@@ -158,7 +219,9 @@ export function executeMarketTransaction(
           return { success: false, goldChange: 0, error: 'Invalid troop type' };
         }
         const baseCost = UNIT_COSTS[troopType].buyPrice;
-        const cost = Math.floor(amount * baseCost * prices.troopBuyMultiplier);
+        // Apply race/building modifiers to get effective per-unit cost
+        const perUnitCost = getEffectiveTroopCost(empire, baseCost, prices.troopBuyMultiplier);
+        const cost = amount * perUnitCost;
         if (empire.resources.gold < cost) {
           return { success: false, goldChange: 0, error: 'Not enough gold' };
         }
@@ -506,7 +569,9 @@ export function applyDraftSelection(
   empire: Empire,
   option: DraftOption,
   context: DraftSelectionContext = {}
-): { success: boolean; error?: string } {
+): { success: boolean; error?: string; edictResult?: EdictResult } {
+  let edictResult: EdictResult | undefined;
+
   switch (option.type) {
     case 'advisor': {
       // Check advisor limit (base + bonus slots from edicts)
@@ -532,13 +597,13 @@ export function applyDraftSelection(
 
     case 'edict': {
       const edict = option.item as Edict;
-      applyEdictEffect(empire, edict, context);
+      edictResult = applyEdictEffect(empire, edict, context);
       break;
     }
   }
 
   empire.networth = calculateNetworth(empire);
-  return { success: true };
+  return { success: true, edictResult };
 }
 
 // ============================================
@@ -584,40 +649,64 @@ interface ApplyEdictContext {
   clearOfferedCallback?: () => void;  // Callback to clear offered advisor IDs on the run
 }
 
+const TROOP_TYPE_NAMES: Record<string, string> = {
+  trparm: 'Infantry',
+  trplnd: 'Cavalry',
+  trpfly: 'Aircraft',
+  trpsea: 'Navy',
+};
+
 function applyEdictEffect(
   empire: Empire,
   edict: Edict,
   context: ApplyEdictContext = {}
-): void {
+): EdictResult {
   const { type, value } = edict.effect;
   const { bots, currentRound = 1, seed = Date.now() } = context;
+
+  const result: EdictResult = {
+    edictId: edict.id,
+    edictName: edict.name,
+    message: edict.description, // Default message
+  };
 
   switch (type) {
     case 'gold':
       empire.resources.gold += value as number;
+      result.message = `Gained ${value} gold`;
+      result.details = { amountGained: value as number };
       break;
 
     case 'food':
       empire.resources.food += value as number;
+      result.message = `Gained ${value} food`;
+      result.details = { amountGained: value as number };
       break;
 
     case 'runes':
       empire.resources.runes += value as number;
+      result.message = `Gained ${value} runes`;
+      result.details = { amountGained: value as number };
       break;
 
     case 'land':
       empire.resources.land += value as number;
       empire.resources.freeland += value as number;
+      result.message = `Gained ${value} land`;
+      result.details = { amountGained: value as number };
       break;
 
     case 'health':
       empire.health = Math.min(100, value as number);
+      result.message = `Health restored to ${empire.health}%`;
       break;
 
     case 'conscript': {
       const conscripted = Math.floor(empire.peasants * (value as number));
       empire.peasants -= conscripted;
       empire.troops.trparm += conscripted;
+      result.message = `Conscripted ${conscripted} peasants into infantry`;
+      result.details = { amountGained: conscripted };
       break;
     }
 
@@ -626,17 +715,19 @@ function applyEdictEffect(
       empire.troops.trplnd += value as number;
       empire.troops.trpfly += value as number;
       empire.troops.trpsea += value as number;
+      result.message = `Gained ${value} of each troop type`;
       break;
 
     case 'steal_gold':
       if (bots && bots.length > 0) {
-        // Find richest bot
         const richest = bots.reduce((a, b) =>
           a.resources.gold > b.resources.gold ? a : b
         );
         const stolen = Math.floor(richest.resources.gold * (value as number));
         richest.resources.gold -= stolen;
         empire.resources.gold += stolen;
+        result.message = `Stole ${stolen} gold from ${richest.name}`;
+        result.details = { amountGained: stolen };
       }
       break;
 
@@ -645,22 +736,24 @@ function applyEdictEffect(
       const currentIndex = eraOrder.indexOf(empire.era);
       if (currentIndex < eraOrder.length - 1) {
         empire.era = eraOrder[currentIndex + 1];
+        result.message = `Advanced to the ${empire.era} era`;
+      } else {
+        result.message = `Already in the future era`;
       }
       break;
     }
 
     case 'advisor_slot':
-      // Permanently increase max advisor slots
       empire.bonusAdvisorSlots = (empire.bonusAdvisorSlots ?? 0) + (value as number);
+      result.message = `Gained +${value} advisor slot`;
       break;
 
     case 'bonus_draft_options':
-      // Permanently increase draft options shown
       empire.bonusDraftOptions = (empire.bonusDraftOptions ?? 0) + (value as number);
+      result.message = `Gained +${value} draft option per round`;
       break;
 
     case 'policy':
-      // Add permanent policy to empire
       if (typeof value === 'string' && !empire.policies.includes(value)) {
         empire.policies.push(value);
       }
@@ -670,93 +763,108 @@ function applyEdictEffect(
     // NEW SPECTRAL-STYLE EDICTS
     // ============================================
 
-    case 'percent_gold':
-      // Gain percentage of current gold
-      empire.resources.gold += Math.floor(empire.resources.gold * (value as number));
+    case 'percent_gold': {
+      const goldGained = Math.floor(empire.resources.gold * (value as number));
+      empire.resources.gold += goldGained;
+      result.message = `Gained ${goldGained} gold (${Math.round((value as number) * 100)}% bonus)`;
+      result.details = { amountGained: goldGained };
       break;
+    }
 
-    case 'percent_food':
-      // Gain percentage of current food
-      empire.resources.food += Math.floor(empire.resources.food * (value as number));
+    case 'percent_food': {
+      const foodGained = Math.floor(empire.resources.food * (value as number));
+      empire.resources.food += foodGained;
+      result.message = `Gained ${foodGained} food (${Math.round((value as number) * 100)}% bonus)`;
+      result.details = { amountGained: foodGained };
       break;
+    }
 
     case 'percent_land': {
-      // Gain percentage of current land (as freeland)
       const extraLand = Math.floor(empire.resources.land * (value as number));
       empire.resources.land += extraLand;
       empire.resources.freeland += extraLand;
+      result.message = `Gained ${extraLand} land (${Math.round((value as number) * 100)}% bonus)`;
+      result.details = { amountGained: extraLand };
       break;
     }
 
     case 'clear_offered':
-      // Clear offered advisor history - handled via callback
       if (context.clearOfferedCallback) {
         context.clearOfferedCallback();
       }
+      result.message = `Cleared advisor history - all advisors available again`;
       break;
 
     case 'bonus_turns_next':
-      // Add bonus turns for next round
       empire.bonusTurnsNextRound = (empire.bonusTurnsNextRound ?? 0) + (value as number);
+      result.message = `+${value} bonus turns next round`;
       break;
 
     case 'pacification':
-      // Bots won't attack for N rounds (value = number of rounds)
       empire.pacificationExpiresRound = currentRound + (value as number);
+      result.message = `Bots will not attack you for ${value} round(s)`;
       break;
 
     case 'divine_protection':
-      // Immune to bot attacks for N rounds
       empire.divineProtectionExpiresRound = currentRound + (value as number);
+      result.message = `Immune to bot attacks for ${value} round(s)`;
       break;
 
     case 'guaranteed_rare':
-      // Next draft will have at least one rare+ advisor
       empire.guaranteedRareDraft = true;
+      result.message = `Next draft will contain a rare+ advisor`;
       break;
 
     case 'extra_draft_pick':
-      // Add extra picks for next draft
       empire.extraDraftPicks = (empire.extraDraftPicks ?? 0) + (value as number);
+      result.message = `You can pick ${value} extra option(s) from the next draft`;
       break;
 
     case 'elite_corps': {
-      // +50% to one random troop type, zero out all others
       const troopTypes: (keyof typeof empire.troops)[] = ['trparm', 'trplnd', 'trpfly', 'trpsea'];
-      // Use seed for deterministic random selection
       let rng = seed;
       rng = (rng * 1103515245 + 12345) & 0x7fffffff;
       const chosenType = troopTypes[rng % troopTypes.length];
 
-      // Calculate the boost before zeroing
       const boostedAmount = Math.floor(empire.troops[chosenType] * (1 + (value as number)));
 
-      // Zero all troops then set the boosted one
       for (const t of troopTypes) {
         empire.troops[t] = 0;
       }
       empire.troops[chosenType] = boostedAmount;
-      // Keep wizards unchanged
+
+      const typeName = TROOP_TYPE_NAMES[chosenType] || chosenType;
+      result.message = `${typeName} boosted to ${boostedAmount}! Other troops dismissed.`;
+      result.details = {
+        chosenTroopType: chosenType as 'trparm' | 'trplnd' | 'trpfly' | 'trpsea',
+        boostedAmount,
+      };
       break;
     }
 
     case 'advisor_mastery': {
-      // Double one random advisor's modifier, dismiss all others
       if (empire.advisors.length > 0) {
         let rng = seed;
         rng = (rng * 1103515245 + 12345) & 0x7fffffff;
         const chosenIndex = rng % empire.advisors.length;
         const chosenAdvisor = empire.advisors[chosenIndex];
 
-        // Double the modifier
         chosenAdvisor.effect.modifier *= value as number;
-
-        // Keep only the chosen advisor
         empire.advisors = [chosenAdvisor];
+
+        result.message = `${chosenAdvisor.name}'s effect doubled! Other advisors dismissed.`;
+        result.details = {
+          chosenAdvisorName: chosenAdvisor.name,
+          newModifier: chosenAdvisor.effect.modifier,
+        };
+      } else {
+        result.message = `No advisors to enhance`;
       }
       break;
     }
   }
+
+  return result;
 }
 
 /**

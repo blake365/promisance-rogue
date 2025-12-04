@@ -7,34 +7,44 @@ interface SpellInfo {
   name: string;
   icon: string;
   description: string;
-  runeCost: number;
+  costMultiplier: number;
   category: 'self' | 'offensive';
 }
 
+// Cost multipliers from server constants.ts
 const SPELLS: SpellInfo[] = [
   // Self spells
-  { type: 'shield', name: 'Magic Shield', icon: '🛡️', description: 'Block damage for 1 round', runeCost: 500, category: 'self' },
-  { type: 'food', name: 'Cornucopia', icon: '🌾', description: 'Conjure food', runeCost: 200, category: 'self' },
-  { type: 'cash', name: "Midas' Touch", icon: '💰', description: 'Conjure gold', runeCost: 250, category: 'self' },
-  { type: 'runes', name: 'Arcane Well', icon: '✨', description: 'Conjure runes', runeCost: 100, category: 'self' },
-  { type: 'gate', name: 'Time Gate', icon: '🌀', description: 'Attack any era this round', runeCost: 1000, category: 'self' },
-  { type: 'advance', name: 'Time Warp', icon: '⏩', description: 'Advance to next era', runeCost: 2000, category: 'self' },
-  { type: 'regress', name: 'Regression', icon: '⏪', description: 'Return to previous era', runeCost: 1500, category: 'self' },
+  { type: 'shield', name: 'Magic Shield', icon: '🛡️', description: 'Block damage for 1 round', costMultiplier: 4.9, category: 'self' },
+  { type: 'food', name: 'Cornucopia', icon: '🌾', description: 'Conjure food', costMultiplier: 17, category: 'self' },
+  { type: 'cash', name: "Midas' Touch", icon: '💰', description: 'Conjure gold', costMultiplier: 15, category: 'self' },
+  { type: 'runes', name: 'Arcane Well', icon: '✨', description: 'Conjure runes', costMultiplier: 12, category: 'self' },
+  { type: 'gate', name: 'Time Gate', icon: '🌀', description: 'Attack any era this round', costMultiplier: 20, category: 'self' },
+  { type: 'advance', name: 'Time Warp', icon: '⏩', description: 'Advance to next era', costMultiplier: 47.5, category: 'self' },
+  { type: 'regress', name: 'Regression', icon: '⏪', description: 'Return to previous era', costMultiplier: 20, category: 'self' },
   // Offensive spells
-  { type: 'spy', name: 'Spy', icon: '👁️', description: 'Reveal enemy stats', runeCost: 100, category: 'offensive' },
-  { type: 'blast', name: 'Fireball', icon: '🔥', description: 'Destroy enemy troops', runeCost: 250, category: 'offensive' },
-  { type: 'storm', name: 'Lightning Storm', icon: '⚡', description: 'Destroy food & gold', runeCost: 500, category: 'offensive' },
-  { type: 'struct', name: 'Earthquake', icon: '🏚️', description: 'Destroy buildings', runeCost: 1200, category: 'offensive' },
-  { type: 'steal', name: 'Gold Theft', icon: '💎', description: 'Steal enemy gold', runeCost: 1800, category: 'offensive' },
-  { type: 'fight', name: 'Magical Assault', icon: '⚔️', description: 'Take land magically', runeCost: 1500, category: 'offensive' },
+  { type: 'spy', name: 'Spy', icon: '👁️', description: 'Reveal enemy stats', costMultiplier: 1.0, category: 'offensive' },
+  { type: 'blast', name: 'Fireball', icon: '🔥', description: 'Destroy enemy troops', costMultiplier: 2.5, category: 'offensive' },
+  { type: 'storm', name: 'Lightning Storm', icon: '⚡', description: 'Destroy food & gold', costMultiplier: 7.25, category: 'offensive' },
+  { type: 'struct', name: 'Earthquake', icon: '🏚️', description: 'Destroy buildings', costMultiplier: 18.0, category: 'offensive' },
+  { type: 'steal', name: 'Gold Theft', icon: '💎', description: 'Steal enemy gold', costMultiplier: 25.75, category: 'offensive' },
+  { type: 'fight', name: 'Magical Assault', icon: '⚔️', description: 'Take land magically', costMultiplier: 22.5, category: 'offensive' },
 ];
 
 const SELF_SPELLS = SPELLS.filter((s) => s.category === 'self');
 const OFFENSIVE_SPELLS = SPELLS.filter((s) => s.category === 'offensive');
 
+// Calculate spell cost: baseCost * multiplier
+// Base cost formula: land * 0.1 + 100 + wizardTowers * 0.2
+function calculateSpellCost(land: number, wizardTowers: number, multiplier: number): number {
+  const baseCost = land * 0.1 + 100 + wizardTowers * 0.2;
+  return Math.floor(baseCost * multiplier);
+}
+
 interface SpellListProps {
   runes: number;
   wizards: number;
+  land: number;
+  wizardTowers: number;
   era: Era;
   eraChangedRound: number;
   currentRound: number;
@@ -46,6 +56,8 @@ interface SpellListProps {
 export function SpellList({
   runes,
   wizards,
+  land,
+  wizardTowers,
   era,
   eraChangedRound,
   currentRound,
@@ -55,9 +67,14 @@ export function SpellList({
 }: SpellListProps) {
   const canChangeEra = currentRound > eraChangedRound;
 
+  const getSpellCost = (spell: SpellInfo): number => {
+    return calculateSpellCost(land, wizardTowers, spell.costMultiplier);
+  };
+
   const checkSpell = (spell: SpellInfo): { canCast: boolean; reason?: string } => {
     if (wizards <= 0) return { canCast: false, reason: 'No wizards' };
-    if (runes < spell.runeCost) return { canCast: false, reason: 'Need more runes' };
+    const cost = getSpellCost(spell);
+    if (runes < cost) return { canCast: false, reason: 'Need more runes' };
 
     if (spell.type === 'advance') {
       if (era === 'future') return { canCast: false, reason: 'Already in Future' };
@@ -100,6 +117,7 @@ export function SpellList({
       <div className="space-y-2">
         {spells.map((spell) => {
           const { canCast, reason } = checkSpell(spell);
+          const cost = getSpellCost(spell);
 
           return (
             <button
@@ -124,7 +142,7 @@ export function SpellList({
 
               <div className="text-right">
                 <div className={clsx('font-stats', canCast ? 'text-runes' : 'text-gray-500')}>
-                  {formatNumber(spell.runeCost)}
+                  {formatNumber(cost)}
                 </div>
                 {!canCast && reason && (
                   <div className="text-xs text-red-400">{reason}</div>

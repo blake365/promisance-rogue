@@ -9,9 +9,9 @@
 /* Base layer - global styles */
 @layer base {
   html {
-    font-family: 'VT323', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', 'Menlo', 'Monaco', monospace;
     background-color: #0a0a12;
-    color: #e0e0e0;
+    color: #f5f5f5;
   }
 
   body {
@@ -104,31 +104,31 @@
            border-yellow-400 text-black;
   }
 
-  /* Button sizes */
+  /* Button sizes - increased for mobile readability */
   .btn-sm {
-    @apply px-3 py-1 text-xs;
-  }
-
-  .btn-md {
     @apply px-4 py-2 text-sm;
   }
 
+  .btn-md {
+    @apply px-5 py-3 text-base min-h-[44px];
+  }
+
   .btn-lg {
-    @apply px-6 py-3 text-base;
+    @apply px-6 py-4 text-lg min-h-[52px];
   }
 
   /* Stat table - alternating rows, visible grid */
   .table-retro {
-    @apply w-full text-sm;
+    @apply w-full text-base;
   }
 
   .table-retro th {
-    @apply bg-game-border text-cyan-400 px-3 py-2 text-left
-           font-display uppercase tracking-wider;
+    @apply bg-game-border text-cyan-400 px-4 py-3 text-left
+           font-display uppercase tracking-wider text-sm;
   }
 
   .table-retro td {
-    @apply px-3 py-2 border-b border-game-border/50;
+    @apply px-4 py-3 border-b border-game-border/50;
   }
 
   .table-retro tr:nth-child(even) td {
@@ -195,21 +195,21 @@
     @apply h-full transition-all duration-300;
   }
 
-  /* Glowing text effect */
+  /* Glowing text effect - subtle for readability */
   .text-glow-gold {
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
   }
 
   .text-glow-blue {
-    text-shadow: 0 0 10px rgba(30, 144, 255, 0.5);
+    text-shadow: 0 0 8px rgba(30, 144, 255, 0.4);
   }
 
   .text-glow-purple {
-    text-shadow: 0 0 10px rgba(153, 50, 204, 0.5);
+    text-shadow: 0 0 8px rgba(153, 50, 204, 0.4);
   }
 
   .text-glow-red {
-    text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+    text-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
   }
 
   /* Card for items/advisors/etc */
@@ -231,18 +231,18 @@
   /* Mobile touch-friendly action button */
   .action-btn {
     @apply flex flex-col items-center justify-center
-           min-h-[60px] p-2 rounded
+           min-h-[80px] p-3 rounded-lg
            bg-game-card border border-game-border
            transition-all duration-150
            active:scale-95 active:bg-game-border;
   }
 
   .action-btn-icon {
-    @apply text-2xl mb-1;
+    @apply text-3xl mb-2;
   }
 
   .action-btn-label {
-    @apply text-xs uppercase tracking-wider;
+    @apply text-sm uppercase tracking-wider;
   }
 
   /* Mobile navigation bar */
@@ -266,21 +266,34 @@
 
   /* Number input with increment buttons */
   .number-input-group {
-    @apply flex items-center gap-1;
+    @apply flex items-center gap-2;
   }
 
   .number-input {
-    @apply bg-game-dark border border-game-border rounded
-           px-3 py-2 text-center font-stats
+    @apply bg-game-dark border border-game-border rounded-lg
+           px-4 py-3 text-center font-stats text-lg
            focus:border-cyan-400 focus:outline-none
-           w-24;
+           w-28;
   }
 
   .number-btn {
-    @apply w-10 h-10 flex items-center justify-center
-           bg-game-card border border-game-border rounded
-           font-bold text-lg
+    @apply w-12 h-12 flex items-center justify-center
+           bg-game-card border border-game-border rounded-lg
+           font-bold text-xl
            active:bg-game-border;
+  }
+
+  /* Semantic label classes for improved contrast */
+  .text-label {
+    @apply text-text-muted text-sm uppercase tracking-wider;
+  }
+
+  .text-sublabel {
+    @apply text-text-secondary text-sm;
+  }
+
+  .text-value {
+    @apply text-text-primary font-stats;
   }
 }
 

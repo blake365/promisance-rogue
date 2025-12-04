@@ -11,7 +11,7 @@ interface DraftCarouselProps {
   extraPicks?: number;
   onSelect: (index: number) => void;
   onReroll: () => void;
-  onSkip: () => void;
+  onAdvance: () => void;
   onMarket?: () => void;
   onAdvisors?: () => void;
 }
@@ -67,11 +67,11 @@ export function DraftCarousel({
   extraPicks = 0,
   onSelect,
   onReroll,
-  onSkip,
+  onAdvance,
   onMarket,
   onAdvisors,
 }: DraftCarouselProps) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const advisorCapacity = rerollInfo?.advisorCapacity;
   const isAtAdvisorCapacity = advisorCapacity && advisorCapacity.current >= advisorCapacity.max;
@@ -136,15 +136,14 @@ export function DraftCarousel({
               <button
                 key={index}
                 onClick={() => {
-                  setSelectedIndex(index);
                   if (!isAdvisorBlocked) {
-                    onSelect(index);
+                    setSelectedIndex(index);
                   }
                 }}
                 disabled={isAdvisorBlocked}
                 className={clsx(
                   'flex-shrink-0 w-[160px] p-3 rounded-lg border-2 transition-all text-left',
-                  isSelected && !isAdvisorBlocked && 'border-cyan-400 shadow-blue-glow',
+                  isSelected && !isAdvisorBlocked && 'border-cyan-400 shadow-blue-glow bg-cyan-500/10',
                   !isSelected && !isAdvisorBlocked && 'border-game-border bg-game-card hover:border-gray-500',
                   isAdvisorBlocked && 'border-red-500/50 bg-game-dark/50 opacity-60 cursor-not-allowed'
                 )}
@@ -152,7 +151,7 @@ export function DraftCarousel({
                 {/* Type Badge */}
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-lg">{TYPE_ICONS[option.type]}</span>
-                  <span className="text-xs text-gray-500 uppercase">{option.type}</span>
+                  <span className="text-sm text-text-muted uppercase">{option.type}</span>
                 </div>
 
                 {/* Name */}
@@ -180,8 +179,8 @@ export function DraftCarousel({
 
                 {/* Description */}
                 <p className={clsx(
-                  'text-xs line-clamp-2',
-                  isAdvisorBlocked ? 'text-red-400' : 'text-gray-400'
+                  'text-sm line-clamp-2',
+                  isAdvisorBlocked ? 'text-red-400' : 'text-text-secondary'
                 )}>
                   {isAdvisorBlocked ? 'SLOTS FULL' : details.description}
                 </p>
@@ -203,27 +202,32 @@ export function DraftCarousel({
 
       {/* Pagination Dots */}
       <div className="flex justify-center gap-2">
-        {options.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setSelectedIndex(index)}
-            className={clsx(
-              'w-2 h-2 rounded-full transition-colors',
-              index === selectedIndex ? 'bg-cyan-400' : 'bg-game-border'
-            )}
-          />
-        ))}
+        {options.map((option, index) => {
+          const isAdvisorBlocked = option.type === 'advisor' && isAtAdvisorCapacity;
+          return (
+            <button
+              key={index}
+              onClick={() => !isAdvisorBlocked && setSelectedIndex(index)}
+              disabled={isAdvisorBlocked}
+              className={clsx(
+                'w-2 h-2 rounded-full transition-colors',
+                index === selectedIndex ? 'bg-cyan-400' : 'bg-game-border',
+                isAdvisorBlocked && 'opacity-50'
+              )}
+            />
+          );
+        })}
       </div>
 
       {/* Reroll Section */}
       {rerollInfo && rerollInfo.rerollsRemaining > 0 && (
         <div className="flex justify-between items-center bg-game-card rounded-lg p-3 border border-game-border">
           <div>
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-text-secondary">
               Rerolls: {rerollInfo.rerollsRemaining}/{rerollInfo.maxRerolls}
             </div>
             {rerollInfo.cost !== null && (
-              <div className="text-xs text-gray-500">
+              <div className="text-sm text-text-muted">
                 Cost: {formatNumber(rerollInfo.cost)} gold
               </div>
             )}
@@ -241,6 +245,19 @@ export function DraftCarousel({
         </div>
       )}
 
+      {/* Confirm Selection */}
+      {selectedIndex !== null && (
+        <button
+          onClick={() => {
+            onSelect(selectedIndex);
+            setSelectedIndex(null);
+          }}
+          className="btn-primary btn-lg w-full"
+        >
+          ✓ Confirm Selection
+        </button>
+      )}
+
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
         {onMarket && (
@@ -255,8 +272,8 @@ export function DraftCarousel({
         )}
       </div>
 
-      <button onClick={onSkip} className="btn-secondary btn-lg w-full">
-        Skip Draft
+      <button onClick={onAdvance} className="btn-secondary btn-lg w-full">
+        ⏩ Advance to Bot Phase
       </button>
     </div>
   );

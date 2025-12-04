@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction, BotEmpire, SpyIntel } from '../types';
 import { createGameRun, executeTurn, endPlayerPhase, selectDraft, rerollDraft, getRerollInfo, endShopPhase, executeBotPhase, getGameSummary, isGameComplete } from '../game/run';
-import { executeMarketTransaction, dismissAdvisor, getAdvisorCapacity } from '../game/shop';
+import { executeMarketTransaction, dismissAdvisor, getAdvisorCapacity, getEffectiveTroopPrices } from '../game/shop';
 import { getCombatPreview } from '../game/combat';
 import { processBankTransaction, getBankInfo } from '../game/bank';
 import * as db from '../db/operations';
@@ -232,6 +232,7 @@ app.get('/api/game/current', async (c) => {
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
+      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
       playerDefeated: run.playerDefeated,
@@ -265,6 +266,7 @@ app.get('/api/game/:id', async (c) => {
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
+      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
       isComplete: isGameComplete(run),
@@ -355,6 +357,13 @@ app.post('/api/game/:id/end-player-phase', async (c) => {
   }
 
   endPlayerPhase(run);
+
+  // If game is complete (final round), record to leaderboard
+  if (isGameComplete(run)) {
+    await db.addLeaderboardEntry(c.env.DB, run);
+    await db.updatePlayerStats(c.env.DB, playerId, run.playerEmpire.networth);
+  }
+
   await db.saveGameRun(c.env.DB, run);
 
   return c.json({
@@ -362,6 +371,9 @@ app.post('/api/game/:id/end-player-phase', async (c) => {
     marketPrices: run.marketPrices,
     shopStock: run.shopStock,
     draftOptions: run.draftOptions,
+    isComplete: isGameComplete(run),
+    stats: run.stats,
+    playerDefeated: run.playerDefeated,
   });
 });
 
@@ -405,6 +417,7 @@ app.post('/api/game/:id/market', async (c) => {
     result,
     empire: run.playerEmpire,
     shopStock: run.shopStock,
+    effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
   });
 });
 
@@ -482,16 +495,18 @@ app.post('/api/game/:id/draft', async (c) => {
 
   const { optionIndex } = await c.req.json<{ optionIndex: number }>();
 
-  const success = selectDraft(run, optionIndex);
+  const result = selectDraft(run, optionIndex);
 
-  if (success) {
+  if (result.success) {
     await db.saveGameRun(c.env.DB, run);
   }
 
   return c.json({
-    success,
+    success: result.success,
+    error: result.error,
     empire: run.playerEmpire,
     draftOptions: run.draftOptions,
+    edictResult: result.edictResult,
   });
 });
 

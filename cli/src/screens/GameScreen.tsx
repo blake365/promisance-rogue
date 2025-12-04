@@ -13,6 +13,7 @@ import type {
   IndustryAllocation,
   ShopTransaction,
   MarketPrices,
+  EffectiveTroopPrices,
   ShopStock,
   BankTransaction,
   BankInfo,
@@ -21,6 +22,7 @@ import type {
   RerollInfo,
   BotPhaseResponse,
   GameStats,
+  EdictResult,
 } from '../api/client.js';
 import { EmpireStatus } from '../components/EmpireStatus.js';
 import { ActionMenu } from '../components/ActionMenu.js';
@@ -57,6 +59,7 @@ type ViewMode =
   | 'action_result'
   | 'shop'
   | 'draft'
+  | 'edict_result'
   | 'advisors'
   | 'bot_phase'
   | 'bot_phase_results'
@@ -117,6 +120,7 @@ interface Props {
   draftOptions: DraftOption[] | null;
   rerollInfo: RerollInfo | null;
   marketPrices: MarketPrices | null;
+  effectivePrices: EffectiveTroopPrices | null;
   shopStock: ShopStock | null;
   bankInfo: BankInfo | null;
   playerDefeated: DefeatReason | null;
@@ -125,7 +129,7 @@ interface Props {
   error: string | null;
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
   onEndPlayerPhase: () => Promise<boolean>;
-  onSelectDraft: (index: number) => Promise<boolean>;
+  onSelectDraft: (index: number) => Promise<{ success: boolean; edictResult?: EdictResult }>;
   onRerollDraft: () => Promise<boolean>;
   onDismissAdvisor: (advisorId: string) => Promise<boolean>;
   onEndShopPhase: () => Promise<boolean>;
@@ -144,6 +148,7 @@ export function GameScreen({
   draftOptions,
   rerollInfo,
   marketPrices,
+  effectivePrices,
   shopStock,
   bankInfo,
   playerDefeated,
@@ -171,6 +176,7 @@ export function GameScreen({
   const [selectedAttackType, setSelectedAttackType] = useState<AttackType | null>(null);
   const [selectedSpell, setSelectedSpell] = useState<SpellType | null>(null);
   const [botPhaseResult, setBotPhaseResult] = useState<BotPhaseResponse | null>(null);
+  const [edictResult, setEdictResult] = useState<EdictResult | null>(null);
 
   // Handle global keys
   useInput((input, key) => {
@@ -384,7 +390,11 @@ export function GameScreen({
   // Handle draft selection
   const handleDraftSelect = useCallback(
     async (index: number) => {
-      await onSelectDraft(index);
+      const result = await onSelectDraft(index);
+      if (result.success && result.edictResult) {
+        setEdictResult(result.edictResult);
+        setView('edict_result');
+      }
     },
     [onSelectDraft]
   );
@@ -614,6 +624,7 @@ export function GameScreen({
               empire={empire}
               phase={round.phase}
               marketPrices={marketPrices}
+              effectivePrices={effectivePrices}
               shopStock={shopStock}
               onTransaction={onMarketTransaction}
               onClose={() => setView('main')}
@@ -941,6 +952,28 @@ export function GameScreen({
 
   // Shop Phase
   if (round.phase === 'shop') {
+    // Show edict result after selecting an edict
+    if (view === 'edict_result' && edictResult) {
+      return (
+        <Box flexDirection="column" padding={1}>
+          <EmpireStatus empire={empire} round={round} />
+          <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={2} paddingY={1}>
+            <Text bold color="magenta">{edictResult.edictName}</Text>
+            <Box marginTop={1}>
+              <Text color="white">{edictResult.message}</Text>
+            </Box>
+            <Box marginTop={1}>
+              <Text color="gray">[Enter] continue</Text>
+            </Box>
+          </Box>
+          <EdictResultPrompt onContinue={() => {
+            setEdictResult(null);
+            setView('shop');
+          }} />
+        </Box>
+      );
+    }
+
     // Show market in shop phase
     if (view === 'market') {
       return (
@@ -951,6 +984,7 @@ export function GameScreen({
               empire={empire}
               phase={round.phase}
               marketPrices={marketPrices}
+              effectivePrices={effectivePrices}
               shopStock={shopStock}
               onTransaction={onMarketTransaction}
               onClose={() => setView('shop')}
@@ -1147,4 +1181,15 @@ function BotPhasePrompt({ onExecute }: { onExecute: () => void }) {
   });
 
   return <Text color="cyan">[Enter] execute bot turns</Text>;
+}
+
+// Helper component for edict result
+function EdictResultPrompt({ onContinue }: { onContinue: () => void }) {
+  useInput((_, key) => {
+    if (key.return) {
+      onContinue();
+    }
+  });
+
+  return null;
 }

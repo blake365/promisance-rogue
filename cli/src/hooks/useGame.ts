@@ -4,6 +4,7 @@ import {
   type Empire,
   type GameRound,
   type MarketPrices,
+  type EffectiveTroopPrices,
   type ShopStock,
   type DraftOption,
   type Race,
@@ -19,6 +20,7 @@ import {
   type NewsItem,
   type BotStanding,
   type GameStats,
+  type EdictResult,
 } from '../api/client.js';
 
 interface GameState {
@@ -28,6 +30,7 @@ interface GameState {
   botEmpires: BotSummary[];
   intel: Record<string, SpyIntel>;
   marketPrices: MarketPrices | null;
+  effectivePrices: EffectiveTroopPrices | null;
   shopStock: ShopStock | null;
   draftOptions: DraftOption[] | null;
   rerollInfo: RerollInfo | null;
@@ -56,6 +59,7 @@ export function useGame() {
     botEmpires: [],
     intel: {},
     marketPrices: null,
+    effectivePrices: null,
     shopStock: null,
     draftOptions: null,
     rerollInfo: null,
@@ -109,6 +113,7 @@ export function useGame() {
           botEmpires: response.game.botEmpires,
           intel: response.game.intel,
           marketPrices: response.game.marketPrices,
+          effectivePrices: response.game.effectivePrices,
           shopStock: response.game.shopStock,
           draftOptions: response.game.draftOptions,
           rerollInfo: null, // Will be fetched when entering shop phase
@@ -142,6 +147,7 @@ export function useGame() {
           botEmpires: gameResponse.game.botEmpires,
           intel: gameResponse.game.intel,
           marketPrices: gameResponse.game.marketPrices,
+          effectivePrices: gameResponse.game.effectivePrices,
           shopStock: gameResponse.game.shopStock,
           draftOptions: gameResponse.game.draftOptions,
           rerollInfo: null, // Will be fetched when entering shop phase
@@ -172,6 +178,7 @@ export function useGame() {
         botEmpires: [],
         intel: {},
         marketPrices: null,
+        effectivePrices: null,
         shopStock: null,
         draftOptions: null,
         rerollInfo: null,
@@ -235,6 +242,19 @@ export function useGame() {
     setError(null);
     try {
       const response = await client.endPlayerPhase(game.gameId);
+
+      // Check if game completed (final round)
+      if (response.isComplete) {
+        setGame((prev) => ({
+          ...prev,
+          round: prev.round ? { ...prev.round, phase: 'complete' } : null,
+          isComplete: true,
+          playerDefeated: response.playerDefeated ?? null,
+          stats: response.stats ?? null,
+        }));
+        return true;
+      }
+
       // Fetch reroll info when entering shop phase
       const rerollInfo = await client.getRerollInfo(game.gameId);
       setGame((prev) => ({
@@ -256,8 +276,8 @@ export function useGame() {
 
   // Shop
   const selectDraft = useCallback(
-    async (optionIndex: number) => {
-      if (!game.gameId) return false;
+    async (optionIndex: number): Promise<{ success: boolean; edictResult?: EdictResult }> => {
+      if (!game.gameId) return { success: false };
       setLoading(true);
       setError(null);
       try {
@@ -272,10 +292,10 @@ export function useGame() {
             rerollInfo,
           }));
         }
-        return response.success;
+        return { success: response.success, edictResult: response.edictResult };
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Draft failed');
-        return false;
+        return { success: false };
       } finally {
         setLoading(false);
       }
@@ -373,6 +393,7 @@ export function useGame() {
             ...prev,
             playerEmpire: response.empire,
             shopStock: response.shopStock,
+            effectivePrices: response.effectivePrices ?? prev.effectivePrices,
           }));
           return true;
         } else {

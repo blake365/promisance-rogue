@@ -757,7 +757,8 @@ export function processBuild(
     }
   }
   const buildRate = Math.max(1, Math.floor(empire.resources.land / 20) + buildRateBonus);
-  const turnsNeeded = Math.max(1, Math.ceil(totalToConstruct / buildRate));
+  // Cap turnsNeeded to prevent infinite loops from excessive building requests
+  const turnsNeeded = Math.min(TURNS_PER_ROUND, Math.max(1, Math.ceil(totalToConstruct / buildRate)));
 
   // Process economy for build turns
   const totals = initTotals();
@@ -826,7 +827,8 @@ export function processDemolish(
     }
   }
   const demolishRate = Math.max(1, Math.floor(empire.resources.land / 20) + buildRateBonus);
-  const turnsNeeded = Math.max(1, Math.ceil(totalToDemolish / demolishRate));
+  // Cap turnsNeeded to prevent infinite loops from excessive demolish requests
+  const turnsNeeded = Math.min(TURNS_PER_ROUND, Math.max(1, Math.ceil(totalToDemolish / demolishRate)));
 
   // Process economy for demolish turns
   const totals = initTotals();

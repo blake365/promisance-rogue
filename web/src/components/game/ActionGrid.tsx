@@ -42,7 +42,7 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
     <div className="space-y-3">
       {/* Primary Actions - 2x4 grid on mobile */}
       <div>
-        <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Turn Actions</h3>
+        <h3 className="text-label mb-2">Turn Actions</h3>
         <div className="grid grid-cols-4 gap-2">
           {ACTIONS.map((item) => {
             const canAfford = !item.turnsRequired || turnsRemaining >= item.turnsRequired;
@@ -55,7 +55,7 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
                 disabled={isDisabled}
                 className={clsx(
                   'flex flex-col items-center justify-center',
-                  'min-h-[70px] p-2 rounded-lg',
+                  'min-h-[80px] p-2 rounded-lg',
                   'bg-game-card border border-game-border',
                   'transition-all duration-150',
                   !isDisabled && 'active:scale-95 active:bg-game-border hover:border-game-highlight',
@@ -63,11 +63,11 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
                 )}
               >
                 <span className="text-2xl">{item.icon}</span>
-                <span className={clsx('text-xs font-display uppercase tracking-wider mt-1', item.color)}>
+                <span className={clsx('text-sm font-display uppercase tracking-wider mt-1', item.color)}>
                   {item.label}
                 </span>
                 {item.turnsRequired && item.turnsRequired > 1 && (
-                  <span className="text-[10px] text-gray-500">{item.turnsRequired}T</span>
+                  <span className="text-xs text-text-muted">{item.turnsRequired}T</span>
                 )}
               </button>
             );
@@ -77,7 +77,7 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
 
       {/* Secondary Actions - 4 columns */}
       <div>
-        <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Other</h3>
+        <h3 className="text-label mb-2">Other</h3>
         <div className="grid grid-cols-4 gap-2">
           {SECONDARY_ACTIONS.map((item) => (
             <button
@@ -86,7 +86,7 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
               disabled={disabled}
               className={clsx(
                 'flex flex-col items-center justify-center',
-                'min-h-[60px] p-2 rounded-lg',
+                'min-h-[70px] p-2 rounded-lg',
                 'bg-game-card/50 border border-game-border/50',
                 'transition-all duration-150',
                 !disabled && 'active:scale-95 hover:bg-game-card hover:border-game-border',
@@ -94,7 +94,7 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
               )}
             >
               <span className="text-xl">{item.icon}</span>
-              <span className={clsx('text-[10px] uppercase tracking-wider mt-1', item.color)}>
+              <span className={clsx('text-xs uppercase tracking-wider mt-1', item.color)}>
                 {item.label}
               </span>
             </button>
@@ -150,7 +150,7 @@ export function ActionBar({
           )}
         >
           <span className="text-xl">{item.icon}</span>
-          <span className="text-[10px] uppercase tracking-wider">{item.label}</span>
+          <span className="text-xs uppercase tracking-wider">{item.label}</span>
         </button>
       ))}
     </nav>

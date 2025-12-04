@@ -190,6 +190,23 @@ export interface EdictEffect {
   value: number | string; // number for most edicts, string for policy names
 }
 
+// Result information from applying an edict (for display to user)
+export interface EdictResult {
+  edictId: string;
+  edictName: string;
+  message: string; // Human-readable result message
+  details?: {
+    // For percent_gold, percent_food, percent_land
+    amountGained?: number;
+    // For elite_corps
+    chosenTroopType?: 'trparm' | 'trplnd' | 'trpfly' | 'trpsea';
+    boostedAmount?: number;
+    // For advisor_mastery
+    chosenAdvisorName?: string;
+    newModifier?: number;
+  };
+}
+
 export interface Policy {
   id: string;
   name: string;

@@ -3,10 +3,16 @@ import { ECONOMY } from './constants';
 import { calculateNetworth, getAdvisorEffectModifier } from './empire';
 
 /**
- * Maximum loan amount is based on current networth
- * Players can borrow up to 50% of their networth
+ * Maximum loan amount is based on current networth (from QM Promisance bank.php)
+ * $maxloan = $emp1->e_networth * 50
  */
-const LOAN_LIMIT_MULTIPLIER = 0.5;
+const LOAN_LIMIT_MULTIPLIER = 50;
+
+/**
+ * Maximum savings amount is based on current networth (from QM Promisance bank.php)
+ * $maxsave = $emp1->e_networth * 100
+ */
+const SAVINGS_LIMIT_MULTIPLIER = 100;
 
 /**
  * Emergency loan limit multiplier (from QM Promisance)
@@ -57,6 +63,18 @@ export function processBankTransaction(
 function processDeposit(empire: Empire, amount: number): BankTransactionResult {
   if (amount > empire.resources.gold) {
     return createErrorResult('deposit', amount, empire, 'Insufficient gold');
+  }
+
+  const maxSavings = calculateMaxSavings(empire);
+  const availableSavings = maxSavings - empire.bank;
+
+  if (amount > availableSavings) {
+    return createErrorResult(
+      'deposit',
+      amount,
+      empire,
+      `Cannot deposit more than ${availableSavings.toLocaleString()} gold (max savings: ${maxSavings.toLocaleString()})`
+    );
   }
 
   empire.resources.gold -= amount;
@@ -132,6 +150,13 @@ export function calculateMaxLoan(empire: Empire): number {
 }
 
 /**
+ * Calculate maximum savings amount based on networth
+ */
+export function calculateMaxSavings(empire: Empire): number {
+  return Math.floor(empire.networth * SAVINGS_LIMIT_MULTIPLIER);
+}
+
+/**
  * Calculate emergency loan limit (from QM Promisance)
  * When loan exceeds this, turns are interrupted
  */
@@ -192,6 +217,8 @@ export function applyLoanInterest(empire: Empire, turnsPerRound: number): number
 export function getBankInfo(empire: Empire) {
   const maxLoan = calculateMaxLoan(empire);
   const availableLoan = Math.max(0, maxLoan - empire.loan);
+  const maxSavings = calculateMaxSavings(empire);
+  const availableSavings = Math.max(0, maxSavings - empire.bank);
 
   return {
     savings: empire.bank,
@@ -199,6 +226,8 @@ export function getBankInfo(empire: Empire) {
     gold: empire.resources.gold,
     maxLoan,
     availableLoan,
+    maxSavings,
+    availableSavings,
     savingsRate: ECONOMY.savingsRate,
     loanRate: ECONOMY.loanRate,
   };

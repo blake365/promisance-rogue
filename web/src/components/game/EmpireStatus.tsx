@@ -68,10 +68,12 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
         </div>
 
         {/* Resource Bar - Always Visible */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-5 gap-1 mt-3">
           <ResourceItem label="Gold" value={empire.resources.gold} color="text-gold" icon="💰" />
           <ResourceItem label="Food" value={empire.resources.food} color="text-food" icon="🌾" />
           <ResourceItem label="Runes" value={empire.resources.runes} color="text-runes" icon="✨" />
+          <ResourceItem label="Land" value={empire.resources.land} color="text-land" icon="🏰" />
+          <ResourceItem label="NW" value={empire.networth} color="text-gold" />
         </div>
 
         {/* Active Effects */}
@@ -108,7 +110,7 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
         <div className="mt-3 pt-3 border-t border-game-border space-y-3">
           {/* Land & Population */}
           <div>
-            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Territory</h3>
+            <h3 className="text-label mb-1">Territory</h3>
             <div className="grid grid-cols-3 gap-2">
               <ResourceItem label="Land" value={empire.resources.land} color="text-land" icon="🏰" />
               <ResourceItem label="Free" value={empire.resources.freeland} color="text-gray-400" icon="🌲" />
@@ -118,12 +120,12 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
 
           {/* Economy */}
           <div>
-            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Economy</h3>
+            <h3 className="text-label mb-1">Economy</h3>
             <div className="grid grid-cols-3 gap-2">
               <ResourceItem label="Savings" value={empire.bank} color="text-green-400" icon="🏦" />
               <ResourceItem label="Loan" value={empire.loan} color="text-red-400" icon="💳" />
               <div className="text-center">
-                <div className="text-xs text-gray-500">Health</div>
+                <div className="text-sm text-text-muted">Health</div>
                 <div className={clsx(
                   'font-stats',
                   empire.health > 50 ? 'text-green-400' : 'text-red-400'
@@ -136,8 +138,8 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
 
           {/* Military */}
           <div>
-            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Military</h3>
-            <div className="grid grid-cols-5 gap-1 text-center text-xs">
+            <h3 className="text-label mb-1">Military</h3>
+            <div className="grid grid-cols-5 gap-1 text-center text-sm">
               <TroopItem label="Inf" value={empire.troops.trparm} />
               <TroopItem label="Cav" value={empire.troops.trplnd} />
               <TroopItem label="Air" value={empire.troops.trpfly} />
@@ -149,7 +151,7 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
           {/* Advisors */}
           {empire.advisors.length > 0 && (
             <div>
-              <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+              <h3 className="text-label mb-1">
                 Advisors ({empire.advisors.length}/{3 + empire.bonusAdvisorSlots})
               </h3>
               <div className="flex flex-wrap gap-1">
@@ -157,7 +159,7 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
                   <span
                     key={advisor.id}
                     className={clsx(
-                      'px-2 py-0.5 rounded text-xs',
+                      'px-2 py-1 rounded text-sm',
                       advisor.rarity === 'legendary' && 'bg-legendary/20 text-legendary',
                       advisor.rarity === 'rare' && 'bg-rare/20 text-rare',
                       advisor.rarity === 'uncommon' && 'bg-uncommon/20 text-uncommon',
@@ -174,12 +176,12 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
           {/* Masteries */}
           {Object.keys(empire.techs).length > 0 && (
             <div>
-              <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Masteries</h3>
+              <h3 className="text-label mb-1">Masteries</h3>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(empire.techs).map(([action, level]) => (
                   <span
                     key={action}
-                    className="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-xs"
+                    className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded text-sm"
                   >
                     {MASTERY_NAMES[action] || action} {toRomanNumeral(level)}
                   </span>
@@ -191,12 +193,12 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
           {/* Policies */}
           {empire.policies.length > 0 && (
             <div>
-              <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Policies</h3>
+              <h3 className="text-label mb-1">Policies</h3>
               <div className="flex flex-wrap gap-1">
                 {empire.policies.map((policy) => (
                   <span
                     key={policy}
-                    className="px-2 py-0.5 bg-runes/20 text-runes rounded text-xs"
+                    className="px-2 py-1 bg-runes/20 text-runes rounded text-sm"
                   >
                     {policy.replace(/_/g, ' ')}
                   </span>
@@ -205,13 +207,6 @@ export function EmpireStatus({ empire, round, expanded = false }: EmpireStatusPr
             </div>
           )}
 
-          {/* Networth */}
-          <div className="pt-2 border-t border-game-border flex justify-between items-center">
-            <span className="text-gray-400 text-sm">Networth</span>
-            <span className="font-stats text-gold text-lg text-glow-gold">
-              {formatNumber(empire.networth)}
-            </span>
-          </div>
         </div>
       )}
     </Panel>
@@ -231,7 +226,7 @@ function ResourceItem({
 }) {
   return (
     <div className="text-center">
-      <div className="text-xs text-gray-500">
+      <div className="text-sm text-text-muted">
         {icon && <span className="mr-1">{icon}</span>}
         {label}
       </div>
@@ -251,7 +246,7 @@ function TroopItem({
 }) {
   return (
     <div>
-      <div className="text-gray-500">{label}</div>
+      <div className="text-text-muted">{label}</div>
       <div className={clsx('font-stats', color)}>{formatNumber(value)}</div>
     </div>
   );

@@ -27,11 +27,25 @@ export default {
         uncommon: '#00ff7f',
         rare: '#1e90ff',
         legendary: '#ffd700',
+
+        // Improved text contrast colors
+        'text-primary': '#f5f5f5',
+        'text-secondary': '#b8b8c0',
+        'text-muted': '#8a8a96',
       },
       fontFamily: {
-        display: ['MedievalSharp', 'Cinzel', 'Times New Roman', 'serif'],
-        mono: ['VT323', 'Courier New', 'monospace'],
-        stats: ['Orbitron', 'Share Tech Mono', 'monospace'],
+        display: ['MedievalSharp', 'serif'],
+        body: ['IBM Plex Mono', 'Menlo', 'Monaco', 'monospace'],
+        mono: ['IBM Plex Mono', 'Menlo', 'Monaco', 'monospace'],
+        stats: ['Orbitron', 'monospace'],
+      },
+      fontSize: {
+        'xs': ['0.875rem', { lineHeight: '1.25rem' }],
+        'sm': ['1rem', { lineHeight: '1.5rem' }],
+        'base': ['1.125rem', { lineHeight: '1.75rem' }],
+        'lg': ['1.25rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.5rem', { lineHeight: '2rem' }],
+        '2xl': ['1.875rem', { lineHeight: '2.25rem' }],
       },
       boxShadow: {
         'retro-inset':

@@ -4,6 +4,7 @@ import type {
   Empire,
   GameRound,
   MarketPrices,
+  EffectiveTroopPrices,
   ShopStock,
   DraftOption,
   BotSummary,
@@ -12,12 +13,14 @@ import type {
   BankInfo,
   GameStats,
   Race,
+  TurnAction,
   TurnActionRequest,
   TurnActionResult,
   ShopTransaction,
   BankTransaction,
   DefeatReason,
   BotPhaseResponse,
+  EdictResult,
 } from '@/types';
 
 interface PlayerState {
@@ -33,6 +36,7 @@ interface GameState {
   botEmpires: BotSummary[];
   intel: Record<string, SpyIntel>;
   marketPrices: MarketPrices | null;
+  effectivePrices: EffectiveTroopPrices | null;
   shopStock: ShopStock | null;
   draftOptions: DraftOption[] | null;
   rerollInfo: RerollInfo | null;
@@ -49,11 +53,14 @@ interface GameStore {
   loading: boolean;
   error: string | null;
   lastActionResult: TurnActionResult | null;
+  lastActionType: TurnAction | null;
   lastBotPhaseResult: BotPhaseResponse | null;
+  lastEdictResult: EdictResult | null;
 
   // Actions
   clearError: () => void;
   clearLastResult: () => void;
+  clearEdictResult: () => void;
   login: (displayName: string) => Promise<boolean>;
   restoreSession: () => Promise<boolean>;
   checkActiveGame: () => Promise<boolean>;
@@ -85,6 +92,7 @@ const initialGameState: GameState = {
   botEmpires: [],
   intel: {},
   marketPrices: null,
+  effectivePrices: null,
   shopStock: null,
   draftOptions: null,
   rerollInfo: null,
@@ -101,13 +109,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loading: false,
   error: null,
   lastActionResult: null,
+  lastActionType: null,
   lastBotPhaseResult: null,
+  lastEdictResult: null,
 
   // Clear error
   clearError: () => set({ error: null }),
 
   // Clear last result
-  clearLastResult: () => set({ lastActionResult: null, lastBotPhaseResult: null }),
+  clearLastResult: () => set({ lastActionResult: null, lastActionType: null, lastBotPhaseResult: null }),
+
+  // Clear edict result
+  clearEdictResult: () => set({ lastEdictResult: null }),
 
   // Login
   login: async (displayName: string) => {
@@ -170,6 +183,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             botEmpires: response.game.botEmpires,
             intel: response.game.intel,
             marketPrices: response.game.marketPrices,
+            effectivePrices: response.game.effectivePrices,
             shopStock: response.game.shopStock,
             draftOptions: response.game.draftOptions,
             rerollInfo: null,
@@ -207,6 +221,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             botEmpires: gameResponse.game.botEmpires,
             intel: gameResponse.game.intel,
             marketPrices: gameResponse.game.marketPrices,
+            effectivePrices: gameResponse.game.effectivePrices,
             shopStock: gameResponse.game.shopStock,
             draftOptions: gameResponse.game.draftOptions,
             rerollInfo: null,
@@ -273,6 +288,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
               : null,
           },
           lastActionResult: response.result,
+          lastActionType: action.action,
           loading: false,
         });
       }
@@ -294,6 +310,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await client.endPlayerPhase(game.gameId);
+
+      // Check if game completed (final round)
+      if (response.isComplete) {
+        set({
+          game: {
+            ...game,
+            round: game.round ? { ...game.round, phase: 'complete' } : null,
+            isComplete: true,
+            playerDefeated: response.playerDefeated ?? null,
+            stats: response.stats ?? null,
+          },
+          loading: false,
+        });
+        return true;
+      }
+
       const rerollInfo = await client.getRerollInfo(game.gameId);
       set({
         game: {
@@ -333,6 +365,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             draftOptions: response.draftOptions,
             rerollInfo,
           },
+          lastEdictResult: response.edictResult ?? null,
           loading: false,
         });
       }
@@ -450,6 +483,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ...game,
             playerEmpire: response.empire,
             shopStock: response.shopStock,
+            effectivePrices: response.effectivePrices ?? game.effectivePrices,
           },
           loading: false,
         });

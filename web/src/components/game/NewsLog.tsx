@@ -11,9 +11,12 @@ interface NewsLogProps {
 }
 
 export function NewsLog({ news, standings, playerId, playerName, onContinue }: NewsLogProps) {
-  // Filter news relevant to player
+  // Filter news - show player-related news first, then all other news
   const playerNews = news.filter(
     (item) => item.targetId === playerId || item.actorId === playerId
+  );
+  const otherNews = news.filter(
+    (item) => item.targetId !== playerId && item.actorId !== playerId
   );
 
   // Sort standings by networth
@@ -81,11 +84,11 @@ export function NewsLog({ news, standings, playerId, playerName, onContinue }: N
         </div>
       </div>
 
-      {/* News Feed */}
+      {/* Player News Feed */}
       {playerNews.length > 0 && (
-        <div className="bg-game-card rounded-lg border border-game-border overflow-hidden">
-          <div className="bg-game-border px-3 py-2">
-            <h3 className="font-display text-sm text-red-400 uppercase tracking-wider">News</h3>
+        <div className="bg-game-card rounded-lg border border-red-500/50 overflow-hidden">
+          <div className="bg-red-500/20 px-3 py-2">
+            <h3 className="font-display text-sm text-red-400 uppercase tracking-wider">Your Empire</h3>
           </div>
           <div className="divide-y divide-game-border/50 max-h-[200px] overflow-y-auto">
             {playerNews.map((item, index) => (
@@ -97,7 +100,21 @@ export function NewsLog({ news, standings, playerId, playerName, onContinue }: N
 
       {playerNews.length === 0 && (
         <div className="bg-game-card rounded-lg border border-game-border p-4 text-center text-gray-400">
-          <p>No significant events involving your empire this round.</p>
+          <p>No attacks or spells targeted your empire this round.</p>
+        </div>
+      )}
+
+      {/* Other Bot News */}
+      {otherNews.length > 0 && (
+        <div className="bg-game-card rounded-lg border border-game-border overflow-hidden">
+          <div className="bg-game-border px-3 py-2">
+            <h3 className="font-display text-sm text-gray-400 uppercase tracking-wider">World News</h3>
+          </div>
+          <div className="divide-y divide-game-border/50 max-h-[150px] overflow-y-auto">
+            {otherNews.map((item, index) => (
+              <NewsItemDisplay key={index} item={item} playerId={playerId} playerName={playerName} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -143,6 +160,13 @@ function NewsItemDisplay({
         message = `Your attack on ${item.target} failed!`;
         color = 'text-red-400';
       }
+    } else {
+      // Bot vs bot
+      if (item.action.success) {
+        message = `${item.actor} attacked ${item.target} and took ${formatNumber(item.action.landTaken)} land`;
+      } else {
+        message = `${item.actor} attacked ${item.target} but was repelled`;
+      }
     }
   } else if (item.action.type === 'spell') {
     icon = '✨';
@@ -162,6 +186,13 @@ function NewsItemDisplay({
       } else {
         message = `Your ${item.action.spell} spell on ${item.target} failed!`;
         color = 'text-red-400';
+      }
+    } else {
+      // Bot vs bot
+      if (item.action.success) {
+        message = `${item.actor} cast ${item.action.spell} on ${item.target}`;
+      } else {
+        message = `${item.actor} failed to cast ${item.action.spell} on ${item.target}`;
       }
     }
   } else if (item.action.type === 'eliminated') {

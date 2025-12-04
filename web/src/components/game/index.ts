@@ -10,3 +10,4 @@ export { SpellList, AttackTypeSelector } from './SpellList';
 export { DraftCarousel } from './DraftCarousel';
 export { ActionResult } from './ActionResult';
 export { NewsLog, GameSummary } from './NewsLog';
+export { AdvisorPanel } from './AdvisorPanel';

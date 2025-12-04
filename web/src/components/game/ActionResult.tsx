@@ -201,7 +201,24 @@ function CombatResultDisplay({ combat }: { combat: NonNullable<TurnActionResult[
         </div>
       )}
 
-      {/* Losses */}
+      {/* Buildings Gained */}
+      {combat.buildingsGained && Object.values(combat.buildingsGained).some(v => v && v > 0) && (
+        <div className="mt-2">
+          <div className="text-xs text-gray-500 mb-1">Buildings Captured</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {Object.entries(combat.buildingsGained).map(([type, count]) => {
+              if (!count || count <= 0) return null;
+              return (
+                <span key={type} className="text-green-400">
+                  +{count} {BUILDING_NAMES[type] || type}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Your Losses */}
       {Object.values(combat.attackerLosses).some(v => v && v > 0) && (
         <div className="mt-2">
           <div className="text-xs text-gray-500 mb-1">Your Losses</div>
@@ -210,6 +227,23 @@ function CombatResultDisplay({ combat }: { combat: NonNullable<TurnActionResult[
               if (!count || count <= 0) return null;
               return (
                 <span key={type} className="text-red-400">
+                  -{formatNumber(count)} {TROOP_NAMES[type] || type}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Enemy Losses */}
+      {Object.values(combat.defenderLosses).some(v => v && v > 0) && (
+        <div className="mt-2">
+          <div className="text-xs text-gray-500 mb-1">Enemy Losses</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {Object.entries(combat.defenderLosses).map(([type, count]) => {
+              if (!count || count <= 0) return null;
+              return (
+                <span key={type} className="text-cyan-400">
                   -{formatNumber(count)} {TROOP_NAMES[type] || type}
                 </span>
               );
@@ -232,6 +266,7 @@ function SpellResultDisplay({ spell }: { spell: NonNullable<TurnActionResult['sp
       )}>
         <span className="font-display text-lg">
           {spell.success ? '✨ Spell Succeeded!' : '💫 Spell Failed'}
+          {spell.castCount && spell.castCount > 1 && ` (${spell.castCount}x)`}
         </span>
       </div>
 
@@ -242,21 +277,22 @@ function SpellResultDisplay({ spell }: { spell: NonNullable<TurnActionResult['sp
         </div>
       )}
 
+      {/* Resources Gained (self spells) */}
       {spell.resourcesGained && (
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          {spell.resourcesGained.gold && (
+        <div className="grid grid-cols-3 gap-2 text-sm mb-2">
+          {spell.resourcesGained.gold !== undefined && spell.resourcesGained.gold > 0 && (
             <div>
               <span className="text-gray-500">Gold:</span>
               <span className="text-gold font-stats ml-1">+{formatNumber(spell.resourcesGained.gold)}</span>
             </div>
           )}
-          {spell.resourcesGained.food && (
+          {spell.resourcesGained.food !== undefined && spell.resourcesGained.food > 0 && (
             <div>
               <span className="text-gray-500">Food:</span>
               <span className="text-food font-stats ml-1">+{formatNumber(spell.resourcesGained.food)}</span>
             </div>
           )}
-          {spell.resourcesGained.runes && (
+          {spell.resourcesGained.runes !== undefined && spell.resourcesGained.runes > 0 && (
             <div>
               <span className="text-gray-500">Runes:</span>
               <span className="text-runes font-stats ml-1">+{formatNumber(spell.resourcesGained.runes)}</span>
@@ -265,22 +301,91 @@ function SpellResultDisplay({ spell }: { spell: NonNullable<TurnActionResult['sp
         </div>
       )}
 
-      {spell.goldStolen && spell.goldStolen > 0 && (
-        <div className="text-sm">
+      {/* Gold Stolen (steal spell) */}
+      {spell.goldStolen !== undefined && spell.goldStolen > 0 && (
+        <div className="text-sm mb-2">
           <span className="text-gray-400">Gold Stolen:</span>
           <span className="text-gold font-stats ml-1">+{formatNumber(spell.goldStolen)}</span>
         </div>
       )}
 
-      {spell.wizardsLost && spell.wizardsLost > 0 && (
-        <div className="text-sm text-red-400">
+      {/* Food Destroyed (storm spell) */}
+      {spell.foodDestroyed !== undefined && spell.foodDestroyed > 0 && (
+        <div className="text-sm mb-2">
+          <span className="text-gray-400">Enemy Food Destroyed:</span>
+          <span className="text-cyan-400 font-stats ml-1">{formatNumber(spell.foodDestroyed)}</span>
+        </div>
+      )}
+
+      {/* Cash Destroyed (storm spell) */}
+      {spell.cashDestroyed !== undefined && spell.cashDestroyed > 0 && (
+        <div className="text-sm mb-2">
+          <span className="text-gray-400">Enemy Gold Destroyed:</span>
+          <span className="text-cyan-400 font-stats ml-1">{formatNumber(spell.cashDestroyed)}</span>
+        </div>
+      )}
+
+      {/* Troops Destroyed (blast spell) */}
+      {spell.troopsDestroyed && Object.values(spell.troopsDestroyed).some(v => v && v > 0) && (
+        <div className="mb-2">
+          <div className="text-xs text-gray-500 mb-1">Enemy Troops Destroyed</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {Object.entries(spell.troopsDestroyed).map(([type, count]) => {
+              if (!count || count <= 0) return null;
+              return (
+                <span key={type} className="text-cyan-400">
+                  -{formatNumber(count)} {TROOP_NAMES[type] || type}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Buildings Destroyed (struct spell) */}
+      {spell.buildingsDestroyed && Object.values(spell.buildingsDestroyed).some(v => v && v > 0) && (
+        <div className="mb-2">
+          <div className="text-xs text-gray-500 mb-1">Enemy Buildings Destroyed</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {Object.entries(spell.buildingsDestroyed).map(([type, count]) => {
+              if (!count || count <= 0) return null;
+              return (
+                <span key={type} className="text-cyan-400">
+                  -{count} {BUILDING_NAMES[type] || type}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Wizards Lost */}
+      {spell.wizardsLost !== undefined && spell.wizardsLost > 0 && (
+        <div className="text-sm text-red-400 mb-2">
           Lost {formatNumber(spell.wizardsLost)} wizards
         </div>
       )}
 
+      {/* Spy Intel */}
       {spell.intel && (
-        <div className="mt-2 text-sm text-runes">
-          📊 Intel gathered on {spell.intel.targetName}
+        <div className="mt-2 p-2 bg-runes/10 rounded text-sm">
+          <div className="text-runes font-display mb-1">📊 Intel: {spell.intel.targetName}</div>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            <div><span className="text-gray-500">Era:</span> <span className="text-white">{spell.intel.era}</span></div>
+            <div><span className="text-gray-500">Health:</span> <span className={spell.intel.health < 50 ? 'text-red-400' : 'text-white'}>{spell.intel.health}%</span></div>
+            <div><span className="text-gray-500">Land:</span> <span className="text-white">{formatNumber(spell.intel.land)}</span></div>
+            <div><span className="text-gray-500">Networth:</span> <span className="text-gold">{formatNumber(spell.intel.networth)}</span></div>
+            <div><span className="text-gray-500">Gold:</span> <span className="text-gold">{formatNumber(spell.intel.gold)}</span></div>
+            <div><span className="text-gray-500">Food:</span> <span className="text-food">{formatNumber(spell.intel.food)}</span></div>
+          </div>
+          {spell.intel.troops && (
+            <div className="mt-1 text-xs">
+              <span className="text-gray-500">Troops:</span>{' '}
+              <span className="text-white">
+                {formatNumber(spell.intel.troops.trparm)} Inf, {formatNumber(spell.intel.troops.trplnd)} Cav, {formatNumber(spell.intel.troops.trpfly)} Air, {formatNumber(spell.intel.troops.trpsea)} Sea
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

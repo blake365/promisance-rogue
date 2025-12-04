@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 interface TurnSliderProps {
@@ -6,6 +6,7 @@ interface TurnSliderProps {
   initialValue?: number;
   label?: string;
   description?: string;
+  extraInfo?: ReactNode;
   onConfirm: (turns: number) => void;
   onCancel: () => void;
   disabled?: boolean;
@@ -16,6 +17,7 @@ export function TurnSlider({
   initialValue = 1,
   label = 'Turns',
   description,
+  extraInfo,
   onConfirm,
   onCancel,
   disabled,
@@ -44,6 +46,13 @@ export function TurnSlider({
         <h3 className="font-display text-lg text-cyan-400">{label}</h3>
         {description && <p className="text-sm text-gray-400">{description}</p>}
       </div>
+
+      {/* Extra Info */}
+      {extraInfo && (
+        <div className="bg-game-card rounded-lg border border-game-border p-3">
+          {extraInfo}
+        </div>
+      )}
 
       {/* Value Display */}
       <div className="flex items-center justify-center gap-4">

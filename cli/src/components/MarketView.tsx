@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { Empire, ShopTransaction, Troops, MarketPrices, GamePhase, ShopStock } from '../api/client.js';
+import type { Empire, ShopTransaction, Troops, MarketPrices, EffectiveTroopPrices, GamePhase, ShopStock } from '../api/client.js';
 
 // QMT Private Market base prices (player phase - worse prices)
 const PLAYER_PRICES = {
@@ -40,6 +40,7 @@ interface Props {
   empire: Empire;
   phase: GamePhase;
   marketPrices: MarketPrices | null;
+  effectivePrices: EffectiveTroopPrices | null;
   shopStock: ShopStock | null;
   onTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   onClose: () => void;
@@ -54,42 +55,29 @@ function formatNumber(n: number): string {
 // Sell limit for troops during shop phase (50%)
 const TROOP_SELL_LIMIT = 0.5;
 
-export function MarketView({ empire, phase, marketPrices, shopStock, onTransaction, onClose }: Props) {
+export function MarketView({ empire, phase, marketPrices, effectivePrices, shopStock, onTransaction, onClose }: Props) {
   const [mode, setMode] = useState<Mode>('buy');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [amount, setAmount] = useState(0);
   const [processing, setProcessing] = useState(false);
 
-  // Calculate prices based on phase
+  // Use effective prices from server (includes race/building modifiers)
   const prices = useMemo(() => {
-    if (phase === 'shop' && marketPrices) {
-      // Shop phase - use server prices (better deals)
+    if (effectivePrices && marketPrices) {
       return {
         food: {
           buy: marketPrices.foodBuyPrice,
           sell: marketPrices.foodSellPrice,
         },
-        trparm: {
-          buy: Math.floor(TROOP_BASE_COSTS.trparm * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_COSTS.trparm * marketPrices.troopSellMultiplier),
-        },
-        trplnd: {
-          buy: Math.floor(TROOP_BASE_COSTS.trplnd * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_COSTS.trplnd * marketPrices.troopSellMultiplier),
-        },
-        trpfly: {
-          buy: Math.floor(TROOP_BASE_COSTS.trpfly * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_COSTS.trpfly * marketPrices.troopSellMultiplier),
-        },
-        trpsea: {
-          buy: Math.floor(TROOP_BASE_COSTS.trpsea * marketPrices.troopBuyMultiplier),
-          sell: Math.floor(TROOP_BASE_COSTS.trpsea * marketPrices.troopSellMultiplier),
-        },
+        trparm: effectivePrices.trparm,
+        trplnd: effectivePrices.trplnd,
+        trpfly: effectivePrices.trpfly,
+        trpsea: effectivePrices.trpsea,
       };
     }
-    // Player phase - use QMT base prices (worse deals)
+    // Fallback to base prices if server didn't provide effective prices
     return PLAYER_PRICES;
-  }, [phase, marketPrices]);
+  }, [effectivePrices, marketPrices]);
 
   const isShopPhase = phase === 'shop';
   const currentItem = MARKET_ITEMS[selectedIndex];
