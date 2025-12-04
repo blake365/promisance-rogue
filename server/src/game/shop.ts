@@ -396,7 +396,11 @@ function generateRarePlusAdvisorOption(
 }
 
 // Helper to generate a single non-advisor option (mastery or edict)
-function generateOtherOption(empire: Empire, state: RngState): { option: DraftOption; state: RngState } {
+function generateOtherOption(
+  empire: Empire,
+  state: RngState,
+  excludedIds: Set<string>
+): { option: DraftOption; state: RngState } {
   let currentState = state;
 
   const rarityResult = selectRarityWithState(currentState);
@@ -410,24 +414,33 @@ function generateOtherOption(empire: Empire, state: RngState): { option: DraftOp
   let option: DraftOption;
 
   if (typeRoll < 50) {
-    // Mastery (50%) - only offer masteries not yet at max level
+    // Mastery (50%) - only offer masteries not yet at max level and not already in this draft
     const availableMasteries = MASTERIES.filter(
-      (m) => (empire.techs[m.action] ?? 0) < MAX_MASTERY_LEVEL
+      (m) => (empire.techs[m.action] ?? 0) < MAX_MASTERY_LEVEL && !excludedIds.has(m.id)
     );
     if (availableMasteries.length > 0) {
       const selectResult = selectRandomItemWithState(availableMasteries, currentState);
       currentState = selectResult.state;
       option = { type: 'tech', item: selectResult.item };
     } else {
-      // All masteries maxed, offer edict instead
-      const selectResult = selectRandomItemWithState(EDICTS, currentState);
+      // All masteries maxed or already offered, offer edict instead
+      const availableEdicts = EDICTS.filter((e) => !excludedIds.has(e.id));
+      const selectResult = selectRandomItemWithState(
+        availableEdicts.length > 0 ? availableEdicts : EDICTS,
+        currentState
+      );
       currentState = selectResult.state;
       option = { type: 'edict', item: selectResult.item };
     }
   } else {
     // Edict (50%)
-    const edicts = getItemsByRarity(EDICTS, rarity);
-    const selectResult = selectRandomItemWithState(edicts.length > 0 ? edicts : EDICTS, currentState);
+    const edicts = getItemsByRarity(EDICTS, rarity).filter((e) => !excludedIds.has(e.id));
+    // Fall back to all edicts of this rarity if all were excluded, then to any edict
+    const fallbackEdicts = edicts.length > 0 ? edicts : EDICTS.filter((e) => !excludedIds.has(e.id));
+    const selectResult = selectRandomItemWithState(
+      fallbackEdicts.length > 0 ? fallbackEdicts : EDICTS,
+      currentState
+    );
     currentState = selectResult.state;
     option = { type: 'edict', item: selectResult.item };
   }
@@ -511,10 +524,14 @@ export function generateDraftOptions(
   }
 
   // Generate other options (tech or edict)
+  const offeredOtherIds = new Set<string>();
   for (let i = 0; i < otherSlots; i++) {
-    const result = generateOtherOption(empire, state);
+    const result = generateOtherOption(empire, state, offeredOtherIds);
     state = result.state;
     options.push(result.option);
+    // Track the ID to prevent duplicates in this draft
+    const itemId = (result.option.item as { id: string }).id;
+    offeredOtherIds.add(itemId);
   }
 
   return { options, newOfferedAdvisorIds, rngState: state };
