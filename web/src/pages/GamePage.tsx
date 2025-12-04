@@ -435,11 +435,17 @@ export function GamePage() {
   };
 
   const handleAdvanceToBotPhase = async () => {
-    await endShopPhase();
-    // Immediately execute bot phase after ending shop
-    await executeBotPhase();
-    // Manually set viewMode to show the NewsLog (useEffect would skip it since phase is now 'player')
-    setViewMode('bot_phase');
+    const newPhase = await endShopPhase();
+    // Only execute bot phase if we transitioned to 'bot' phase
+    // After round 0 shop, we go to 'player' phase instead
+    if (newPhase === 'bot') {
+      await executeBotPhase();
+      // Manually set viewMode to show the NewsLog (useEffect would skip it since phase is now 'player')
+      setViewMode('bot_phase');
+    } else if (newPhase === 'player') {
+      // After initial shop phase, go straight to main view for player phase
+      setViewMode('main');
+    }
   };
 
   // Continue after bot phase
