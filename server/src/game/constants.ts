@@ -474,7 +474,7 @@ export const SPELLS = {
 // ============================================
 
 export const SHOP = {
-  // Draft composition: 1-2 advisors + 2-3 other options = ~4 total
+  // Draft composition: 1-2 advisors + 2-3 other options (minimum 4 total enforced in shop.ts)
   advisorOptionsMin: 1,
   advisorOptionsMax: 2,
   otherOptionsMin: 2,

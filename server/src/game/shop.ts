@@ -466,8 +466,14 @@ export function generateDraftOptions(
   // Determine number of other slots (2-3)
   const otherSlotsResult = nextRng(state);
   state = otherSlotsResult.state;
-  const otherSlots = SHOP.otherOptionsMin +
+  let otherSlots = SHOP.otherOptionsMin +
     (otherSlotsResult.value % (SHOP.otherOptionsMax - SHOP.otherOptionsMin + 1));
+
+  // Ensure minimum of 4 total draft options
+  const minTotalOptions = 4;
+  if (advisorSlots + otherSlots < minTotalOptions) {
+    otherSlots = minTotalOptions - advisorSlots;
+  }
 
   // Check for guaranteed rare advisor
   const hasGuaranteedRare = empire.guaranteedRareDraft ?? false;
