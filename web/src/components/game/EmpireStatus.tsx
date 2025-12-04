@@ -329,20 +329,3 @@ function ResourceItem({
     </div>
   );
 }
-
-function TroopItem({
-  label,
-  value,
-  color = 'text-gray-300',
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
-  return (
-    <div>
-      <div className="text-text-muted">{label}</div>
-      <div className={clsx('font-stats', color)}>{formatNumber(value)}</div>
-    </div>
-  );
-}
