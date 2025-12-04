@@ -389,11 +389,17 @@ export function useGame() {
       try {
         const response = await client.marketTransaction(game.gameId, transaction);
         if (response.result.success) {
+          // Refresh reroll info since gold changed (affects canAfford)
+          const rerollInfo = game.round?.phase === 'shop'
+            ? await client.getRerollInfo(game.gameId)
+            : game.rerollInfo;
+
           setGame((prev) => ({
             ...prev,
             playerEmpire: response.empire,
             shopStock: response.shopStock,
             effectivePrices: response.effectivePrices ?? prev.effectivePrices,
+            rerollInfo,
           }));
           return true;
         } else {
@@ -407,7 +413,7 @@ export function useGame() {
         setLoading(false);
       }
     },
-    [game.gameId]
+    [game.gameId, game.round?.phase, game.rerollInfo]
   );
 
   // Bank - fetch bank info
@@ -430,9 +436,15 @@ export function useGame() {
       try {
         const response = await client.bankTransaction(game.gameId, transaction);
         if (response.result.success) {
+          // Refresh reroll info since gold changed (affects canAfford)
+          const rerollInfo = game.round?.phase === 'shop'
+            ? await client.getRerollInfo(game.gameId)
+            : game.rerollInfo;
+
           setGame((prev) => ({
             ...prev,
             playerEmpire: response.empire,
+            rerollInfo,
           }));
           setBankInfo(response.bankInfo);
           return true;
@@ -447,7 +459,7 @@ export function useGame() {
         setLoading(false);
       }
     },
-    [game.gameId]
+    [game.gameId, game.round?.phase, game.rerollInfo]
   );
 
   // Fetch bank info when game starts or changes
