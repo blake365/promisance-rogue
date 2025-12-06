@@ -1134,7 +1134,7 @@ export function GameScreen({
           </Box>
           <Box marginTop={1} flexDirection="column" alignItems="center">
             <Text color="yellow">Survived {round.number} round{round.number !== 1 ? 's' : ''}</Text>
-            <Text color="gray">Final Networth: ${empire.networth.toLocaleString()}</Text>
+            <Text color="gray">Final Net Worth: ${empire.networth.toLocaleString()}</Text>
           </Box>
         </Box>
         {stats && (
@@ -1160,7 +1160,7 @@ export function GameScreen({
           <Text color="green">Your empire has survived all {round.number} rounds!</Text>
         </Box>
         <Box marginTop={1} flexDirection="column" alignItems="center">
-          <Text bold color="yellow">Final Networth: ${empire.networth.toLocaleString()}</Text>
+          <Text bold color="yellow">Final Net Worth: ${empire.networth.toLocaleString()}</Text>
         </Box>
       </Box>
       {stats && (

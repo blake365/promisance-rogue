@@ -167,7 +167,7 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
             <Text color="yellow" bold>{playerRank}</Text>
             <Text> of {standings.length}</Text>
             <Text color="gray"> | </Text>
-            <Text>Networth: </Text>
+            <Text>Net Worth: </Text>
             <Text color="yellow">{formatNetworth(playerStanding.networth)}</Text>
             <Text color={playerStanding.networthChange >= 0 ? 'green' : 'red'}>
               {' '}({formatChange(playerStanding.networthChange)})

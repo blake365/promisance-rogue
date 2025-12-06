@@ -141,7 +141,7 @@ export function LeaderboardPage() {
                   <th className="text-left py-2 px-2 text-cyan-400 font-display">#</th>
                   <th className="text-left py-2 px-2 text-cyan-400 font-display">Empire</th>
                   <th className="text-left py-2 px-2 text-cyan-400 font-display hidden sm:table-cell">Race</th>
-                  <th className="text-right py-2 px-2 text-cyan-400 font-display">Networth</th>
+                  <th className="text-right py-2 px-2 text-cyan-400 font-display">Net Worth</th>
                   <th className="text-center py-2 px-2 text-cyan-400 font-display hidden sm:table-cell">Rounds</th>
                 </tr>
               </thead>
@@ -196,7 +196,7 @@ export function LeaderboardPage() {
       {/* Legend */}
       <div className="mt-4 text-center">
         <p className="text-gray-500 text-xs">
-          Rankings based on final networth • Completing all 10 rounds earns bonus ranking
+          Rankings based on final net worth • Completing all 10 rounds earns bonus ranking
         </p>
       </div>
 

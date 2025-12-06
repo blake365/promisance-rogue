@@ -1,6 +1,6 @@
 {
   "name": "promisance-rogue",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A roguelike turn-based strategy game in the terminal. Build your empire, manage resources, cast spells, and conquer AI opponents.",
   "type": "module",
   "bin": {

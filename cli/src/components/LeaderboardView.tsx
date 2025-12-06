@@ -126,7 +126,7 @@ export function LeaderboardView({ hasSession, onClose }: Props) {
       {hasSession && myRank.rank !== null && (
         <Box marginBottom={1} borderStyle="single" borderColor="green" paddingX={1}>
           <Text color="green">
-            Your Best: Rank #{myRank.rank} ({formatNumber(myRank.score ?? 0)} networth)
+            Your Best: Rank #{myRank.rank} ({formatNumber(myRank.score ?? 0)} net worth)
           </Text>
         </Box>
       )}
@@ -137,7 +137,7 @@ export function LeaderboardView({ hasSession, onClose }: Props) {
         <Box width={5}><Text color="gray" bold>Rank</Text></Box>
         <Box width={3}><Text color="gray"> </Text></Box>
         <Box width={18}><Text color="gray" bold>Empire</Text></Box>
-        <Box width={10}><Text color="gray" bold>Networth</Text></Box>
+        <Box width={10}><Text color="gray" bold>Net Worth</Text></Box>
         <Box width={8}><Text color="gray" bold>Rounds</Text></Box>
         <Text color="gray" bold>Date</Text>
       </Box>

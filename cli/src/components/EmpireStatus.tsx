@@ -99,9 +99,9 @@ export function EmpireStatus({ empire, round }: Props) {
         <ResourceBar label="❤️ Health" value={`${empire.health}%`} color={empire.health > 50 ? 'green' : 'red'} />
       </Box>
 
-      {/* Networth */}
+      {/* Net Worth */}
       <Box marginTop={1}>
-        <Text color="gray">Networth: </Text>
+        <Text color="gray">Net Worth: </Text>
         <Text bold color="yellow">{formatNumber(empire.networth)}</Text>
       </Box>
 

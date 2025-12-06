@@ -67,7 +67,7 @@ export function GameSummary({ stats, empire, seed }: Props) {
           <Text color="magenta">{formatNumber(stats.totalRuneProduction)}</Text>
         </Box>
         <Box>
-          <Box width={22}><Text>Networth/Turn:</Text></Box>
+          <Box width={22}><Text>Net Worth/Turn:</Text></Box>
           <Text color="cyan">${formatNumber(stats.networthPerTurn)}</Text>
         </Box>
       </Box>
@@ -154,7 +154,7 @@ export function GameSummary({ stats, empire, seed }: Props) {
           <Text>{formatNumber(stats.peakLand)} acres</Text>
         </Box>
         <Box>
-          <Box width={22}><Text>Peak Networth:</Text></Box>
+          <Box width={22}><Text>Peak Net Worth:</Text></Box>
           <Text color="yellow">${formatNumber(stats.peakNetworth)}</Text>
         </Box>
         <Box>

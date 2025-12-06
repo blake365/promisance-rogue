@@ -28,7 +28,7 @@ export function GuidePage() {
           <div className="bg-game-dark rounded p-3 space-y-2">
             <p>
               <span className="text-cyan-400">Goal:</span> Build the most powerful
-              empire by maximizing your networth, or eliminate all opponents.
+              empire by maximizing your net worth, or eliminate all opponents.
             </p>
             <p>
               <span className="text-cyan-400">Turns:</span> You have 50 turns per
@@ -473,7 +473,7 @@ export function GuidePage() {
             <ul className="text-gray-400 text-xs space-y-1 list-disc list-inside">
               <li>Attack weakened enemies to steal their land</li>
               <li>Stack defensive bonuses if you're ahead</li>
-              <li>Convert resources to networth efficiently</li>
+              <li>Convert resources to net worth efficiently</li>
               <li>Don't forget about era restrictions!</li>
             </ul>
           </div>

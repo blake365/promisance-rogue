@@ -103,7 +103,7 @@ export function BotList({ bots, intel = {}, currentRound = 1, selectable, player
             </Box>
             <Box flexDirection="column" width={24}>
               <Text color="yellow">Land: <Text color="white">{formatNumber(botIntel.land)}</Text></Text>
-              <Text color="yellow">Networth: <Text color="white">{formatNumber(botIntel.networth)}</Text></Text>
+              <Text color="yellow">Net Worth: <Text color="white">{formatNumber(botIntel.networth)}</Text></Text>
               <Text color="yellow">Peasants: <Text color="white">{formatNumber(botIntel.peasants)}</Text></Text>
             </Box>
           </Box>

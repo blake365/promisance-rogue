@@ -188,7 +188,7 @@ function BasicsSection() {
       <Text bold color="yellow">Game Structure</Text>
       <Text>• 10 rounds, 50 turns per round</Text>
       <Text>• 4 AI bot opponents</Text>
-      <Text>• Goal: Highest networth or eliminate all enemies</Text>
+      <Text>• Goal: Highest net worth or eliminate all enemies</Text>
       <Text></Text>
       <Text bold color="yellow">Starting Resources</Text>
       <Text>• Land: 2,000 | Gold: 50,000 | Food: 10,000</Text>
