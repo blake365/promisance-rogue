@@ -469,6 +469,14 @@ export function TitlePage() {
       {/* Theme Toggle */}
       <ThemeToggle className="mt-8" />
 
+      {/* Terminal CTA */}
+      <div className="mt-6 text-center">
+        <p className="text-text-muted text-xs mb-2">for real freaks, play in your terminal:</p>
+        <code className="bg-bg-card border border-border-theme rounded px-3 py-1.5 text-accent font-mono text-sm select-all">
+          npx promisance-rogue
+        </code>
+      </div>
+
       {/* Footer */}
       <div className="text-center mt-4">
         <p className="text-text-muted text-xs font-mono">
