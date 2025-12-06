@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { clsx } from 'clsx';
 import type { Empire, BankInfo, BankTransaction, BankOperation } from '@/types';
 import { formatNumber } from '@/utils/format';
+import { NumberInput } from '@/components/ui';
 
 interface OperationItem {
   operation: BankOperation;
@@ -45,10 +46,6 @@ export function BankPanel({ empire, bankInfo, onTransaction, onClose }: BankPane
         return 0;
     }
   }, [selectedOp.operation, empire.resources.gold, bankInfo]);
-
-  const adjustAmount = (delta: number) => {
-    setAmount((prev) => Math.max(0, Math.min(maxAmount, prev + delta)));
-  };
 
   const handleTransaction = async () => {
     if (amount <= 0 || processing) return;
@@ -170,37 +167,16 @@ export function BankPanel({ empire, bankInfo, onTransaction, onClose }: BankPane
       </div>
 
       {/* Amount Selection */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-gray-400">Amount:</span>
-          <span className="text-xs text-gray-500">Max: {formatNumber(maxAmount)}</span>
-        </div>
-
-        <div className="flex items-center justify-center gap-1">
-          <button onClick={() => adjustAmount(-1000)} className="number-btn text-xs">-1K</button>
-          <button onClick={() => adjustAmount(-100)} className="number-btn text-xs">-100</button>
-          <button onClick={() => adjustAmount(-10)} className="number-btn">-10</button>
-
-          <div className="w-24 text-center">
-            <div className="font-stats text-2xl text-cyan-400">{formatNumber(amount)}</div>
-          </div>
-
-          <button onClick={() => adjustAmount(10)} className="number-btn">+10</button>
-          <button onClick={() => adjustAmount(100)} className="number-btn text-xs">+100</button>
-          <button onClick={() => adjustAmount(1000)} className="number-btn text-xs">+1K</button>
-        </div>
-
-        <div className="flex justify-center gap-2">
-          <button onClick={() => setAmount(0)} className="btn-secondary btn-sm">Zero</button>
-          <button onClick={() => setAmount(Math.floor(maxAmount / 4))} className="btn-secondary btn-sm">
-            25%
-          </button>
-          <button onClick={() => setAmount(Math.floor(maxAmount / 2))} className="btn-secondary btn-sm">
-            Half
-          </button>
-          <button onClick={() => setAmount(maxAmount)} className="btn-secondary btn-sm">Max</button>
-        </div>
-      </div>
+      <NumberInput
+        value={amount}
+        onChange={setAmount}
+        min={0}
+        max={maxAmount}
+        steps={[10, 100, 1000]}
+        presets={['zero', 'quarter', 'half', 'max']}
+        showMax={true}
+        label="Amount"
+      />
 
       {/* Interest Preview */}
       {interestPreview && (

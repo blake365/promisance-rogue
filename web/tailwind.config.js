@@ -4,47 +4,63 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Base colors
-        'game-dark': '#0a0a12',
-        'game-panel': '#1a1a2e',
-        'game-card': '#16213e',
-        'game-border': '#0f3460',
-        'game-highlight': '#e94560',
+        // Theme-aware colors (CSS variables)
+        'bg-primary': 'var(--color-bg-primary)',
+        'bg-panel': 'var(--color-bg-panel)',
+        'bg-card': 'var(--color-bg-card)',
+        'border-theme': 'var(--color-border)',
+        highlight: 'var(--color-highlight)',
+        accent: 'var(--color-accent)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        'text-muted': 'var(--color-text-muted)',
 
-        // Resources
-        gold: '#ffd700',
-        food: '#7cfc00',
-        runes: '#da70d6',
-        land: '#00bfff',
+        // Legacy aliases (for backward compatibility during migration)
+        'game-dark': 'var(--color-bg-primary)',
+        'game-panel': 'var(--color-bg-panel)',
+        'game-card': 'var(--color-bg-card)',
+        'game-border': 'var(--color-border)',
+        'game-highlight': 'var(--color-highlight)',
 
-        // Eras
+        // Theme-aware game colors
+        gold: 'var(--color-gold)',
+        food: 'var(--color-food)',
+        runes: 'var(--color-runes)',
+        land: 'var(--color-land)',
+        positive: 'var(--color-positive)',
+        negative: 'var(--color-negative)',
+        info: 'var(--color-info)',
+        warning: 'var(--color-warning)',
+
+        // Theme-aware gray scale
+        'gray-themed': {
+          400: 'var(--color-gray-400)',
+          500: 'var(--color-gray-500)',
+        },
+
+        // Eras (these work on both light and dark)
         'era-past': '#9932cc',
-        'era-present': '#00ced1',
-        'era-future': '#32cd32',
+        'era-present': '#0891b2',
+        'era-future': '#16a34a',
 
-        // Rarity
-        common: '#c0c0c0',
-        uncommon: '#00ff7f',
-        rare: '#1e90ff',
-        legendary: '#ffd700',
-
-        // Improved text contrast colors
-        'text-primary': '#f5f5f5',
-        'text-secondary': '#b8b8c0',
-        'text-muted': '#8a8a96',
+        // Rarity (theme-aware versions)
+        common: 'var(--color-text-muted)',
+        uncommon: 'var(--color-positive)',
+        rare: 'var(--color-info)',
+        legendary: 'var(--color-gold)',
       },
       fontFamily: {
-        display: ['MedievalSharp', 'serif'],
-        body: ['IBM Plex Mono', 'Menlo', 'Monaco', 'monospace'],
+        display: 'var(--font-display)',
+        body: 'var(--font-body)',
         mono: ['IBM Plex Mono', 'Menlo', 'Monaco', 'monospace'],
         stats: ['Orbitron', 'monospace'],
       },
       fontSize: {
-        'xs': ['0.875rem', { lineHeight: '1.25rem' }],
-        'sm': ['1rem', { lineHeight: '1.5rem' }],
-        'base': ['1.125rem', { lineHeight: '1.75rem' }],
-        'lg': ['1.25rem', { lineHeight: '1.75rem' }],
-        'xl': ['1.5rem', { lineHeight: '2rem' }],
+        xs: ['0.875rem', { lineHeight: '1.25rem' }],
+        sm: ['1rem', { lineHeight: '1.5rem' }],
+        base: ['1.125rem', { lineHeight: '1.75rem' }],
+        lg: ['1.25rem', { lineHeight: '1.75rem' }],
+        xl: ['1.5rem', { lineHeight: '2rem' }],
         '2xl': ['1.875rem', { lineHeight: '2.25rem' }],
       },
       boxShadow: {
@@ -56,10 +72,14 @@ export default {
         'gold-glow': '0 0 10px rgba(255,215,0,0.5)',
         'blue-glow': '0 0 10px rgba(30,144,255,0.5)',
         'purple-glow': '0 0 10px rgba(153,50,204,0.5)',
+        // Vercel-style shadows
+        'vercel-sm': '0 2px 4px rgba(0,0,0,0.1)',
+        'vercel-md': '0 4px 14px 0 rgba(0,0,0,0.1)',
+        'vercel-lg': '0 8px 30px rgba(0,0,0,0.12)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
+        glow: 'glow 2s ease-in-out infinite alternate',
       },
       keyframes: {
         glow: {

@@ -158,7 +158,7 @@ export interface SpyIntel {
 
 // News feed for bot phase results
 export type NewsAction =
-  | { type: 'attack'; success: boolean; landTaken: number }
+  | { type: 'attack'; success: boolean; landTaken: number; attackType: AttackType }
   | { type: 'spell'; spell: SpellType; success: boolean }
   | { type: 'eliminated'; eliminatedBy: string };
 

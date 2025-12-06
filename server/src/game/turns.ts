@@ -760,6 +760,9 @@ export function processBuild(
   // Cap turnsNeeded to prevent infinite loops from excessive building requests
   const turnsNeeded = Math.min(TURNS_PER_ROUND, Math.max(1, Math.ceil(totalToConstruct / buildRate)));
 
+  // Deduct building cost upfront (before economy processing can reduce gold)
+  empire.resources.gold -= totalCost;
+
   // Process economy for build turns
   const totals = initTotals();
 
@@ -769,10 +772,6 @@ export function processBuild(
     accumulateEconomy(totals, economy, extras);
     if (checkEmergency(totals, extras)) break;
   }
-
-  // Apply building construction (buildings still complete even if stopped early -
-  // the cost was already validated upfront)
-  empire.resources.gold -= totalCost;
 
   // bldpop and blddef removed from game
   empire.buildings.bldcash += allocation.bldcash ?? 0;

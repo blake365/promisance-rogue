@@ -1,9 +1,10 @@
-import { useState, useCallback, ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 interface TurnSliderProps {
   maxTurns: number;
   initialValue?: number;
+  defaultToMax?: boolean;
   label?: string;
   description?: string;
   extraInfo?: ReactNode;
@@ -14,7 +15,8 @@ interface TurnSliderProps {
 
 export function TurnSlider({
   maxTurns,
-  initialValue = 1,
+  initialValue,
+  defaultToMax = true,
   label = 'Turns',
   description,
   extraInfo,
@@ -22,7 +24,42 @@ export function TurnSlider({
   onCancel,
   disabled,
 }: TurnSliderProps) {
-  const [turns, setTurns] = useState(Math.min(initialValue, maxTurns));
+  // Default to max turns unless initialValue is explicitly provided
+  const [turns, setTurns] = useState(
+    initialValue !== undefined ? Math.min(initialValue, maxTurns) : (defaultToMax ? maxTurns : 1)
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const startEdit = () => {
+    if (disabled) return;
+    setEditValue(turns.toString());
+    setIsEditing(true);
+  };
+
+  const endEdit = () => {
+    const parsed = parseInt(editValue, 10);
+    if (!isNaN(parsed) && parsed >= 1) {
+      setTurns(Math.max(1, Math.min(maxTurns, parsed)));
+    }
+    setIsEditing(false);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      endEdit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+    }
+  };
 
   const adjustTurns = useCallback(
     (delta: number) => {
@@ -71,8 +108,22 @@ export function TurnSlider({
           -1
         </button>
 
-        <div className="w-24 text-center">
-          <div className="font-stats text-3xl text-gold">{turns}</div>
+        <div className="w-24 text-center cursor-pointer" onClick={startEdit}>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="number"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={endEdit}
+              onKeyDown={handleEditKeyDown}
+              min={1}
+              max={maxTurns}
+              className="w-20 text-center font-stats text-2xl bg-bg-primary border-2 border-accent rounded px-1 py-0.5"
+            />
+          ) : (
+            <div className="font-stats text-3xl text-gold">{turns}</div>
+          )}
           <div className="text-xs text-gray-500">/ {maxTurns}</div>
         </div>
 
@@ -119,21 +170,21 @@ export function TurnSlider({
         <button
           onClick={() => setTurns(1)}
           disabled={disabled}
-          className="btn-secondary btn-sm"
+          className="btn-secondary btn-md min-h-[44px]"
         >
           Min
         </button>
         <button
           onClick={setHalf}
           disabled={disabled}
-          className="btn-secondary btn-sm"
+          className="btn-secondary btn-md min-h-[44px]"
         >
           Half
         </button>
         <button
           onClick={setAll}
           disabled={disabled}
-          className="btn-secondary btn-sm"
+          className="btn-secondary btn-md min-h-[44px]"
         >
           Max
         </button>
@@ -177,7 +228,7 @@ export function TurnInput({
       <button
         onClick={() => onChange(Math.max(1, value - 1))}
         disabled={disabled || value <= 1}
-        className="number-btn w-8 h-8 text-sm disabled:opacity-30"
+        className="number-btn w-10 h-10 text-red-400 disabled:opacity-30"
       >
         -
       </button>
@@ -191,12 +242,12 @@ export function TurnInput({
           if (!isNaN(v)) onChange(Math.max(1, Math.min(max, v)));
         }}
         disabled={disabled}
-        className="number-input w-16 text-sm"
+        className="number-input w-16"
       />
       <button
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={disabled || value >= max}
-        className="number-btn w-8 h-8 text-sm disabled:opacity-30"
+        className="number-btn w-10 h-10 text-green-400 disabled:opacity-30"
       >
         +
       </button>

@@ -516,7 +516,7 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
       }
 
       // Generate news for ALL attacks (won or lost)
-      ctx.news.push(createAttackNews(bot, target, landGained, combatWon, roundNumber));
+      ctx.news.push(createAttackNews(bot, target, landGained, combatWon, attackType, roundNumber));
 
       // Check if target was eliminated
       if (target.health <= 0) {
@@ -1272,6 +1272,7 @@ function createAttackNews(
   defender: Empire,
   landTaken: number,
   won: boolean,
+  attackType: AttackType,
   round: number
 ): NewsItem {
   return {
@@ -1284,6 +1285,7 @@ function createAttackNews(
       type: 'attack',
       success: won,
       landTaken,
+      attackType,
     },
   };
 }

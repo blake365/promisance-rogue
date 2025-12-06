@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useGameStore } from '@/stores/gameStore';
-import { Panel } from '@/components/ui';
+import { Panel, ThemeToggle } from '@/components/ui';
 import type { Race } from '@/types';
 
 type Stage = 'menu' | 'login' | 'new_game_name' | 'new_game_race' | 'confirm_abandon';
@@ -188,16 +188,16 @@ export function TitlePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-game-dark">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-bg-primary">
       {/* Logo/Title */}
       <div className="text-center mb-8">
         <h1 className="font-display text-4xl md:text-6xl text-gold text-glow-gold mb-2">
           Promisance
         </h1>
-        <h2 className="font-display text-2xl md:text-3xl text-cyan-400 text-glow-blue">
+        <h2 className="font-display text-2xl md:text-3xl text-accent text-glow-blue">
           Rogue
         </h2>
-        <p className="text-gray-400 mt-4 font-mono text-sm">
+        <p className="text-text-muted mt-4 font-mono text-sm">
           A Roguelike Turn-Based Strategy Game
         </p>
       </div>
@@ -214,7 +214,7 @@ export function TitlePage() {
 
       {/* Loading */}
       {loading && (
-        <div className="text-cyan-400 animate-pulse mb-4">Loading...</div>
+        <div className="text-accent animate-pulse mb-4">Loading...</div>
       )}
 
       {/* Main Menu */}
@@ -261,7 +261,7 @@ export function TitlePage() {
           </div>
 
           {hasSession && (
-            <p className="text-gray-500 text-xs text-center mt-4">
+            <p className="text-text-muted text-xs text-center mt-4">
               Playing as: {player.displayName}
             </p>
           )}
@@ -271,7 +271,7 @@ export function TitlePage() {
       {/* Login Stage */}
       {stage === 'login' && !loading && (
         <Panel className="w-full max-w-sm">
-          <h3 className="font-display text-lg text-cyan-400 mb-4 text-center">
+          <h3 className="font-display text-lg text-accent mb-4 text-center">
             Enter Your Name
           </h3>
           <input
@@ -280,7 +280,7 @@ export function TitlePage() {
             onChange={(e) => setDisplayName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             placeholder="Your display name"
-            className="w-full bg-game-dark border border-game-border rounded px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none mb-4"
+            className="w-full bg-bg-primary border border-border-theme rounded px-4 py-3 text-text-primary placeholder-text-muted focus:border-accent focus:outline-none mb-4"
             autoFocus
             maxLength={20}
           />
@@ -302,7 +302,7 @@ export function TitlePage() {
       {/* Empire Name Stage */}
       {stage === 'new_game_name' && !loading && (
         <Panel className="w-full max-w-sm">
-          <h3 className="font-display text-lg text-cyan-400 mb-4 text-center">
+          <h3 className="font-display text-lg text-accent mb-4 text-center">
             Name Your Empire
           </h3>
           <input
@@ -311,7 +311,7 @@ export function TitlePage() {
             onChange={(e) => setEmpireName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
             placeholder="Empire name"
-            className="w-full bg-game-dark border border-game-border rounded px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none mb-4"
+            className="w-full bg-bg-primary border border-border-theme rounded px-4 py-3 text-text-primary placeholder-text-muted focus:border-accent focus:outline-none mb-4"
             autoFocus
             maxLength={24}
           />
@@ -334,10 +334,10 @@ export function TitlePage() {
       {stage === 'new_game_race' && !loading && (
         <div className="w-full max-w-lg">
           <Panel className="mb-4">
-            <h3 className="font-display text-lg text-cyan-400 mb-2 text-center">
+            <h3 className="font-display text-lg text-accent mb-2 text-center">
               Choose Your Race
             </h3>
-            <p className="text-gray-400 text-sm text-center">
+            <p className="text-text-muted text-sm text-center">
               Empire: <span className="text-gold">{empireName}</span>
             </p>
           </Panel>
@@ -351,12 +351,12 @@ export function TitlePage() {
                 className={clsx(
                   'p-3 rounded-lg border-2 text-left transition-all',
                   selectedRace === race.value
-                    ? 'border-cyan-400 bg-cyan-400/10 shadow-blue-glow'
-                    : 'border-game-border bg-game-card hover:border-gray-500'
+                    ? 'border-accent bg-accent/10 shadow-blue-glow'
+                    : 'border-border-theme bg-bg-card hover:border-highlight'
                 )}
               >
-                <div className="font-display text-white mb-1">{race.name}</div>
-                <div className="text-xs text-gray-400 mb-2">{race.description}</div>
+                <div className="font-display text-text-primary mb-1">{race.name}</div>
+                <div className="text-xs text-text-muted mb-2">{race.description}</div>
                 {race.bonuses.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {race.bonuses.map((bonus, i) => (
@@ -384,7 +384,7 @@ export function TitlePage() {
             <Panel className="mb-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="text-gray-400">Selected: </span>
+                  <span className="text-text-secondary">Selected: </span>
                   <span className="font-display text-gold">
                     {RACES.find((r) => r.value === selectedRace)?.name}
                   </span>
@@ -415,7 +415,7 @@ export function TitlePage() {
           <h3 className="font-display text-lg text-red-400 mb-4 text-center">
             Abandon Game?
           </h3>
-          <p className="text-gray-400 text-sm text-center mb-4">
+          <p className="text-text-muted text-sm text-center mb-4">
             Are you sure you want to abandon your current game? This cannot be undone.
           </p>
           <div className="flex gap-2">
@@ -429,8 +429,11 @@ export function TitlePage() {
         </Panel>
       )}
 
+      {/* Theme Toggle */}
+      <ThemeToggle className="mt-8" />
+
       {/* Footer */}
-      <p className="text-gray-500 text-xs mt-8 font-mono text-center">
+      <p className="text-text-muted text-xs mt-4 font-mono text-center">
         Based on QM Promisance • 10 Rounds to Glory
       </p>
     </div>

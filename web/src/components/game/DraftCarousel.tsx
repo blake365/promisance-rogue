@@ -124,8 +124,8 @@ export function DraftCarousel({
       )}
 
       {/* Swipeable Cards */}
-      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-        <div className="flex gap-3" style={{ width: 'max-content' }}>
+      <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 snap-x snap-mandatory scroll-smooth">
+        <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
           {options.map((option, index) => {
             const details = getItemDetails(option);
             const isSelected = index === selectedIndex;
@@ -142,7 +142,7 @@ export function DraftCarousel({
                 }}
                 disabled={isAdvisorBlocked}
                 className={clsx(
-                  'flex-shrink-0 w-[160px] p-3 rounded-lg border-2 transition-all text-left',
+                  'flex-shrink-0 w-[160px] p-3 rounded-lg border-2 transition-all text-left snap-start',
                   isSelected && !isAdvisorBlocked && 'border-cyan-400 shadow-blue-glow bg-cyan-500/10',
                   !isSelected && !isAdvisorBlocked && 'border-game-border bg-game-card hover:border-gray-500',
                   isAdvisorBlocked && 'border-red-500/50 bg-game-dark/50 opacity-60 cursor-not-allowed'
@@ -201,7 +201,7 @@ export function DraftCarousel({
       </div>
 
       {/* Pagination Dots */}
-      <div className="flex justify-center gap-2">
+      <div className="flex justify-center gap-1">
         {options.map((option, index) => {
           const isAdvisorBlocked = option.type === 'advisor' && isAtAdvisorCapacity;
           return (
@@ -210,11 +210,17 @@ export function DraftCarousel({
               onClick={() => !isAdvisorBlocked && setSelectedIndex(index)}
               disabled={isAdvisorBlocked}
               className={clsx(
-                'w-2 h-2 rounded-full transition-colors',
-                index === selectedIndex ? 'bg-cyan-400' : 'bg-game-border',
+                'w-11 h-11 flex items-center justify-center', // 44px touch target
                 isAdvisorBlocked && 'opacity-50'
               )}
-            />
+            >
+              <span
+                className={clsx(
+                  'w-3 h-3 rounded-full transition-colors',
+                  index === selectedIndex ? 'bg-cyan-400' : 'bg-game-border'
+                )}
+              />
+            </button>
           );
         })}
       </div>

@@ -304,7 +304,7 @@ export interface BotEmpire extends Empire {
 
 // News feed for bot phase
 export type NewsAction =
-  | { type: 'attack'; success: boolean; landTaken: number }
+  | { type: 'attack'; success: boolean; landTaken: number; attackType: AttackType }
   | { type: 'spell'; spell: SpellType; success: boolean }
   | { type: 'eliminated'; eliminatedBy: string };
 

@@ -14,6 +14,7 @@ import {
   AttackTypeSelector,
   DraftCarousel,
   ActionResult,
+  ActionToast,
   NewsLog,
   GameSummary,
   AdvisorPanel,
@@ -213,7 +214,6 @@ type ViewMode =
   | 'attack_type'
   | 'target_select'
   | 'action_result'
-  | 'overview'
   | 'advisors'
   | 'draft'
   | 'bot_phase'
@@ -253,6 +253,8 @@ export function GamePage() {
   const [pendingAttackType, setPendingAttackType] = useState<AttackType | null>(null);
   const [editedTaxRate, setEditedTaxRate] = useState<number | null>(null);
   const [editedIndustryAllocation, setEditedIndustryAllocation] = useState<IndustryAllocation | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [showFullResult, setShowFullResult] = useState(false);
 
   // Check for active game on mount
   useEffect(() => {
@@ -284,10 +286,12 @@ export function GamePage() {
     }
   }, [game.round?.phase, game.draftOptions, game.isComplete, game.playerDefeated, lastBotPhaseResult]);
 
-  // Show action result when available
+  // Show action result when available - use toast for simple actions, full view for combat/spell
   useEffect(() => {
     if (lastActionResult) {
-      setViewMode('action_result');
+      // Always show toast first
+      setShowToast(true);
+      setShowFullResult(false);
     }
   }, [lastActionResult]);
 
@@ -314,9 +318,11 @@ export function GamePage() {
     if (action === 'market') {
       setViewMode('market');
     } else if (action === 'bank') {
+      // Refresh bank info to ensure it's current (e.g., after forced loans from negative gold)
+      fetchBankInfo();
       setViewMode('bank');
     } else if (action === 'overview') {
-      setViewMode('overview');
+      navigate('/overview');
     } else if (action === 'enemies') {
       setViewMode('enemies');
     } else if (action === 'guide') {
@@ -612,12 +618,14 @@ export function GamePage() {
         );
 
       case 'action_result':
-        return lastActionResult && lastActionType && pendingAction === null ? (
+        // This case is now only used when showFullResult is true
+        return lastActionResult && lastActionType ? (
           <ActionResult
             result={lastActionResult}
             action={lastActionType}
             onClose={() => {
               clearLastResult();
+              setShowFullResult(false);
               setViewMode('main');
             }}
           />
@@ -710,16 +718,6 @@ export function GamePage() {
           />
         ) : null;
 
-      case 'overview':
-        return (
-          <EmpireStatus
-            empire={playerEmpire}
-            round={round}
-            expanded
-            onClose={() => setViewMode('main')}
-          />
-        );
-
       case 'main':
       default:
         return (
@@ -741,6 +739,19 @@ export function GamePage() {
     }
   };
 
+  // Handle toast dismiss
+  const handleToastDismiss = () => {
+    setShowToast(false);
+    clearLastResult();
+  };
+
+  // Handle viewing full result details
+  const handleViewDetails = () => {
+    setShowToast(false);
+    setShowFullResult(true);
+    setViewMode('action_result');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Error Toast */}
@@ -749,6 +760,32 @@ export function GamePage() {
           <div className="bg-red-500/90 text-white px-4 py-3 rounded-lg flex justify-between items-center max-w-md mx-auto">
             <span>{error}</span>
             <button onClick={clearError} className="ml-2 text-xl">&times;</button>
+          </div>
+        </div>
+      )}
+
+      {/* Action Result Toast */}
+      {showToast && lastActionResult && lastActionType && (
+        <ActionToast
+          result={lastActionResult}
+          action={lastActionType}
+          onDismiss={handleToastDismiss}
+          onViewDetails={handleViewDetails}
+        />
+      )}
+
+      {/* Full Result Modal (for combat/spell details) */}
+      {showFullResult && lastActionResult && lastActionType && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-game-panel border border-game-border rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-4">
+            <ActionResult
+              result={lastActionResult}
+              action={lastActionType}
+              onClose={() => {
+                clearLastResult();
+                setShowFullResult(false);
+              }}
+            />
           </div>
         </div>
       )}

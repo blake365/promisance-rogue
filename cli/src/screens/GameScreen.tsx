@@ -134,6 +134,7 @@ interface Props {
   onDismissAdvisor: (advisorId: string) => Promise<boolean>;
   onEndShopPhase: () => Promise<boolean>;
   onMarketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
+  onFetchBankInfo: () => Promise<void>;
   onBankTransaction: (transaction: BankTransaction) => Promise<boolean>;
   onExecuteBotPhase: () => Promise<BotPhaseResponse | null>;
   onClearError: () => void;
@@ -162,6 +163,7 @@ export function GameScreen({
   onDismissAdvisor,
   onEndShopPhase,
   onMarketTransaction,
+  onFetchBankInfo,
   onBankTransaction,
   onExecuteBotPhase,
   onClearError,
@@ -209,6 +211,8 @@ export function GameScreen({
       } else if (action === 'market') {
         setView('market');
       } else if (action === 'bank') {
+        // Refresh bank info to ensure it's current (e.g., after forced loans from negative gold)
+        onFetchBankInfo();
         setView('bank');
       } else if (action === 'guide') {
         setView('guide');
@@ -233,7 +237,7 @@ export function GameScreen({
         setView('turns_input');
       }
     },
-    [onEndPlayerPhase, round.phase]
+    [onEndPlayerPhase, onFetchBankInfo, round.phase]
   );
 
   // Handle turns input confirmation

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { NewsItem, BotStanding } from '../api/client.js';
+import type { NewsItem, BotStanding, AttackType } from '../api/client.js';
 
 interface Props {
   news: NewsItem[];
@@ -14,6 +14,17 @@ function formatNetworth(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
+}
+
+function formatAttackType(attackType: AttackType): string {
+  switch (attackType) {
+    case 'standard': return 'standard attack';
+    case 'trparm': return 'soldier assault';
+    case 'trplnd': return 'armored strike';
+    case 'trpfly': return 'air raid';
+    case 'trpsea': return 'naval bombardment';
+    default: return 'attack';
+  }
 }
 
 function formatChange(n: number): string {
@@ -79,11 +90,12 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
               const isPlayerTarget = item.targetId === playerId;
 
               if (item.action.type === 'attack') {
+                const attackDesc = formatAttackType(item.action.attackType);
                 if (isPlayerTarget) {
                   return (
                     <Box key={index}>
                       <Text color={item.action.success ? 'red' : 'green'}>
-                        {item.actor} attacked you
+                        {item.actor} launched a {attackDesc}
                         {item.action.success && item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres!`}
                         {!item.action.success && ' but was repelled!'}
                       </Text>
@@ -93,7 +105,7 @@ export function NewsDisplay({ news, standings, playerId, roundNumber, onContinue
                   return (
                     <Box key={index}>
                       <Text color="cyan">
-                        You attacked {item.target}
+                        You launched a {attackDesc} on {item.target}
                         {item.action.success && item.action.landTaken > 0 && ` and took ${item.action.landTaken} acres.`}
                         {!item.action.success && ' but failed to break their defense.'}
                       </Text>

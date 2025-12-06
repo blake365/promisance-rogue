@@ -62,6 +62,7 @@ function App() {
     dismissAdvisor,
     endShopPhase,
     marketTransaction,
+    fetchBankInfo,
     bankTransaction,
     executeBotPhase,
   } = useGame();
@@ -194,6 +195,7 @@ function App() {
         onDismissAdvisor={dismissAdvisor}
         onEndShopPhase={endShopPhase}
         onMarketTransaction={marketTransaction}
+        onFetchBankInfo={fetchBankInfo}
         onBankTransaction={bankTransaction}
         onExecuteBotPhase={executeBotPhase}
         onClearError={clearError}

@@ -434,6 +434,10 @@ export const SPELLS = {
     fight: 2.2,     // From fight.php line 50 - hard
   } as Record<string, number>,
 
+  // Fight spell requires minimum self-power (wizards * magic / towers)
+  // From fight.php line 39: if ($this->getpower_self() < 50)
+  fightSelfPowerThreshold: 50,
+
   // Storm spell damage (from storm.php)
   stormDamage: {
     normal: { food: 0.0912, cash: 0.1266 },     // Lines 40-41

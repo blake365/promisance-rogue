@@ -514,6 +514,7 @@ export function useGame() {
     dismissAdvisor,
     endShopPhase,
     marketTransaction,
+    fetchBankInfo,
     bankTransaction,
     executeBotPhase,
   };

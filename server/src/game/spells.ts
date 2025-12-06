@@ -144,6 +144,27 @@ export function getWizardPowerEnemy(caster: Empire, target: Empire): number {
 }
 
 // ============================================
+// WIZARD SELF POWER CALCULATION
+// From prom_spell.php getpower_self()
+// Used for fight spell minimum requirement
+// ============================================
+
+export function getWizardPowerSelf(caster: Empire): number {
+  // power = trpwiz * magic_modifier / max(bldwiz, 1)
+  const casterMagic = getModifier(caster, 'magic');
+
+  // Blood Mage: +75% magic power
+  const bloodMageBoost = getAdvisorEffectModifier(caster, 'blood_mage');
+
+  // Bot innate magic power bonus
+  const botMagicBonus = getBotInnateBonusValue(caster, 'magicPower') ?? 0;
+
+  const adjustedMagic = casterMagic * (1 + bloodMageBoost + botMagicBonus);
+
+  return caster.troops.trpwiz * adjustedMagic / Math.max(caster.buildings.bldwiz, 1);
+}
+
+// ============================================
 // WIZARD LOSS ON FAILURE
 // From prom_spell.php getwizloss_enemy()
 // ============================================
@@ -332,6 +353,11 @@ function castBlast(caster: Empire, target: Empire): SpellResult {
     // Failure - lose wizards
     const wizardsLost = getWizardLoss(caster);
     caster.troops.trpwiz -= wizardsLost;
+
+    // Update combat stats on failure (blast.php lines 59-61)
+    caster.offTotal++;
+    target.defSucc++;
+    target.defTotal++;
 
     return {
       success: false,
@@ -623,21 +649,43 @@ function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: numbe
  * Fight spell - wizard battle that can take land
  * From fight.php: threshold 2.2, destroys buildings and takes land
  * This is a magical attack using wizard power instead of military
+ *
+ * IMPORTANT: Fight spell has TWO checks:
+ * 1. getpower_self() >= 50 (minimum wizard concentration)
+ * 2. getpower_enemy() > 2.2 (overpower enemy wizards)
  */
 function castFight(caster: Empire, target: Empire): SpellResult {
+  // First check: minimum self-power requirement (fight.php line 39)
+  // Requires sufficient wizard concentration relative to towers
+  const selfPower = getWizardPowerSelf(caster);
+  if (selfPower < SPELLS.fightSelfPowerThreshold) {
+    // Failure - insufficient wizard power, lose some wizards
+    const wizardsLost = getWizardLoss(caster);
+    caster.troops.trpwiz -= wizardsLost;
+
+    return {
+      success: false,
+      spell: 'fight',
+      wizardsLost,
+    };
+  }
+
+  // Always count as combat attempt after passing self-power check (fight.php lines 46-47)
+  caster.offTotal++;
+  target.defTotal++;
+
+  // Second check: enemy power ratio (fight.php line 50)
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.fight) {
-    // Failure - lose more wizards
+    // Failure - blocked by enemy wizards, lose more wizards than success
     const wizardsLost = Math.ceil(caster.troops.trpwiz * 0.08);
     const enemyWizLoss = Math.ceil(target.troops.trpwiz * 0.04);
 
     caster.troops.trpwiz -= Math.min(wizardsLost, caster.troops.trpwiz);
     target.troops.trpwiz -= Math.min(enemyWizLoss, target.troops.trpwiz);
 
-    caster.offTotal++;
     target.defSucc++;
-    target.defTotal++;
 
     return {
       success: false,
@@ -703,10 +751,8 @@ function castFight(caster: Empire, target: Empire): SpellResult {
   caster.troops.trpwiz -= Math.min(casterWizLoss, caster.troops.trpwiz);
   target.troops.trpwiz -= Math.min(targetWizLoss, target.troops.trpwiz);
 
-  // Update combat stats
+  // Update combat stats (offTotal and defTotal already incremented above)
   caster.offSucc++;
-  caster.offTotal++;
-  target.defTotal++;
 
   target.networth = calculateNetworth(target);
   caster.networth = calculateNetworth(caster);
@@ -998,8 +1044,10 @@ export function castEnemySpell(
   // Wild Channeler: 25% chance to fizzle (runes spent, no effect)
   const wildChanneler = getAdvisorEffectModifier(caster, 'wild_channeler');
   if (wildChanneler > 0 && Math.random() < 0.25) {
-    // Still pay health cost for offensive spell attempt
-    caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+    // Still pay health cost for offensive spell attempt (except spy)
+    if (spell !== 'spy') {
+      caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+    }
     // Blood Mage: additional 5 health
     const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');
     if (bloodMage > 0) {
@@ -1050,8 +1098,11 @@ export function castEnemySpell(
       spellResult = { success: false, spell };
   }
 
-  // Apply health cost for offensive spells
-  caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+  // Apply health cost for offensive spells (except spy - per prom_spelltype_spy interface)
+  // Spy spells "do not count as attacks (no health loss, no networth restrictions)"
+  if (spell !== 'spy') {
+    caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+  }
 
   // Blood Mage: additional 5 health cost for all spells
   const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');

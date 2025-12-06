@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
 import type { Buildings } from '@/types';
 import { formatNumber } from '@/utils/format';
@@ -40,6 +40,16 @@ export function BuildingPanel({
 }: BuildingPanelProps) {
   const [mode, setMode] = useState<'build' | 'demolish'>('build');
   const [allocation, setAllocation] = useState<Partial<Record<keyof Buildings, number>>>({});
+  const [editingKey, setEditingKey] = useState<keyof Buildings | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingKey && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingKey]);
 
   const costPerBuilding = getBuildingCost(landTotal);
   const refundPerBuilding = getDemolishRefund(landTotal);
@@ -94,6 +104,30 @@ export function BuildingPanel({
 
   const clearAll = () => {
     setAllocation({});
+  };
+
+  const startEdit = (key: keyof Buildings) => {
+    setEditValue((allocation[key] || 0).toString());
+    setEditingKey(key);
+  };
+
+  const endEdit = (key: keyof Buildings) => {
+    const parsed = parseInt(editValue, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      // Use adjustAllocation logic to clamp value
+      const current = allocation[key] || 0;
+      const delta = parsed - current;
+      adjustAllocation(key, delta);
+    }
+    setEditingKey(null);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, key: keyof Buildings) => {
+    if (e.key === 'Enter') {
+      endEdit(key);
+    } else if (e.key === 'Escape') {
+      setEditingKey(null);
+    }
   };
 
   const handleConfirm = () => {
@@ -203,33 +237,50 @@ export function BuildingPanel({
                   <button
                     onClick={() => adjustAllocation(type.key, -10)}
                     disabled={selected === 0}
-                    className="number-btn w-10 h-10 text-xs disabled:opacity-30"
+                    className="number-btn w-12 h-12 text-sm text-red-400 disabled:opacity-30"
                   >
                     -10
                   </button>
                   <button
                     onClick={() => adjustAllocation(type.key, -1)}
                     disabled={selected === 0}
-                    className="number-btn w-10 h-10 disabled:opacity-30"
+                    className="number-btn w-12 h-12 text-red-400 disabled:opacity-30"
                   >
                     -
                   </button>
                 </div>
 
-                <div className="font-stats text-xl text-cyan-400 min-w-[60px] text-center">
-                  {selected}
+                {/* Tap-to-edit value display */}
+                <div
+                  className="min-w-[70px] text-center cursor-pointer"
+                  onClick={() => startEdit(type.key)}
+                >
+                  {editingKey === type.key ? (
+                    <input
+                      ref={inputRef}
+                      type="number"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => endEdit(type.key)}
+                      onKeyDown={(e) => handleEditKeyDown(e, type.key)}
+                      min={0}
+                      className="w-16 text-center font-stats text-xl bg-bg-primary border-2 border-accent rounded px-1 py-0.5"
+                    />
+                  ) : (
+                    <span className="font-stats text-xl text-accent">{selected}</span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => adjustAllocation(type.key, 1)}
-                    className="number-btn w-10 h-10 disabled:opacity-30"
+                    className="number-btn w-12 h-12 text-green-400 disabled:opacity-30"
                   >
                     +
                   </button>
                   <button
                     onClick={() => adjustAllocation(type.key, 10)}
-                    className="number-btn w-10 h-10 text-xs disabled:opacity-30"
+                    className="number-btn w-12 h-12 text-sm text-green-400 disabled:opacity-30"
                   >
                     +10
                   </button>
@@ -237,7 +288,7 @@ export function BuildingPanel({
 
                 <button
                   onClick={() => setMax(type.key)}
-                  className="btn-secondary btn-sm"
+                  className="btn-secondary btn-md min-h-[44px]"
                 >
                   Max
                 </button>

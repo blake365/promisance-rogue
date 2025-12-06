@@ -115,23 +115,32 @@ export function executeTurn(
   const empire = run.playerEmpire;
   const startingNetworth = empire.networth;
 
+  // Helper for failed result
+  const failedResult = (): TurnActionResult => ({
+    success: false,
+    turnsSpent: 0,
+    turnsRemaining: run.round.turnsRemaining,
+    income: 0,
+    expenses: 0,
+    foodProduction: 0,
+    foodConsumption: 0,
+    runeChange: 0,
+    troopsProduced: {},
+    loanPayment: 0,
+    bankInterest: 0,
+    loanInterest: 0,
+    empire,
+  });
+
   // Validate turns
   if (turns > run.round.turnsRemaining) {
-    return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining: run.round.turnsRemaining,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire,
-    };
+    return failedResult();
+  }
+
+  // Block attacks and spells when in loan emergency (loan > 2x max)
+  // Player must use regular turns to recover or pay off loan
+  if (isLoanEmergency(empire) && (action === 'attack' || action === 'spell')) {
+    return { ...failedResult(), stoppedEarly: 'loan' };
   }
 
   let result: TurnActionResult;

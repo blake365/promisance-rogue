@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { clsx } from 'clsx';
 import type { Empire, MarketPrices, EffectiveTroopPrices, ShopStock, Troops, GamePhase, ShopTransaction } from '@/types';
 import { formatNumber } from '@/utils/format';
+import { NumberInput } from '@/components/ui';
 
 interface MarketItem {
   key: string;
@@ -97,10 +98,6 @@ export function MarketPanel({
 
   const maxAmount = mode === 'buy' ? maxBuyable : maxSellable;
   const totalCost = amount * price;
-
-  const adjustAmount = (delta: number) => {
-    setAmount((prev) => Math.max(0, Math.min(maxAmount, prev + delta)));
-  };
 
   const handleTransaction = async () => {
     if (amount <= 0 || processing) return;
@@ -215,34 +212,16 @@ export function MarketPanel({
       </div>
 
       {/* Amount Selection */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-text-secondary">Amount:</span>
-          <span className="text-sm text-text-muted">Max: {formatNumber(maxAmount)}</span>
-        </div>
-
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => adjustAmount(-100)} className="number-btn">-100</button>
-          <button onClick={() => adjustAmount(-10)} className="number-btn">-10</button>
-          <button onClick={() => adjustAmount(-1)} className="number-btn">-1</button>
-
-          <div className="w-24 text-center">
-            <div className="font-stats text-2xl text-cyan-400">{formatNumber(amount)}</div>
-          </div>
-
-          <button onClick={() => adjustAmount(1)} className="number-btn">+1</button>
-          <button onClick={() => adjustAmount(10)} className="number-btn">+10</button>
-          <button onClick={() => adjustAmount(100)} className="number-btn">+100</button>
-        </div>
-
-        <div className="flex justify-center gap-2">
-          <button onClick={() => setAmount(0)} className="btn-secondary btn-sm">Zero</button>
-          <button onClick={() => setAmount(Math.floor(maxAmount / 2))} className="btn-secondary btn-sm">
-            Half
-          </button>
-          <button onClick={() => setAmount(maxAmount)} className="btn-secondary btn-sm">Max</button>
-        </div>
-      </div>
+      <NumberInput
+        value={amount}
+        onChange={setAmount}
+        min={0}
+        max={maxAmount}
+        steps={[1, 10, 100]}
+        presets={['zero', 'quarter', 'half', 'max']}
+        showMax={true}
+        label="Amount"
+      />
 
       {/* Transaction Summary */}
       <div className="bg-game-dark rounded-lg p-3 border border-game-border">
