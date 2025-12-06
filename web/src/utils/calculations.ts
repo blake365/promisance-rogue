@@ -1,19 +1,94 @@
 // Game calculations - ported from CLI components
-import type { Empire } from '@/types';
+import type { Empire, Race } from '@/types';
 
 /**
- * Calculate building cost based on current land
- * Formula: 1500 + (land × 0.05)
+ * Race building modifiers (from server constants)
+ * Positive = cheaper buildings (divides cost)
  */
-export function getBuildingCost(land: number): number {
-  return Math.floor(1500 + land * 0.05);
+const RACE_BUILDING_MODIFIERS: Record<Race, number> = {
+  human: 0,
+  elf: -10,
+  dwarf: 16,
+  troll: 8,
+  gnome: 0,
+  gremlin: 0,
+  orc: 4,
+  drow: -12,
+  goblin: 0,
+};
+
+/**
+ * Calculate the building modifier for an empire (race + advisors)
+ * Higher modifier = cheaper buildings (cost is divided by this)
+ */
+export function getBuildingModifier(empire: Empire): number {
+  const raceModifier = RACE_BUILDING_MODIFIERS[empire.race] ?? 0;
+
+  // Check for advisor bonuses that affect building costs
+  // build_cost effect type: negative modifier = cost reduction
+  let advisorBonus = 0;
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'build_cost') {
+      // build_cost is inverted: -15% cost reduction means +15% building modifier
+      advisorBonus -= advisor.effect.modifier;
+    }
+  }
+
+  return 1.0 + raceModifier / 100 + advisorBonus;
 }
 
 /**
- * Calculate demolish refund (30% of building cost)
+ * Calculate advisor cost multiplier from build_rate advisors
+ * Lower multiplier = cheaper buildings
+ */
+export function getAdvisorCostMultiplier(empire: Empire): number {
+  let costMultiplier = 1.0;
+
+  for (const advisor of empire.advisors) {
+    if (advisor.effect.type === 'build_rate') {
+      if (advisor.effect.condition === 'per_turn_with_discount') {
+        costMultiplier *= 0.80; // 20% discount per master_builder
+      } else if (advisor.effect.condition === 'per_turn') {
+        costMultiplier *= 0.75; // 25% discount for royal_architect
+      }
+    }
+  }
+
+  return costMultiplier;
+}
+
+/**
+ * Calculate base building cost (before modifiers)
+ * Formula: 1500 + (land × 0.05)
+ */
+export function getBaseBuildingCost(land: number): number {
+  return 1500 + land * 0.05;
+}
+
+/**
+ * Calculate actual building cost for an empire (with all modifiers)
+ */
+export function getBuildingCost(land: number, empire?: Empire): number {
+  const baseCost = getBaseBuildingCost(land);
+
+  if (!empire) {
+    // Fallback for cases where empire isn't available
+    return Math.floor(baseCost);
+  }
+
+  const buildingModifier = getBuildingModifier(empire);
+  const costMultiplier = getAdvisorCostMultiplier(empire);
+
+  // Server formula: Math.round((baseCost * costMultiplier) / buildingModifier)
+  return Math.round((baseCost * costMultiplier) / buildingModifier);
+}
+
+/**
+ * Calculate demolish refund (30% of base building cost)
  */
 export function getDemolishRefund(land: number): number {
-  return Math.floor(getBuildingCost(land) * 0.3);
+  const baseCost = getBaseBuildingCost(land);
+  return Math.floor(baseCost * 0.3);
 }
 
 /**

@@ -231,6 +231,7 @@ interface GameSummaryProps {
     turnsPlayed: number;
   };
   finalNetworth: number;
+  seed?: number | null;
   isVictory: boolean;
   defeatReason?: string;
   onNewGame: () => void;
@@ -240,6 +241,7 @@ interface GameSummaryProps {
 export function GameSummary({
   stats,
   finalNetworth,
+  seed,
   isVictory,
   defeatReason,
   onNewGame,
@@ -264,6 +266,11 @@ export function GameSummary({
             {defeatReason === 'no_peasants' && 'Your population collapsed'}
             {defeatReason === 'excessive_loan' && 'Your debt became unsustainable'}
             {defeatReason === 'abandoned' && 'You abandoned your empire'}
+          </p>
+        )}
+        {seed && (
+          <p className="text-gray-500 text-xs mt-2">
+            Seed: {seed}
           </p>
         )}
       </div>

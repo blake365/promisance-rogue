@@ -3,7 +3,7 @@
  * Reference: classes/prom_spell.php, spells/*.php
  */
 
-import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire, TurnStopReason } from '../types';
+import type { Empire, SpellType, SpellResult, TurnActionResult, Troops, Buildings, SpyIntel, BotEmpire, TurnStopReason, RngState } from '../types';
 import { SPELLS, ECONOMY, COMBAT } from './constants';
 import {
   getModifier,
@@ -15,6 +15,7 @@ import {
 } from './empire';
 import { processEconomy, applyEconomyResult, calcSizeBonus } from './turns';
 import { getBotInnateBonusValue } from './bot/strategies';
+import { randomInt, randomFloat } from './rng';
 
 // ============================================
 // SPELL COST CALCULATION
@@ -169,14 +170,19 @@ export function getWizardPowerSelf(caster: Empire): number {
 // From prom_spell.php getwizloss_enemy()
 // ============================================
 
-function getWizardLoss(empire: Empire): number {
+function getWizardLoss(empire: Empire, rngState: RngState): { loss: number; rngState: RngState } {
   // Random between 1-5% of wizards
   const minLoss = Math.ceil(empire.troops.trpwiz * 0.01);
   const maxLoss = Math.ceil(empire.troops.trpwiz * 0.05 + 1);
 
-  const wizloss = minLoss + Math.floor(Math.random() * (maxLoss - minLoss + 1));
+  const range = maxLoss - minLoss + 1;
+  const { state: newState, value: randValue } = randomInt(rngState, range);
+  const wizloss = minLoss + randValue;
 
-  return Math.min(wizloss, empire.troops.trpwiz);
+  return {
+    loss: Math.min(wizloss, empire.troops.trpwiz),
+    rngState: newState,
+  };
 }
 
 // ============================================
@@ -346,12 +352,12 @@ function castRegress(empire: Empire, currentRound: number): SpellResult {
  * Blast spell - destroys troops
  * From blast.php: threshold 1.15, 3% troops (1% shielded)
  */
-function castBlast(caster: Empire, target: Empire): SpellResult {
+function castBlast(caster: Empire, target: Empire, rngState: RngState): { result: SpellResult; rngState: RngState } {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.blast) {
     // Failure - lose wizards
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     // Update combat stats on failure (blast.php lines 59-61)
@@ -360,9 +366,12 @@ function castBlast(caster: Empire, target: Empire): SpellResult {
     target.defTotal++;
 
     return {
-      success: false,
-      spell: 'blast',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'blast',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -393,9 +402,12 @@ function castBlast(caster: Empire, target: Empire): SpellResult {
   target.defTotal++;
 
   return {
-    success: true,
-    spell: 'blast',
-    troopsDestroyed,
+    result: {
+      success: true,
+      spell: 'blast',
+      troopsDestroyed,
+    },
+    rngState,
   };
 }
 
@@ -403,11 +415,11 @@ function castBlast(caster: Empire, target: Empire): SpellResult {
  * Steal spell - steals gold
  * From steal.php: threshold 1.75, 10-15% cash (3-5% shielded)
  */
-function castSteal(caster: Empire, target: Empire): SpellResult {
+function castSteal(caster: Empire, target: Empire, rngState: RngState): { result: SpellResult; rngState: RngState } {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.steal) {
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     // Update combat stats on failure
@@ -416,9 +428,12 @@ function castSteal(caster: Empire, target: Empire): SpellResult {
     target.defTotal++;
 
     return {
-      success: false,
-      spell: 'steal',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'steal',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -427,7 +442,10 @@ function castSteal(caster: Empire, target: Empire): SpellResult {
   const hasShield = hasActiveShield(target);
   const minRate = hasShield ? 3000 : 10000;  // 3% or 10%
   const maxRate = hasShield ? 5000 : 15000;  // 5% or 15%
-  const rate = minRate + Math.random() * (maxRate - minRate);
+
+  // Use seeded RNG for the random rate
+  const { state: newState, value: randValue } = randomFloat(rngState);
+  const rate = minRate + randValue * (maxRate - minRate);
 
   let goldStolen = Math.round(target.resources.gold / 100000 * rate);
 
@@ -451,9 +469,12 @@ function castSteal(caster: Empire, target: Empire): SpellResult {
   target.defTotal++;
 
   return {
-    success: true,
-    spell: 'steal',
-    goldStolen,
+    result: {
+      success: true,
+      spell: 'steal',
+      goldStolen,
+    },
+    rngState: newState,
   };
 }
 
@@ -463,11 +484,11 @@ function castSteal(caster: Empire, target: Empire): SpellResult {
  * Normal: 9.12% food, 12.66% cash
  * Shielded: 3.04% food, 4.22% cash
  */
-function castStorm(caster: Empire, target: Empire): SpellResult {
+function castStorm(caster: Empire, target: Empire, rngState: RngState): { result: SpellResult; rngState: RngState } {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.storm) {
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     // Update combat stats on failure
@@ -476,9 +497,12 @@ function castStorm(caster: Empire, target: Empire): SpellResult {
     target.defTotal++;
 
     return {
-      success: false,
-      spell: 'storm',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'storm',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -507,10 +531,13 @@ function castStorm(caster: Empire, target: Empire): SpellResult {
   target.defTotal++;
 
   return {
-    success: true,
-    spell: 'storm',
-    foodDestroyed,
-    cashDestroyed,
+    result: {
+      success: true,
+      spell: 'storm',
+      foodDestroyed,
+      cashDestroyed,
+    },
+    rngState,
   };
 }
 
@@ -522,11 +549,11 @@ function castStorm(caster: Empire, target: Empire): SpellResult {
  * Only destroys if building >= land/100
  * Note: bldpop and blddef removed from game
  */
-function castStruct(caster: Empire, target: Empire): SpellResult {
+function castStruct(caster: Empire, target: Empire, rngState: RngState): { result: SpellResult; rngState: RngState } {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.struct) {
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     // Update combat stats on failure
@@ -535,9 +562,12 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
     target.defTotal++;
 
     return {
-      success: false,
-      spell: 'struct',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'struct',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -593,9 +623,12 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
   target.defTotal++;
 
   return {
-    success: true,
-    spell: 'struct',
-    buildingsDestroyed,
+    result: {
+      success: true,
+      spell: 'struct',
+      buildingsDestroyed,
+    },
+    rngState,
   };
 }
 
@@ -604,17 +637,20 @@ function castStruct(caster: Empire, target: Empire): SpellResult {
  * From spy.php: threshold 1.0 (very easy)
  * Captures a snapshot of target's stats for strategic planning
  */
-function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: number): SpellResult {
+function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: number, rngState: RngState): { result: SpellResult; rngState: RngState } {
   const power = getWizardPowerEnemy(caster, target);
 
   if (power <= SPELLS.thresholds.spy) {
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     return {
-      success: false,
-      spell: 'spy',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'spy',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -639,9 +675,12 @@ function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: numbe
   };
 
   return {
-    success: true,
-    spell: 'spy',
-    intel,
+    result: {
+      success: true,
+      spell: 'spy',
+      intel,
+    },
+    rngState,
   };
 }
 
@@ -654,19 +693,22 @@ function castSpy(caster: Empire, target: Empire | BotEmpire, currentRound: numbe
  * 1. getpower_self() >= 50 (minimum wizard concentration)
  * 2. getpower_enemy() > 2.2 (overpower enemy wizards)
  */
-function castFight(caster: Empire, target: Empire): SpellResult {
+function castFight(caster: Empire, target: Empire, rngState: RngState): { result: SpellResult; rngState: RngState } {
   // First check: minimum self-power requirement (fight.php line 39)
   // Requires sufficient wizard concentration relative to towers
   const selfPower = getWizardPowerSelf(caster);
   if (selfPower < SPELLS.fightSelfPowerThreshold) {
     // Failure - insufficient wizard power, lose some wizards
-    const wizardsLost = getWizardLoss(caster);
+    const { loss: wizardsLost, rngState: newState } = getWizardLoss(caster, rngState);
     caster.troops.trpwiz -= wizardsLost;
 
     return {
-      success: false,
-      spell: 'fight',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'fight',
+        wizardsLost,
+      },
+      rngState: newState,
     };
   }
 
@@ -688,9 +730,12 @@ function castFight(caster: Empire, target: Empire): SpellResult {
     target.defSucc++;
 
     return {
-      success: false,
-      spell: 'fight',
-      wizardsLost,
+      result: {
+        success: false,
+        spell: 'fight',
+        wizardsLost,
+      },
+      rngState,
     };
   }
 
@@ -758,10 +803,13 @@ function castFight(caster: Empire, target: Empire): SpellResult {
   caster.networth = calculateNetworth(caster);
 
   return {
-    success: true,
-    spell: 'fight',
-    buildingsDestroyed,
-    // Note: landGained is returned via buildingsDestroyed total
+    result: {
+      success: true,
+      spell: 'fight',
+      buildingsDestroyed,
+      // Note: landGained is returned via buildingsDestroyed total
+    },
+    rngState,
   };
 }
 
@@ -773,28 +821,33 @@ export function castSelfSpell(
   empire: Empire,
   spell: SpellType,
   turnsRemaining: number,
-  currentRound: number
-): TurnActionResult {
+  currentRound: number,
+  rngState: RngState
+): { result: TurnActionResult; rngState: RngState } {
   const turnsNeeded = SPELLS.turnsPerSpell;
   const cost = getSpellCost(empire, spell);
+  let currentRng = rngState;
 
   // Validate
   const validation = canCastSpell(empire, spell, turnsRemaining, currentRound);
   if (!validation.canCast) {
     return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire,
+      result: {
+        success: false,
+        turnsSpent: 0,
+        turnsRemaining,
+        income: 0,
+        expenses: 0,
+        foodProduction: 0,
+        foodConsumption: 0,
+        runeChange: 0,
+        troopsProduced: {},
+        loanPayment: 0,
+        bankInterest: 0,
+        loanInterest: 0,
+        empire,
+      },
+      rngState: currentRng,
     };
   }
 
@@ -846,20 +899,23 @@ export function castSelfSpell(
   if (stoppedEarly) {
     empire.networth = calculateNetworth(empire);
     return {
-      success: false,
-      turnsSpent: turnsActuallySpent,
-      turnsRemaining: turnsRemaining - turnsActuallySpent,
-      income: totalIncome,
-      expenses: totalExpenses,
-      foodProduction: totalFoodPro,
-      foodConsumption: totalFoodCon,
-      runeChange: totalRunes,
-      troopsProduced: totalTroopsProduced,
-      loanPayment: totalLoanPayment,
-      bankInterest: totalBankInterest,
-      loanInterest: totalLoanInterest,
-      stoppedEarly,
-      empire,
+      result: {
+        success: false,
+        turnsSpent: turnsActuallySpent,
+        turnsRemaining: turnsRemaining - turnsActuallySpent,
+        income: totalIncome,
+        expenses: totalExpenses,
+        foodProduction: totalFoodPro,
+        foodConsumption: totalFoodCon,
+        runeChange: totalRunes,
+        troopsProduced: totalTroopsProduced,
+        loanPayment: totalLoanPayment,
+        bankInterest: totalBankInterest,
+        loanInterest: totalLoanInterest,
+        stoppedEarly,
+        empire,
+      },
+      rngState: currentRng,
     };
   }
 
@@ -868,24 +924,31 @@ export function castSelfSpell(
 
   // Wild Channeler: 25% chance to fizzle (runes spent, no effect)
   const wildChanneler = getAdvisorEffectModifier(empire, 'wild_channeler');
-  if (wildChanneler > 0 && Math.random() < 0.25) {
-    empire.networth = calculateNetworth(empire);
-    return {
-      success: false,
-      turnsSpent: turnsNeeded,
-      turnsRemaining: turnsRemaining - turnsNeeded,
-      income: totalIncome,
-      expenses: totalExpenses,
-      foodProduction: totalFoodPro,
-      foodConsumption: totalFoodCon,
-      runeChange: totalRunes - cost,
-      troopsProduced: totalTroopsProduced,
-      loanPayment: totalLoanPayment,
-      bankInterest: totalBankInterest,
-      loanInterest: totalLoanInterest,
-      spellResult: { success: false, spell, effectApplied: 'fizzled' },
-      empire,
-    };
+  if (wildChanneler > 0) {
+    const { state: newState, value: fizzleRoll } = randomFloat(currentRng);
+    currentRng = newState;
+    if (fizzleRoll < 0.25) {
+      empire.networth = calculateNetworth(empire);
+      return {
+        result: {
+          success: false,
+          turnsSpent: turnsNeeded,
+          turnsRemaining: turnsRemaining - turnsNeeded,
+          income: totalIncome,
+          expenses: totalExpenses,
+          foodProduction: totalFoodPro,
+          foodConsumption: totalFoodCon,
+          runeChange: totalRunes - cost,
+          troopsProduced: totalTroopsProduced,
+          loanPayment: totalLoanPayment,
+          bankInterest: totalBankInterest,
+          loanInterest: totalLoanInterest,
+          spellResult: { success: false, spell, effectApplied: 'fizzled' },
+          empire,
+        },
+        rngState: currentRng,
+      };
+    }
   }
 
   // Cast the spell
@@ -926,20 +989,23 @@ export function castSelfSpell(
   empire.networth = calculateNetworth(empire);
 
   return {
-    success: spellResult.success,
-    turnsSpent: turnsNeeded,
-    turnsRemaining: turnsRemaining - turnsNeeded,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes - cost,
-    troopsProduced: totalTroopsProduced,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    spellResult,
-    empire,
+    result: {
+      success: spellResult.success,
+      turnsSpent: turnsNeeded,
+      turnsRemaining: turnsRemaining - turnsNeeded,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes - cost,
+      troopsProduced: totalTroopsProduced,
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      spellResult,
+      empire,
+    },
+    rngState: currentRng,
   };
 }
 
@@ -948,28 +1014,33 @@ export function castEnemySpell(
   target: Empire,
   spell: SpellType,
   turnsRemaining: number,
-  currentRound: number = 1
-): TurnActionResult {
+  currentRound: number = 1,
+  rngState: RngState
+): { result: TurnActionResult; rngState: RngState } {
   const turnsNeeded = SPELLS.turnsPerSpell;
   const cost = getSpellCost(caster, spell);
+  let currentRng = rngState;
 
   // Validate
   const validation = canCastSpell(caster, spell, turnsRemaining);
   if (!validation.canCast) {
     return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire: caster,
+      result: {
+        success: false,
+        turnsSpent: 0,
+        turnsRemaining,
+        income: 0,
+        expenses: 0,
+        foodProduction: 0,
+        foodConsumption: 0,
+        runeChange: 0,
+        troopsProduced: {},
+        loanPayment: 0,
+        bankInterest: 0,
+        loanInterest: 0,
+        empire: caster,
+      },
+      rngState: currentRng,
     };
   }
 
@@ -1021,20 +1092,23 @@ export function castEnemySpell(
   if (stoppedEarly) {
     caster.networth = calculateNetworth(caster);
     return {
-      success: false,
-      turnsSpent: turnsActuallySpent,
-      turnsRemaining: turnsRemaining - turnsActuallySpent,
-      income: totalIncome,
-      expenses: totalExpenses,
-      foodProduction: totalFoodPro,
-      foodConsumption: totalFoodCon,
-      runeChange: totalRunes,
-      troopsProduced: totalTroopsProduced,
-      loanPayment: totalLoanPayment,
-      bankInterest: totalBankInterest,
-      loanInterest: totalLoanInterest,
-      stoppedEarly,
-      empire: caster,
+      result: {
+        success: false,
+        turnsSpent: turnsActuallySpent,
+        turnsRemaining: turnsRemaining - turnsActuallySpent,
+        income: totalIncome,
+        expenses: totalExpenses,
+        foodProduction: totalFoodPro,
+        foodConsumption: totalFoodCon,
+        runeChange: totalRunes,
+        troopsProduced: totalTroopsProduced,
+        loanPayment: totalLoanPayment,
+        bankInterest: totalBankInterest,
+        loanInterest: totalLoanInterest,
+        stoppedEarly,
+        empire: caster,
+      },
+      rngState: currentRng,
     };
   }
 
@@ -1043,56 +1117,76 @@ export function castEnemySpell(
 
   // Wild Channeler: 25% chance to fizzle (runes spent, no effect)
   const wildChanneler = getAdvisorEffectModifier(caster, 'wild_channeler');
-  if (wildChanneler > 0 && Math.random() < 0.25) {
-    // Still pay health cost for offensive spell attempt (except spy)
-    if (spell !== 'spy') {
-      caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+  if (wildChanneler > 0) {
+    const { state: newState, value: fizzleRoll } = randomFloat(currentRng);
+    currentRng = newState;
+    if (fizzleRoll < 0.25) {
+      // Still pay health cost for offensive spell attempt (except spy)
+      if (spell !== 'spy') {
+        caster.health = Math.max(0, caster.health - COMBAT.offensiveSpellHealthCost);
+      }
+      // Blood Mage: additional 5 health
+      const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');
+      if (bloodMage > 0) {
+        caster.health = Math.max(0, caster.health - 5);
+      }
+      caster.networth = calculateNetworth(caster);
+      return {
+        result: {
+          success: false,
+          turnsSpent: turnsNeeded,
+          turnsRemaining: turnsRemaining - turnsNeeded,
+          income: totalIncome,
+          expenses: totalExpenses,
+          foodProduction: totalFoodPro,
+          foodConsumption: totalFoodCon,
+          runeChange: totalRunes - cost,
+          troopsProduced: totalTroopsProduced,
+          loanPayment: totalLoanPayment,
+          bankInterest: totalBankInterest,
+          loanInterest: totalLoanInterest,
+          spellResult: { success: false, spell, effectApplied: 'fizzled' },
+          empire: caster,
+        },
+        rngState: currentRng,
+      };
     }
-    // Blood Mage: additional 5 health
-    const bloodMage = getAdvisorEffectModifier(caster, 'blood_mage');
-    if (bloodMage > 0) {
-      caster.health = Math.max(0, caster.health - 5);
-    }
-    caster.networth = calculateNetworth(caster);
-    return {
-      success: false,
-      turnsSpent: turnsNeeded,
-      turnsRemaining: turnsRemaining - turnsNeeded,
-      income: totalIncome,
-      expenses: totalExpenses,
-      foodProduction: totalFoodPro,
-      foodConsumption: totalFoodCon,
-      runeChange: totalRunes - cost,
-      troopsProduced: totalTroopsProduced,
-      loanPayment: totalLoanPayment,
-      bankInterest: totalBankInterest,
-      loanInterest: totalLoanInterest,
-      spellResult: { success: false, spell, effectApplied: 'fizzled' },
-      empire: caster,
-    };
   }
 
   // Cast the spell
   let spellResult: SpellResult;
+  let spellOutcome: { result: SpellResult; rngState: RngState };
 
   switch (spell) {
     case 'blast':
-      spellResult = castBlast(caster, target);
+      spellOutcome = castBlast(caster, target, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     case 'steal':
-      spellResult = castSteal(caster, target);
+      spellOutcome = castSteal(caster, target, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     case 'storm':
-      spellResult = castStorm(caster, target);
+      spellOutcome = castStorm(caster, target, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     case 'struct':
-      spellResult = castStruct(caster, target);
+      spellOutcome = castStruct(caster, target, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     case 'spy':
-      spellResult = castSpy(caster, target, currentRound);
+      spellOutcome = castSpy(caster, target, currentRound, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     case 'fight':
-      spellResult = castFight(caster, target);
+      spellOutcome = castFight(caster, target, currentRng);
+      spellResult = spellOutcome.result;
+      currentRng = spellOutcome.rngState;
       break;
     default:
       spellResult = { success: false, spell };
@@ -1113,19 +1207,22 @@ export function castEnemySpell(
   caster.networth = calculateNetworth(caster);
 
   return {
-    success: spellResult.success,
-    turnsSpent: turnsNeeded,
-    turnsRemaining: turnsRemaining - turnsNeeded,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes - cost,
-    troopsProduced: totalTroopsProduced,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    spellResult,
-    empire: caster,
+    result: {
+      success: spellResult.success,
+      turnsSpent: turnsNeeded,
+      turnsRemaining: turnsRemaining - turnsNeeded,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes - cost,
+      troopsProduced: totalTroopsProduced,
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      spellResult,
+      empire: caster,
+    },
+    rngState: currentRng,
   };
 }

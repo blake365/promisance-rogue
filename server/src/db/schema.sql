@@ -19,7 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_players_email ON players(email);
 CREATE TABLE IF NOT EXISTS game_runs (
   id TEXT PRIMARY KEY,
   player_id TEXT NOT NULL,
-  seed INTEGER NOT NULL,
+  initial_seed INTEGER NOT NULL,  -- Original seed used to create the game
+  seed INTEGER NOT NULL,          -- Current RNG state (advances during play)
+  version INTEGER NOT NULL DEFAULT 1, -- Optimistic locking version
 
   -- Current state
   round_number INTEGER NOT NULL DEFAULT 1,
@@ -69,6 +71,7 @@ CREATE TABLE IF NOT EXISTS leaderboard (
   final_networth INTEGER NOT NULL,
   rounds_completed INTEGER NOT NULL,
   modifiers TEXT DEFAULT '[]',
+  seed INTEGER NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
 
   FOREIGN KEY (player_id) REFERENCES players(id)
@@ -107,3 +110,11 @@ CREATE TABLE IF NOT EXISTS unlocks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_unlocks_player ON unlocks(player_id);
+
+-- Rate limiting table (sliding window)
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT NOT NULL,
+  timestamp INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_key_ts ON rate_limits(key, timestamp);

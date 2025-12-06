@@ -5,11 +5,11 @@ import SelectInput from 'ink-select-input';
 import type { Race } from '../api/client.js';
 import { LeaderboardView } from '../components/LeaderboardView.js';
 
-type Stage = 'menu' | 'login' | 'new_game_name' | 'new_game_race' | 'leaderboard' | 'confirm_abandon';
+type Stage = 'menu' | 'login' | 'new_game_name' | 'new_game_seed' | 'new_game_race' | 'leaderboard' | 'confirm_abandon';
 
 interface Props {
   onLogin: (displayName: string) => Promise<boolean>;
-  onNewGame: (empireName: string, race: Race) => Promise<boolean>;
+  onNewGame: (empireName: string, race: Race, seed?: number) => Promise<boolean>;
   onContinue: () => Promise<boolean>;
   onAbandon: () => Promise<boolean>;
   hasSession: boolean;
@@ -30,13 +30,18 @@ const RACES: { label: string; value: Race }[] = [
   { label: 'Goblin - Industry', value: 'goblin' },
 ];
 
+function getRandomRace(): Race {
+  const index = Math.floor(Math.random() * RACES.length);
+  return RACES[index].value;
+}
+
 const TITLE = `
   ____  ____   ___  __  __ ___ ____
  |  _ \\|  _ \\ / _ \\|  \\/  |_ _/ ___|
  | |_) | |_) | | | | |\\/| || |\\___ \\
  |  __/|  _ <| |_| | |  | || | ___) |
  |_|   |_| \\_\\\\___/|_|  |_|___|____/
-          R O G U E`;
+      R O G U E  [ALPHA]`;
 
 export function TitleScreen({
   onLogin,
@@ -52,6 +57,7 @@ export function TitleScreen({
   const [stage, setStage] = useState<Stage>('menu');
   const [displayName, setDisplayName] = useState('');
   const [empireName, setEmpireName] = useState('');
+  const [gameSeed, setGameSeed] = useState<number | undefined>(undefined);
   const [inputValue, setInputValue] = useState('');
 
   // Memoize menu items to prevent re-renders from causing instability
@@ -75,7 +81,11 @@ export function TitleScreen({
   }, [hasSession, hasActiveGame]);
 
   const raceItems = useMemo(
-    () => [...RACES, { label: '← Back', value: 'back' as Race }],
+    () => [
+      { label: '🎲 Random Race', value: 'random' as Race },
+      ...RACES,
+      { label: '← Back', value: 'back' as Race },
+    ],
     []
   );
 
@@ -139,17 +149,31 @@ export function TitleScreen({
     }
     setEmpireName(inputValue);
     setInputValue('');
+    setStage('new_game_seed');
+  };
+
+  const handleSeedSubmit = () => {
+    if (loading) return;
+    const seedValue = inputValue.trim();
+    if (seedValue) {
+      const parsed = parseInt(seedValue, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        setGameSeed(parsed);
+      }
+    }
+    setInputValue('');
     setStage('new_game_race');
   };
 
-  const handleRaceSelect = async (item: { value: Race | 'back' }) => {
+  const handleRaceSelect = async (item: { value: Race | 'back' | 'random' }) => {
     if (loading) return;
     if (item.value === 'back') {
       setInputValue('');
-      setStage('new_game_name');
+      setStage('new_game_seed');
       return;
     }
-    await onNewGame(empireName.trim(), item.value);
+    const selectedRace = item.value === 'random' ? getRandomRace() : item.value;
+    await onNewGame(empireName.trim(), selectedRace, gameSeed);
   };
 
   return (
@@ -206,6 +230,22 @@ export function TitleScreen({
         </Box>
       )}
 
+      {stage === 'new_game_seed' && (
+        <Box flexDirection="column" alignItems="center" marginTop={1}>
+          <Text>Enter seed (optional - for reproducible games):</Text>
+          <Box marginTop={1}>
+            <Text color="green">{`> `}</Text>
+            <TextInput
+              value={inputValue}
+              onChange={(val) => setInputValue(val.replace(/[^0-9]/g, ''))}
+              onSubmit={() => handleSeedSubmit()}
+              placeholder={loading ? 'Please wait...' : 'Leave empty for random...'}
+            />
+          </Box>
+          {!loading && <Text color="gray">Press Enter to continue (empty = random seed)</Text>}
+        </Box>
+      )}
+
       {stage === 'new_game_race' && !loading && (
         <Box flexDirection="column" alignItems="center" marginTop={1}>
           <Text>Choose your race:</Text>
@@ -234,8 +274,9 @@ export function TitleScreen({
         </Box>
       )}
 
-      <Box marginTop={2}>
+      <Box marginTop={2} flexDirection="column" alignItems="center">
         <Text color="gray">A roguelike strategy game</Text>
+        <Text color="yellow">Early Alpha - Expect bugs & balance changes</Text>
       </Box>
     </Box>
   );

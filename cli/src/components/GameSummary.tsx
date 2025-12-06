@@ -5,6 +5,7 @@ import type { GameStats, Empire, Troops } from '../api/client.js';
 interface Props {
   stats: GameStats;
   empire: Empire;
+  seed?: number;
 }
 
 // Helper to format large numbers
@@ -35,7 +36,7 @@ function getTroopNames(era: string): { trparm: string; trplnd: string; trpfly: s
   }
 }
 
-export function GameSummary({ stats, empire }: Props) {
+export function GameSummary({ stats, empire, seed }: Props) {
   const troopNames = getTroopNames(empire.era);
 
   return (
@@ -182,8 +183,9 @@ export function GameSummary({ stats, empire }: Props) {
         </Box>
       </Box>
 
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="column">
         <Text color="gray">Turns Played: {stats.turnsPlayed}</Text>
+        {seed && <Text color="gray">Seed: {seed}</Text>}
       </Box>
     </Box>
   );

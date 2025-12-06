@@ -4,7 +4,7 @@ import type { TurnAction } from '../api/client.js';
 
 interface ActionItem {
   key: string;
-  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide';
+  action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide' | 'abandon';
   label: string;
   description: string;
   color: string;
@@ -30,13 +30,14 @@ const RIGHT_ACTIONS: ActionItem[] = [
   { key: 'v', action: 'bots', label: 'Enemies', description: 'See enemies', color: 'gray' },
   { key: 'g', action: 'guide', label: 'Guide', description: 'Game help', color: 'cyan' },
   { key: 'x', action: 'end_phase', label: 'End Round', description: 'Skip turns', color: 'red' },
+  { key: 'z', action: 'abandon', label: 'Abandon', description: 'Quit game', color: 'gray' },
 ];
 
 // Combined for hotkey lookup
 const ALL_ACTIONS = [...LEFT_ACTIONS, ...RIGHT_ACTIONS];
 
 interface Props {
-  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide') => void;
+  onSelect: (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide' | 'abandon') => void;
   disabled?: boolean;
 }
 

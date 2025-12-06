@@ -53,6 +53,7 @@ interface CurrentGameResponse {
   hasActiveGame: boolean;
   game?: {
     id: string;
+    seed: number;
     round: GameRound;
     playerEmpire: Empire;
     botEmpires: BotSummary[];
@@ -68,6 +69,7 @@ interface CurrentGameResponse {
 
 interface NewGameResponse {
   gameId: string;
+  seed: number;
   summary: GameSummary;
 }
 
@@ -227,10 +229,11 @@ export class PromisanceClient {
   }
 
   // Game
-  async newGame(empireName: string, race: Race): Promise<NewGameResponse> {
+  async newGame(empireName: string, race: Race, seed?: number): Promise<NewGameResponse> {
     return this.request<NewGameResponse>('POST', '/api/game/new', {
       empireName,
       race,
+      seed,
     });
   }
 

@@ -103,20 +103,32 @@ export async function updatePlayerStats(
 // GAME RUN OPERATIONS
 // ============================================
 
-export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
-  await db
+/**
+ * Save game run with optimistic locking.
+ * Returns true if save succeeded, false if there was a version conflict.
+ */
+export async function saveGameRun(db: D1Database, run: GameRun): Promise<boolean> {
+  const currentVersion = run.version;
+  const newVersion = currentVersion + 1;
+
+  // Try to update with version check
+  const result = await db
     .prepare(
-      `INSERT OR REPLACE INTO game_runs
-       (id, player_id, seed, round_number, turns_remaining, phase,
-        player_empire, bot_empires, market_prices, shop_stock, draft_options,
-        reroll_cost, reroll_count, intel, offered_advisor_ids, modifiers,
-        player_defeated, stats, created_at, updated_at, completed_at, final_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `UPDATE game_runs SET
+        player_id = ?, initial_seed = ?, seed = ?, version = ?,
+        round_number = ?, turns_remaining = ?, phase = ?,
+        player_empire = ?, bot_empires = ?, market_prices = ?,
+        shop_stock = ?, draft_options = ?, reroll_cost = ?, reroll_count = ?,
+        intel = ?, offered_advisor_ids = ?, modifiers = ?,
+        player_defeated = ?, stats = ?, updated_at = ?,
+        completed_at = ?, final_score = ?
+       WHERE id = ? AND version = ?`
     )
     .bind(
-      run.id,
       run.playerId,
-      run.rngState.current,  // Store RNG state as seed in DB
+      run.seed,              // Original seed used to create the game
+      run.rngState.current,  // Current RNG state (advances during play)
+      newVersion,
       run.round.number,
       run.round.turnsRemaining,
       run.round.phase,
@@ -132,12 +144,72 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<void> {
       JSON.stringify(run.modifiers ?? []),
       run.playerDefeated ?? null,
       JSON.stringify(run.stats),
-      run.createdAt,
-      run.updatedAt,
+      Date.now(),
       run.round.phase === 'complete' ? Date.now() : null,
-      run.round.phase === 'complete' ? run.playerEmpire.networth : null
+      run.round.phase === 'complete' ? run.playerEmpire.networth : null,
+      run.id,
+      currentVersion
     )
     .run();
+
+  // Check if the update affected any rows
+  if (result.meta.changes === 0) {
+    // Either record doesn't exist or version mismatch
+    // Try insert for new records
+    const existingRun = await db
+      .prepare('SELECT version FROM game_runs WHERE id = ?')
+      .bind(run.id)
+      .first();
+
+    if (!existingRun) {
+      // New record - do an insert
+      await db
+        .prepare(
+          `INSERT INTO game_runs
+           (id, player_id, initial_seed, seed, version, round_number, turns_remaining, phase,
+            player_empire, bot_empires, market_prices, shop_stock, draft_options,
+            reroll_cost, reroll_count, intel, offered_advisor_ids, modifiers,
+            player_defeated, stats, created_at, updated_at, completed_at, final_score)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          run.id,
+          run.playerId,
+          run.seed,
+          run.rngState.current,
+          1, // Initial version
+          run.round.number,
+          run.round.turnsRemaining,
+          run.round.phase,
+          JSON.stringify(run.playerEmpire),
+          JSON.stringify(run.botEmpires),
+          JSON.stringify(run.marketPrices),
+          run.shopStock ? JSON.stringify(run.shopStock) : null,
+          run.draftOptions ? JSON.stringify(run.draftOptions) : null,
+          run.rerollCost ?? null,
+          run.rerollCount ?? 0,
+          JSON.stringify(run.intel ?? {}),
+          JSON.stringify(run.offeredAdvisorIds ?? []),
+          JSON.stringify(run.modifiers ?? []),
+          run.playerDefeated ?? null,
+          JSON.stringify(run.stats),
+          run.createdAt,
+          Date.now(),
+          run.round.phase === 'complete' ? Date.now() : null,
+          run.round.phase === 'complete' ? run.playerEmpire.networth : null
+        )
+        .run();
+      run.version = 1;
+      return true;
+    }
+
+    // Version conflict - return false
+    return false;
+  }
+
+  // Update succeeded - update the run's version
+  run.version = newVersion;
+  return true;
 }
 
 export async function getGameRun(db: D1Database, id: string): Promise<GameRun | null> {
@@ -230,7 +302,9 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
   return {
     id: row.id as string,
     playerId: row.player_id as string,
-    rngState: { current: row.seed as number },  // Reconstruct RNG state from DB seed
+    seed: row.initial_seed as number,  // The original seed used to create the game
+    rngState: { current: row.seed as number },  // Current RNG state (advances during play)
+    version: (row.version as number) ?? 1,  // Optimistic locking version (default 1 for old records)
     round: {
       number: row.round_number as number,
       turnsRemaining: row.turns_remaining as number,
@@ -269,14 +343,15 @@ export async function addLeaderboardEntry(
     finalNetworth: run.playerEmpire.networth,
     roundsCompleted: run.round.number,
     modifiers: run.modifiers.map((m) => m.id),
+    seed: run.seed,
     createdAt: Date.now(),
   };
 
   await db
     .prepare(
       `INSERT INTO leaderboard
-       (id, player_id, player_name, race, final_networth, rounds_completed, modifiers, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, player_id, player_name, race, final_networth, rounds_completed, modifiers, seed, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       entry.id,
@@ -286,6 +361,7 @@ export async function addLeaderboardEntry(
       entry.finalNetworth,
       entry.roundsCompleted,
       JSON.stringify(entry.modifiers),
+      entry.seed,
       entry.createdAt
     )
     .run();
@@ -338,6 +414,7 @@ export async function getLeaderboard(
     finalNetworth: row.final_networth as number,
     roundsCompleted: row.rounds_completed as number,
     modifiers: JSON.parse(row.modifiers as string),
+    seed: row.seed as number,
     createdAt: row.created_at as number,
   })) as LeaderboardEntry[];
 }

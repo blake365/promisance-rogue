@@ -31,6 +31,7 @@ interface PlayerState {
 
 interface GameState {
   gameId: string | null;
+  seed: number | null;
   round: GameRound | null;
   playerEmpire: Empire | null;
   botEmpires: BotSummary[];
@@ -64,7 +65,7 @@ interface GameStore {
   login: (displayName: string) => Promise<boolean>;
   restoreSession: () => Promise<boolean>;
   checkActiveGame: () => Promise<boolean>;
-  newGame: (empireName: string, race: Race) => Promise<boolean>;
+  newGame: (empireName: string, race: Race, seed?: number) => Promise<boolean>;
   abandonGame: () => Promise<boolean>;
   executeAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
   endPlayerPhase: () => Promise<boolean>;
@@ -87,6 +88,7 @@ const initialPlayerState: PlayerState = {
 
 const initialGameState: GameState = {
   gameId: null,
+  seed: null,
   round: null,
   playerEmpire: null,
   botEmpires: [],
@@ -178,6 +180,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({
           game: {
             gameId: response.game.id,
+            seed: response.game.seed,
             round: response.game.round,
             playerEmpire: response.game.playerEmpire,
             botEmpires: response.game.botEmpires,
@@ -207,15 +210,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // Start new game
-  newGame: async (empireName: string, race: Race) => {
+  newGame: async (empireName: string, race: Race, seed?: number) => {
     set({ loading: true, error: null });
     try {
-      const response = await client.newGame(empireName, race);
+      const response = await client.newGame(empireName, race, seed);
       const gameResponse = await client.getGame(response.gameId);
       if (gameResponse.game) {
         set({
           game: {
             gameId: response.gameId,
+            seed: response.seed,
             round: gameResponse.game.round,
             playerEmpire: gameResponse.game.playerEmpire,
             botEmpires: gameResponse.game.botEmpires,
@@ -289,6 +293,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
           },
           lastActionResult: response.result,
           lastActionType: action.action,
+          loading: false,
+        });
+      } else {
+        // Action failed - clear loading and show error
+        set({
+          error: 'Action failed - not enough resources',
           loading: false,
         });
       }

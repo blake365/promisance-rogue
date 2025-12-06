@@ -50,7 +50,9 @@ export function createGameRun(
   return {
     id,
     playerId,
+    seed: gameSeed,
     rngState,
+    version: 1,  // Initial optimistic locking version
 
     round: {
       number: 1,
@@ -132,8 +134,8 @@ export function executeTurn(
     empire,
   });
 
-  // Validate turns
-  if (turns > run.round.turnsRemaining) {
+  // Validate turns - must be positive integer within remaining
+  if (!Number.isInteger(turns) || turns <= 0 || turns > run.round.turnsRemaining) {
     return failedResult();
   }
 
@@ -242,7 +244,9 @@ export function executeTurn(
         };
       }
 
-      result = processAttack(empire, target, run.round.turnsRemaining, request.attackType || 'standard');
+      const attackOutcome = processAttack(empire, target, run.round.turnsRemaining, request.attackType || 'standard', run.rngState);
+      result = attackOutcome.result;
+      run.rngState = attackOutcome.rngState;
 
       // Update bot's memory and increment attack counter on success
       if (result.success) {
@@ -290,12 +294,15 @@ export function executeTurn(
 
         for (let i = 0; i < numCasts; i++) {
           // Check if we can still cast (have enough runes, turns, etc.)
-          const singleResult = castSelfSpell(
+          const spellOutcome = castSelfSpell(
             empire,
             request.spell,
             run.round.turnsRemaining - totalTurnsSpent,
-            run.round.number
+            run.round.number,
+            run.rngState
           );
+          run.rngState = spellOutcome.rngState;
+          const singleResult = spellOutcome.result;
 
           if (!singleResult.success && singleResult.turnsSpent === 0) {
             // Can't cast anymore (not enough resources/turns)
@@ -437,7 +444,9 @@ export function executeTurn(
           };
         }
 
-        result = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining, run.round.number);
+        const enemySpellOutcome = castEnemySpell(empire, target, request.spell, run.round.turnsRemaining, run.round.number, run.rngState);
+        run.rngState = enemySpellOutcome.rngState;
+        result = enemySpellOutcome.result;
 
         // Update bot's memory and increment counter on success
         if (result.success) {
@@ -462,9 +471,30 @@ export function executeTurn(
     default:
       // Apply tax rate and industry allocation changes before executing action
       if (action === 'cash' && request.taxRate !== undefined) {
-        empire.taxRate = Math.max(0, Math.min(100, request.taxRate));
+        // Validate tax rate is an integer between 0-100
+        if (!Number.isInteger(request.taxRate) || request.taxRate < 0 || request.taxRate > 100) {
+          return failedResult();
+        }
+        empire.taxRate = request.taxRate;
       }
       if (action === 'industry' && request.industryAllocation !== undefined) {
+        // Validate industry allocation
+        const alloc = request.industryAllocation;
+        const values = [alloc.trparm, alloc.trplnd, alloc.trpfly, alloc.trpsea];
+
+        // All values must be integers between 0-100
+        for (const val of values) {
+          if (!Number.isInteger(val) || val < 0 || val > 100) {
+            return failedResult();
+          }
+        }
+
+        // Sum must equal 100
+        const sum = values.reduce((a, b) => a + b, 0);
+        if (sum !== 100) {
+          return failedResult();
+        }
+
         empire.industryAllocation = { ...request.industryAllocation };
       }
       result = executeTurnAction(empire, action, turns, {
@@ -567,7 +597,7 @@ export function selectDraft(run: GameRun, optionIndex: number): { success: boole
     return { success: false, error: 'Not in shop phase' };
   }
 
-  if (optionIndex < 0 || optionIndex >= run.draftOptions.length) {
+  if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= run.draftOptions.length) {
     return { success: false, error: 'Invalid option index' };
   }
 

@@ -28,6 +28,7 @@ import type {
 import { TURNS_PER_ROUND, COMBAT, UNIT_COSTS, SHOP } from '../constants';
 import { executeTurnAction, calcProvisions, calcFinances } from '../turns';
 import { processAttack, calculateOffensePower, calculateDefensePower } from '../combat';
+import { createRngState } from '../rng';
 import { castEnemySpell, castSelfSpell, getSpellCost } from '../spells';
 import { calculateNetworth, canAttackEra } from '../empire';
 import { executeMarketTransaction } from '../shop';
@@ -285,9 +286,11 @@ function executeSpyPhase(ctx: BotPhaseContext): void {
   }
 
   // Cast spy spell
-  const result = castEnemySpell(bot, spyTarget, 'spy', ctx.turnsRemaining, roundNumber);
+  const spellRngState = createRngState(ctx.rng);
+  const spellOutcome = castEnemySpell(bot, spyTarget, 'spy', ctx.turnsRemaining, roundNumber, spellRngState);
+  const result = spellOutcome.result;
+  ctx.rng = spellOutcome.rngState.current;
   ctx.turnsRemaining -= result.turnsSpent;
-  ctx.rng = advanceRng(ctx.rng);
 
   // If successful, store the intel from spellResult
   if (result.success && result.spellResult?.intel) {
@@ -494,7 +497,10 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
     ctx.rng = advanceRng(ctx.rng);
 
     // Execute attack
-    const result = processAttack(bot, target, ctx.turnsRemaining, attackType);
+    const attackRngState = createRngState(ctx.rng);
+    const attackOutcome = processAttack(bot, target, ctx.turnsRemaining, attackType, attackRngState);
+    const result = attackOutcome.result;
+    ctx.rng = attackOutcome.rngState.current;
     ctx.turnsRemaining -= result.turnsSpent;
 
     if (result.success && result.combatResult) {
@@ -622,7 +628,10 @@ function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
     }
 
     // Cast the spell
-    const result = castEnemySpell(bot, target, spell, ctx.turnsRemaining, roundNumber);
+    const spellRngState = createRngState(ctx.rng);
+    const spellOutcome = castEnemySpell(bot, target, spell, ctx.turnsRemaining, roundNumber, spellRngState);
+    const result = spellOutcome.result;
+    ctx.rng = spellOutcome.rngState.current;
     ctx.turnsRemaining -= result.turnsSpent;
 
     // Generate news for ALL spell attempts (success or failure)
@@ -1258,9 +1267,11 @@ function executeDefensePhase(ctx: BotPhaseContext): void {
 
   // We need turns to cast (spell costs 2 turns)
   // This happens at end of phase, so use any remaining turns or accept going slightly negative
-  const result = castSelfSpell(bot, 'shield', Math.max(2, ctx.turnsRemaining), roundNumber);
+  const shieldRngState = createRngState(ctx.rng);
+  const spellOutcome = castSelfSpell(bot, 'shield', Math.max(2, ctx.turnsRemaining), roundNumber, shieldRngState);
+  const result = spellOutcome.result;
+  ctx.rng = spellOutcome.rngState.current;
   ctx.turnsRemaining -= result.turnsSpent;
-  ctx.rng = advanceRng(ctx.rng);
 }
 
 // ============================================

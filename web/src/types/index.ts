@@ -277,6 +277,7 @@ export interface LeaderboardEntry {
   finalNetworth: number;
   roundsCompleted: number;
   modifiers: string[];
+  seed: number;
   createdAt: number;
 }
 

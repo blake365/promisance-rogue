@@ -63,7 +63,8 @@ type ViewMode =
   | 'advisors'
   | 'bot_phase'
   | 'bot_phase_results'
-  | 'guide';
+  | 'guide'
+  | 'abandon_confirm';
 
 // Tech bonus percentages per level
 const TECH_BONUS: Record<string, number> = {
@@ -125,6 +126,7 @@ interface Props {
   bankInfo: BankInfo | null;
   playerDefeated: DefeatReason | null;
   stats: GameStats | null;
+  seed: number | null;
   loading: boolean;
   error: string | null;
   onAction: (action: TurnActionRequest) => Promise<TurnActionResult | null>;
@@ -139,6 +141,7 @@ interface Props {
   onExecuteBotPhase: () => Promise<BotPhaseResponse | null>;
   onClearError: () => void;
   onQuit: () => void;
+  onAbandon: () => Promise<boolean>;
 }
 
 export function GameScreen({
@@ -154,6 +157,7 @@ export function GameScreen({
   bankInfo,
   playerDefeated,
   stats,
+  seed,
   loading,
   error,
   onAction,
@@ -168,6 +172,7 @@ export function GameScreen({
   onExecuteBotPhase,
   onClearError,
   onQuit,
+  onAbandon,
 }: Props) {
   const { exit } = useApp();
   const [view, setView] = useState<ViewMode>('main');
@@ -203,8 +208,10 @@ export function GameScreen({
 
   // Handle action selection from menu
   const handleActionSelect = useCallback(
-    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide') => {
-      if (action === 'overview') {
+    async (action: TurnAction | 'end_phase' | 'status' | 'overview' | 'bots' | 'market' | 'bank' | 'guide' | 'abandon') => {
+      if (action === 'abandon') {
+        setView('abandon_confirm');
+      } else if (action === 'overview') {
         setView('overview');
       } else if (action === 'bots') {
         setView('bots');
@@ -650,6 +657,17 @@ export function GameScreen({
         {view === 'guide' && (
           <Box marginTop={1}>
             <GuideScreen onClose={() => setView('main')} />
+          </Box>
+        )}
+
+        {view === 'abandon_confirm' && (
+          <Box marginTop={1}>
+            <AbandonConfirm
+              onConfirm={async () => {
+                await onAbandon();
+              }}
+              onCancel={() => setView('main')}
+            />
           </Box>
         )}
 
@@ -1121,7 +1139,7 @@ export function GameScreen({
         </Box>
         {stats && (
           <Box marginTop={1}>
-            <GameSummary stats={stats} empire={empire} />
+            <GameSummary stats={stats} empire={empire} seed={seed ?? undefined} />
           </Box>
         )}
         <Box marginTop={1} alignItems="center" justifyContent="center">
@@ -1147,7 +1165,7 @@ export function GameScreen({
       </Box>
       {stats && (
         <Box marginTop={1}>
-          <GameSummary stats={stats} empire={empire} />
+          <GameSummary stats={stats} empire={empire} seed={seed ?? undefined} />
         </Box>
       )}
       <Box marginTop={1} alignItems="center" justifyContent="center">
@@ -1196,4 +1214,29 @@ function EdictResultPrompt({ onContinue }: { onContinue: () => void }) {
   });
 
   return null;
+}
+
+// Helper component for abandon confirmation
+function AbandonConfirm({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  useInput((input, key) => {
+    if (input === 'y' || input === 'Y') {
+      onConfirm();
+    } else if (input === 'n' || input === 'N' || key.escape) {
+      onCancel();
+    }
+  });
+
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={2} paddingY={1}>
+      <Text bold color="red">Abandon Game?</Text>
+      <Box marginTop={1}>
+        <Text color="gray">Your empire will be lost and this run will not be added to the leaderboard.</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text color="yellow">[y] Abandon</Text>
+        <Text> • </Text>
+        <Text color="green">[n] Cancel</Text>
+      </Box>
+    </Box>
+  );
 }

@@ -1,7 +1,7 @@
 import { clsx } from 'clsx';
 import type { TurnAction } from '@/types';
 
-type ActionType = TurnAction | 'market' | 'bank' | 'overview' | 'enemies' | 'guide' | 'end_phase';
+type ActionType = TurnAction | 'market' | 'bank' | 'overview' | 'enemies' | 'guide' | 'end_phase' | 'abandon';
 
 interface ActionItem {
   action: ActionType;
@@ -28,6 +28,7 @@ const SECONDARY_ACTIONS: ActionItem[] = [
   { action: 'bank', icon: '🏦', label: 'Bank', description: 'Savings & loans', color: 'text-green-400' },
   { action: 'overview', icon: '📊', label: 'Overview', description: 'Empire details', color: 'text-gray-400' },
   { action: 'enemies', icon: '👁️', label: 'Enemies', description: 'View opponents', color: 'text-red-400' },
+  { action: 'abandon', icon: '🏳️', label: 'Abandon', description: 'Quit game', color: 'text-gray-500' },
 ];
 
 interface ActionGridProps {

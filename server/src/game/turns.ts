@@ -712,6 +712,13 @@ export function processBuild(
   empire: Empire,
   allocation: Partial<Buildings>
 ): TurnActionResult {
+  // Validate all allocation values are non-negative integers
+  for (const [key, value] of Object.entries(allocation)) {
+    if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+      return failedBuildResult(empire);
+    }
+  }
+
   // Calculate total buildings to construct
   const totalToConstruct =
     (allocation.bldpop ?? 0) +
@@ -793,6 +800,13 @@ export function processDemolish(
   empire: Empire,
   allocation: Partial<Buildings>
 ): TurnActionResult {
+  // Validate all allocation values are non-negative integers
+  for (const [key, value] of Object.entries(allocation)) {
+    if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+      return failedBuildResult(empire);
+    }
+  }
+
   // Calculate total buildings to demolish
   const totalToDemolish =
     (allocation.bldpop ?? 0) +

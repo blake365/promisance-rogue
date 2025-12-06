@@ -112,8 +112,8 @@ function App() {
   };
 
   // Handle new game
-  const handleNewGame = async (empireName: string, race: any) => {
-    const success = await newGame(empireName, race);
+  const handleNewGame = async (empireName: string, race: any, seed?: number) => {
+    const success = await newGame(empireName, race, seed);
     if (success) {
       // Save session after creating game
       if (client.getSession()) {
@@ -139,6 +139,7 @@ function App() {
     const success = await abandonGame();
     if (success) {
       setHasActiveGame(false);
+      setScreen('title');
     }
     return success;
   };
@@ -186,6 +187,7 @@ function App() {
         bankInfo={bankInfo}
         playerDefeated={game.playerDefeated}
         stats={game.stats}
+        seed={game.seed}
         loading={loading}
         error={error}
         onAction={executeAction}
@@ -200,6 +202,7 @@ function App() {
         onExecuteBotPhase={executeBotPhase}
         onClearError={clearError}
         onQuit={handleQuit}
+        onAbandon={handleAbandon}
       />
     );
   }

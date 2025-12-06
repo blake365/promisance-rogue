@@ -6,6 +6,7 @@ import { executeMarketTransaction, dismissAdvisor, getAdvisorCapacity, getEffect
 import { calculateNetworth } from '../game/empire';
 import { getCombatPreview } from '../game/combat';
 import { processBankTransaction, getBankInfo } from '../game/bank';
+import { rateLimit, getClientIP, getPlayerId } from '../middleware/rateLimit';
 import * as db from '../db/operations';
 
 // Custom context with auth
@@ -78,12 +79,21 @@ function getIntelWithPolicy(
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// CORS for frontend
-app.use('*', cors({
-  origin: '*', // Configure for production
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-}));
+// CORS for frontend - uses CORS_ORIGIN env var in production
+// Set CORS_ORIGIN to comma-separated list of allowed origins (e.g., "https://example.com,https://app.example.com")
+app.use('*', async (c, next) => {
+  const allowedOrigins = c.env.CORS_ORIGIN?.split(',').map((o: string) => o.trim()) || ['*'];
+  const origin = c.req.header('Origin') || '';
+
+  // Check if origin is allowed (or if wildcard is set)
+  const isAllowed = allowedOrigins.includes('*') || allowedOrigins.includes(origin);
+
+  return cors({
+    origin: isAllowed ? origin || '*' : allowedOrigins[0],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  })(c, next);
+});
 
 // Auth middleware
 app.use('/api/*', async (c, next) => {
@@ -101,6 +111,30 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
+// Rate limiting for auth endpoints (5 requests per minute by IP)
+app.use('/api/auth/*', rateLimit({
+  maxRequests: 5,
+  windowMs: 60 * 1000,
+  keyGenerator: (c) => `auth:${getClientIP(c)}`,
+  message: 'Too many auth requests. Please try again later.',
+}));
+
+// Rate limiting for game actions (60 requests per minute by player)
+app.use('/api/game/:id/action', rateLimit({
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+  keyGenerator: (c) => `action:${getPlayerId(c)}`,
+  message: 'Too many actions. Please slow down.',
+}));
+
+// Rate limiting for market transactions (30 requests per minute by player)
+app.use('/api/game/:id/market', rateLimit({
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+  keyGenerator: (c) => `market:${getPlayerId(c)}`,
+  message: 'Too many market requests. Please slow down.',
+}));
+
 // Helper to require auth
 function requireAuth(c: any): string | Response {
   const playerId = c.get('playerId');
@@ -108,6 +142,14 @@ function requireAuth(c: any): string | Response {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   return playerId;
+}
+
+// Helper to handle optimistic locking conflicts
+function conflictResponse(c: any): Response {
+  return c.json(
+    { error: 'Conflict: game state was modified. Please refresh and try again.' },
+    409
+  );
 }
 
 // ============================================
@@ -157,9 +199,10 @@ app.post('/api/game/new', async (c) => {
   const playerId = requireAuth(c);
   if (typeof playerId !== 'string') return playerId;
 
-  const { empireName, race } = await c.req.json<{
+  const { empireName, race, seed } = await c.req.json<{
     empireName: string;
     race: Race;
+    seed?: number;
   }>();
 
   // Validate inputs
@@ -170,6 +213,13 @@ app.post('/api/game/new', async (c) => {
   const validRaces: Race[] = ['human', 'elf', 'dwarf', 'troll', 'gnome', 'gremlin', 'orc', 'drow', 'goblin'];
   if (!validRaces.includes(race)) {
     return c.json({ error: 'Invalid race' }, 400);
+  }
+
+  // Validate seed if provided (must be a positive integer)
+  let validatedSeed: number | undefined;
+  if (seed !== undefined) {
+    validatedSeed = Math.floor(Math.abs(seed)) % 2147483647;
+    if (validatedSeed === 0) validatedSeed = 1; // Avoid seed of 0
   }
 
   // Check for existing active game
@@ -183,12 +233,13 @@ app.post('/api/game/new', async (c) => {
 
   // Create new game
   const gameId = crypto.randomUUID();
-  const run = createGameRun(gameId, playerId, empireName, race);
+  const run = createGameRun(gameId, playerId, empireName, race, validatedSeed);
 
   await db.saveGameRun(c.env.DB, run);
 
   return c.json({
     gameId: run.id,
+    seed: run.seed,
     summary: getGameSummary(run),
   });
 });
@@ -228,6 +279,7 @@ app.get('/api/game/current', async (c) => {
     hasActiveGame: true,
     game: {
       id: run.id,
+      seed: run.seed,
       round: run.round,
       playerEmpire: run.playerEmpire,
       botEmpires: run.botEmpires.map(mapBotToSummary),
@@ -262,6 +314,7 @@ app.get('/api/game/:id', async (c) => {
   return c.json({
     game: {
       id: run.id,
+      seed: run.seed,
       round: run.round,
       playerEmpire: run.playerEmpire,
       botEmpires: run.botEmpires.map(mapBotToSummary),
@@ -306,7 +359,10 @@ app.post('/api/game/:id/action', async (c) => {
   const result = executeTurn(run, request);
 
   if (result.success) {
-    await db.saveGameRun(c.env.DB, run);
+    const saved = await db.saveGameRun(c.env.DB, run);
+    if (!saved) {
+      return conflictResponse(c);
+    }
   }
 
   return c.json({
@@ -413,7 +469,10 @@ app.post('/api/game/:id/market', async (c) => {
   if (result.success) {
     // Update networth after market transaction
     run.playerEmpire.networth = calculateNetworth(run.playerEmpire);
-    await db.saveGameRun(c.env.DB, run);
+    const saved = await db.saveGameRun(c.env.DB, run);
+    if (!saved) {
+      return conflictResponse(c);
+    }
   }
 
   return c.json({
@@ -466,7 +525,10 @@ app.post('/api/game/:id/bank', async (c) => {
   const result = processBankTransaction(run.playerEmpire, transaction);
 
   if (result.success) {
-    await db.saveGameRun(c.env.DB, run);
+    const saved = await db.saveGameRun(c.env.DB, run);
+    if (!saved) {
+      return conflictResponse(c);
+    }
   }
 
   return c.json({
@@ -501,7 +563,10 @@ app.post('/api/game/:id/draft', async (c) => {
   const result = selectDraft(run, optionIndex);
 
   if (result.success) {
-    await db.saveGameRun(c.env.DB, run);
+    const saved = await db.saveGameRun(c.env.DB, run);
+    if (!saved) {
+      return conflictResponse(c);
+    }
   }
 
   return c.json({
@@ -553,7 +618,10 @@ app.post('/api/game/:id/reroll', async (c) => {
   const result = rerollDraft(run);
 
   if (result.success) {
-    await db.saveGameRun(c.env.DB, run);
+    const saved = await db.saveGameRun(c.env.DB, run);
+    if (!saved) {
+      return conflictResponse(c);
+    }
   }
 
   return c.json({

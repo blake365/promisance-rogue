@@ -245,6 +245,7 @@ export function GamePage() {
     bankTransaction,
     executeBotPhase,
     resetGame,
+    abandonGame,
   } = useGameStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>('main');
@@ -255,6 +256,7 @@ export function GamePage() {
   const [editedIndustryAllocation, setEditedIndustryAllocation] = useState<IndustryAllocation | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [showFullResult, setShowFullResult] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
 
   // Check for active game on mount
   useEffect(() => {
@@ -312,10 +314,12 @@ export function GamePage() {
   const { playerEmpire, round, botEmpires, intel, marketPrices, effectivePrices, shopStock, draftOptions, rerollInfo } = game;
 
   // Handle action selection
-  const handleAction = (action: TurnAction | 'market' | 'bank' | 'overview' | 'enemies' | 'guide' | 'end_phase') => {
+  const handleAction = (action: TurnAction | 'market' | 'bank' | 'overview' | 'enemies' | 'guide' | 'end_phase' | 'abandon') => {
     clearError();
 
-    if (action === 'market') {
+    if (action === 'abandon') {
+      setShowAbandonConfirm(true);
+    } else if (action === 'market') {
       setViewMode('market');
     } else if (action === 'bank') {
       // Refresh bank info to ensure it's current (e.g., after forced loans from negative gold)
@@ -502,6 +506,7 @@ export function GamePage() {
             gold={playerEmpire.resources.gold}
             landTotal={playerEmpire.resources.land}
             currentBuildings={playerEmpire.buildings}
+            empire={playerEmpire}
             onBuild={handleBuild}
             onDemolish={handleDemolish}
             onCancel={() => setViewMode('main')}
@@ -705,6 +710,7 @@ export function GamePage() {
           <GameSummary
             stats={game.stats}
             finalNetworth={playerEmpire.networth}
+            seed={game.seed}
             isVictory={game.isComplete && !game.playerDefeated}
             defeatReason={game.playerDefeated || undefined}
             onNewGame={() => {
@@ -752,6 +758,13 @@ export function GamePage() {
     setViewMode('action_result');
   };
 
+  // Handle abandon game confirmation
+  const handleAbandonConfirm = async () => {
+    await abandonGame();
+    setShowAbandonConfirm(false);
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Error Toast */}
@@ -795,6 +808,33 @@ export function GamePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
           <div className="bg-game-panel px-6 py-4 rounded-lg border border-game-border">
             <div className="animate-pulse text-cyan-400">Processing...</div>
+          </div>
+        </div>
+      )}
+
+      {/* Abandon Confirmation Modal */}
+      {showAbandonConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-game-card border-2 border-red-500/50 rounded-lg p-6 max-w-sm w-full text-center animate-in fade-in zoom-in duration-200">
+            <div className="text-4xl mb-3">🏳️</div>
+            <h3 className="font-display text-lg text-red-400 mb-2">Abandon Game?</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Your empire will be lost and this run will not be added to the leaderboard.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAbandonConfirm(false)}
+                className="flex-1 py-2 px-4 rounded-lg bg-game-border text-gray-300 hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAbandonConfirm}
+                className="flex-1 py-2 px-4 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors"
+              >
+                Abandon
+              </button>
+            </div>
           </div>
         </div>
       )}

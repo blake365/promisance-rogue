@@ -3,7 +3,7 @@
  * Reference: pages/military.php
  */
 
-import type { Empire, CombatResult, Troops, Buildings, TurnActionResult, AttackType, TurnStopReason } from '../types';
+import type { Empire, CombatResult, Troops, Buildings, TurnActionResult, AttackType, TurnStopReason, RngState } from '../types';
 import { UNIT_STATS, COMBAT, WIZARD_POWER, UnitType } from './constants';
 import {
   getModifier,
@@ -17,6 +17,7 @@ import {
 } from './empire';
 import { processEconomy, applyEconomyResult } from './turns';
 import { getBotInnateBonusValue } from './bot/strategies';
+import { randomInt } from './rng';
 
 // ============================================
 // POWER CALCULATIONS
@@ -147,26 +148,29 @@ function calcUnitLoss(
   attackRate: number,
   defendRate: number,
   omod: number,
-  dmod: number
-): { attackLoss: number; defendLoss: number } {
+  dmod: number,
+  rngState: RngState
+): { attackLoss: number; defendLoss: number; rngState: RngState } {
+  let rng = rngState;
+
   // Attacker losses: random up to (units * rate * omod)
   const maxAttackLoss = Math.ceil(attackUnits * attackRate * omod) + 1;
-  const attackLoss = Math.min(
-    Math.floor(Math.random() * maxAttackLoss),
-    attackUnits
-  );
+  let rngResult = randomInt(rng, maxAttackLoss);
+  rng = rngResult.state;
+  const attackLoss = Math.min(rngResult.value, attackUnits);
 
   // Defender losses: capped at 90-110% of attacker's units sent
-  const maxKill = Math.round(0.9 * attackUnits) +
-    Math.floor(Math.random() * (Math.round(0.2 * attackUnits) + 1));
-  const maxDefendLoss = Math.ceil(defendUnits * defendRate * dmod) + 1;
-  const defendLoss = Math.min(
-    Math.floor(Math.random() * maxDefendLoss),
-    defendUnits,
-    maxKill
-  );
+  const killVariance = Math.round(0.2 * attackUnits) + 1;
+  rngResult = randomInt(rng, killVariance);
+  rng = rngResult.state;
+  const maxKill = Math.round(0.9 * attackUnits) + rngResult.value;
 
-  return { attackLoss, defendLoss };
+  const maxDefendLoss = Math.ceil(defendUnits * defendRate * dmod) + 1;
+  rngResult = randomInt(rng, maxDefendLoss);
+  rng = rngResult.state;
+  const defendLoss = Math.min(rngResult.value, defendUnits, maxKill);
+
+  return { attackLoss, defendLoss, rngState: rng };
 }
 
 // ============================================
@@ -197,8 +201,10 @@ function destroyBuildings(
 export function resolveCombat(
   attacker: Empire,
   defender: Empire,
-  attackType: AttackType = 'standard'
-): CombatResult {
+  attackType: AttackType = 'standard',
+  rngState: RngState
+): { result: CombatResult; rngState: RngState } {
+  let rng = rngState;
   const offpower = calculateOffensePower(attacker);
   const defpower = calculateDefensePower(defender);
 
@@ -229,33 +235,37 @@ export function resolveCombat(
     // Single-unit attack: only uses that unit type with lower loss rates
     const unitType = attackType as UnitType;
     const [attackRate, defendRate] = COMBAT.singleUnitLossRates[unitType];
-    const { attackLoss, defendLoss } = calcUnitLoss(
+    const lossResult = calcUnitLoss(
       attacker.troops[unitType],
       defender.troops[unitType],
       attackRate,
       defendRate,
       omod,
-      dmod
+      dmod,
+      rng
     );
+    rng = lossResult.rngState;
     // Apply casualty reduction to attacker losses
-    attackerLosses[unitType] = Math.floor(attackLoss * casualtyMultiplier);
-    defenderLosses[unitType] = defendLoss;
+    attackerLosses[unitType] = Math.floor(lossResult.attackLoss * casualtyMultiplier);
+    defenderLosses[unitType] = lossResult.defendLoss;
   } else {
     // Standard attack: uses all unit types with standard loss rates
     const lossRates = COMBAT.standardLossRates;
     for (const unitType of singleUnitTypes) {
       const [attackRate, defendRate] = lossRates[unitType];
-      const { attackLoss, defendLoss } = calcUnitLoss(
+      const lossResult = calcUnitLoss(
         attacker.troops[unitType],
         defender.troops[unitType],
         attackRate,
         defendRate,
         omod,
-        dmod
+        dmod,
+        rng
       );
+      rng = lossResult.rngState;
       // Apply casualty reduction to attacker losses
-      attackerLosses[unitType] = Math.floor(attackLoss * casualtyMultiplier);
-      defenderLosses[unitType] = defendLoss;
+      attackerLosses[unitType] = Math.floor(lossResult.attackLoss * casualtyMultiplier);
+      defenderLosses[unitType] = lossResult.defendLoss;
     }
   }
 
@@ -303,16 +313,19 @@ export function resolveCombat(
   }
 
   return {
-    won,
-    attackerLosses,
-    defenderLosses,
-    landGained,
-    landLost: landGained, // Defender loses same amount attacker gains
-    freelandTaken,
-    buildingsGained,
-    buildingsDestroyed,
-    offpower,
-    defpower,
+    result: {
+      won,
+      attackerLosses,
+      defenderLosses,
+      landGained,
+      landLost: landGained, // Defender loses same amount attacker gains
+      freelandTaken,
+      buildingsGained,
+      buildingsDestroyed,
+      offpower,
+      defpower,
+    },
+    rngState: rng,
   };
 }
 
@@ -399,13 +412,13 @@ export function processAttack(
   attacker: Empire,
   defender: Empire,
   turnsRemaining: number,
-  attackType: AttackType = 'standard'
-): TurnActionResult {
+  attackType: AttackType = 'standard',
+  rngState: RngState
+): { result: TurnActionResult; rngState: RngState } {
   const turnsNeeded = COMBAT.turnsPerAttack;
 
-  // Check if enough turns
-  if (turnsRemaining < turnsNeeded) {
-    return {
+  const failedResult = (): { result: TurnActionResult; rngState: RngState } => ({
+    result: {
       success: false,
       turnsSpent: 0,
       turnsRemaining,
@@ -419,45 +432,28 @@ export function processAttack(
       bankInterest: 0,
       loanInterest: 0,
       empire: attacker,
-    };
+    },
+    rngState,
+  });
+
+  // Check if enough turns
+  if (turnsRemaining < turnsNeeded) {
+    return failedResult();
   }
 
   // Check era compatibility
   if (!canAttackEra(attacker, defender)) {
-    return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire: attacker,
-    };
+    return failedResult();
+  }
+
+  // Check target is alive
+  if (defender.health <= 0 || defender.resources.land <= 0) {
+    return failedResult();
   }
 
   // Check health requirement
   if (attacker.health < 20) {
-    return {
-      success: false,
-      turnsSpent: 0,
-      turnsRemaining,
-      income: 0,
-      expenses: 0,
-      foodProduction: 0,
-      foodConsumption: 0,
-      runeChange: 0,
-      troopsProduced: {},
-      loanPayment: 0,
-      bankInterest: 0,
-      loanInterest: 0,
-      empire: attacker,
-    };
+    return failedResult();
   }
 
   // Process economy for attack turns
@@ -507,25 +503,30 @@ export function processAttack(
   // If stopped early due to emergency, cancel attack (no combat, no health cost)
   if (stoppedEarly) {
     return {
-      success: false,
-      turnsSpent: turnsActuallySpent,
-      turnsRemaining: turnsRemaining - turnsActuallySpent,
-      income: totalIncome,
-      expenses: totalExpenses,
-      foodProduction: totalFoodPro,
-      foodConsumption: totalFoodCon,
-      runeChange: totalRunes,
-      troopsProduced: totalTroopsProduced,
-      loanPayment: totalLoanPayment,
-      bankInterest: totalBankInterest,
-      loanInterest: totalLoanInterest,
-      stoppedEarly,
-      empire: attacker,
+      result: {
+        success: false,
+        turnsSpent: turnsActuallySpent,
+        turnsRemaining: turnsRemaining - turnsActuallySpent,
+        income: totalIncome,
+        expenses: totalExpenses,
+        foodProduction: totalFoodPro,
+        foodConsumption: totalFoodCon,
+        runeChange: totalRunes,
+        troopsProduced: totalTroopsProduced,
+        loanPayment: totalLoanPayment,
+        bankInterest: totalBankInterest,
+        loanInterest: totalLoanInterest,
+        stoppedEarly,
+        empire: attacker,
+      },
+      rngState,
     };
   }
 
-  // Resolve combat
-  const combatResult = resolveCombat(attacker, defender, attackType);
+  // Resolve combat with seeded RNG
+  const combatOutcome = resolveCombat(attacker, defender, attackType, rngState);
+  const combatResult = combatOutcome.result;
+  const newRngState = combatOutcome.rngState;
   applyCombatResult(attacker, defender, combatResult);
 
   // Apply health cost for attacking (reduced by battle_surgeon advisor)
@@ -538,20 +539,23 @@ export function processAttack(
   attacker.health = Math.max(0, Math.floor(attacker.health - effectiveHealthCost));
 
   return {
-    success: true,
-    turnsSpent: turnsNeeded,
-    turnsRemaining: turnsRemaining - turnsNeeded,
-    income: totalIncome,
-    expenses: totalExpenses,
-    foodProduction: totalFoodPro,
-    foodConsumption: totalFoodCon,
-    runeChange: totalRunes,
-    troopsProduced: totalTroopsProduced,
-    loanPayment: totalLoanPayment,
-    bankInterest: totalBankInterest,
-    loanInterest: totalLoanInterest,
-    combatResult,
-    empire: attacker,
+    result: {
+      success: true,
+      turnsSpent: turnsNeeded,
+      turnsRemaining: turnsRemaining - turnsNeeded,
+      income: totalIncome,
+      expenses: totalExpenses,
+      foodProduction: totalFoodPro,
+      foodConsumption: totalFoodCon,
+      runeChange: totalRunes,
+      troopsProduced: totalTroopsProduced,
+      loanPayment: totalLoanPayment,
+      bankInterest: totalBankInterest,
+      loanInterest: totalLoanInterest,
+      combatResult,
+      empire: attacker,
+    },
+    rngState: newRngState,
   };
 }
 

@@ -396,7 +396,9 @@ export interface GameRound {
 export interface GameRun {
   id: string;
   playerId: string;
+  seed: number;
   rngState: RngState;
+  version: number;  // Optimistic locking version
 
   round: GameRound;
   playerEmpire: Empire;
@@ -623,6 +625,7 @@ export interface LeaderboardEntry {
   finalNetworth: number;
   roundsCompleted: number;
   modifiers: string[];
+  seed: number;
   createdAt: number;
 }
 
@@ -633,4 +636,5 @@ export interface LeaderboardEntry {
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  CORS_ORIGIN?: string;  // Comma-separated allowed origins for CORS
 }

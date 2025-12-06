@@ -81,6 +81,11 @@ const RACES: RaceInfo[] = [
   },
 ];
 
+function getRandomRace(): Race {
+  const index = Math.floor(Math.random() * RACES.length);
+  return RACES[index].value;
+}
+
 export function TitlePage() {
   const navigate = useNavigate();
   const {
@@ -99,6 +104,7 @@ export function TitlePage() {
   const [stage, setStage] = useState<Stage>('menu');
   const [displayName, setDisplayName] = useState('');
   const [empireName, setEmpireName] = useState('');
+  const [seedInput, setSeedInput] = useState('');
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
 
   const hasSession = !!player.sessionId;
@@ -165,7 +171,11 @@ export function TitlePage() {
   const handleRaceSelect = async () => {
     if (!selectedRace || !empireName.trim()) return;
 
-    const success = await newGame(empireName.trim(), selectedRace);
+    // Parse seed if provided
+    const seed = seedInput.trim() ? parseInt(seedInput.trim(), 10) : undefined;
+    const validSeed = seed && !isNaN(seed) ? seed : undefined;
+
+    const success = await newGame(empireName.trim(), selectedRace, validSeed);
     if (success) {
       navigate('/game');
     }
@@ -194,9 +204,14 @@ export function TitlePage() {
         <h1 className="font-display text-4xl md:text-6xl text-gold text-glow-gold mb-2">
           Promisance
         </h1>
-        <h2 className="font-display text-2xl md:text-3xl text-accent text-glow-blue">
-          Rogue
-        </h2>
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="font-display text-2xl md:text-3xl text-accent text-glow-blue">
+            Rogue
+          </h2>
+          <span className="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/50 rounded animate-pulse">
+            Alpha
+          </span>
+        </div>
         <p className="text-text-muted mt-4 font-mono text-sm">
           A Roguelike Turn-Based Strategy Game
         </p>
@@ -311,10 +326,23 @@ export function TitlePage() {
             onChange={(e) => setEmpireName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
             placeholder="Empire name"
-            className="w-full bg-bg-primary border border-border-theme rounded px-4 py-3 text-text-primary placeholder-text-muted focus:border-accent focus:outline-none mb-4"
+            className="w-full bg-bg-primary border border-border-theme rounded px-4 py-3 text-text-primary placeholder-text-muted focus:border-accent focus:outline-none mb-3"
             autoFocus
             maxLength={24}
           />
+          <div className="mb-4">
+            <label className="text-text-muted text-xs mb-1 block">
+              Seed (optional - for reproducible games)
+            </label>
+            <input
+              type="text"
+              value={seedInput}
+              onChange={(e) => setSeedInput(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Leave empty for random"
+              className="w-full bg-bg-primary border border-border-theme rounded px-4 py-2 text-text-primary placeholder-text-muted focus:border-accent focus:outline-none text-sm"
+              maxLength={10}
+            />
+          </div>
           <div className="flex gap-2">
             <button onClick={handleBack} className="btn-secondary btn-lg flex-1">
               Back
@@ -341,6 +369,15 @@ export function TitlePage() {
               Empire: <span className="text-gold">{empireName}</span>
             </p>
           </Panel>
+
+          {/* Random Race Button */}
+          <button
+            onClick={() => setSelectedRace(getRandomRace())}
+            className="w-full p-3 mb-4 rounded-lg border-2 border-dashed border-gold/50 bg-gold/5 hover:border-gold hover:bg-gold/10 transition-all text-center"
+          >
+            <div className="font-display text-gold mb-1">🎲 Random Race</div>
+            <div className="text-xs text-text-muted">Let fate decide your destiny</div>
+          </button>
 
           {/* Race Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4 max-h-[50vh] overflow-y-auto">
@@ -433,9 +470,14 @@ export function TitlePage() {
       <ThemeToggle className="mt-8" />
 
       {/* Footer */}
-      <p className="text-text-muted text-xs mt-4 font-mono text-center">
-        Based on QM Promisance • 10 Rounds to Glory
-      </p>
+      <div className="text-center mt-4">
+        <p className="text-text-muted text-xs font-mono">
+          Based on QM Promisance • 10 Rounds to Glory
+        </p>
+        <p className="text-orange-400 text-xs mt-1">
+          Early Alpha - Expect bugs & balance changes
+        </p>
+      </div>
     </div>
   );
 }

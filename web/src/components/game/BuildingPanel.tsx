@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { clsx } from 'clsx';
-import type { Buildings } from '@/types';
+import type { Buildings, Empire } from '@/types';
 import { formatNumber } from '@/utils/format';
 import { getBuildingCost, getDemolishRefund } from '@/utils/calculations';
 
@@ -24,6 +24,7 @@ interface BuildingPanelProps {
   gold: number;
   landTotal: number;
   currentBuildings: Buildings;
+  empire: Empire;
   onBuild: (allocation: Partial<Buildings>) => void;
   onDemolish: (allocation: Partial<Buildings>) => void;
   onCancel: () => void;
@@ -34,6 +35,7 @@ export function BuildingPanel({
   gold,
   landTotal,
   currentBuildings,
+  empire,
   onBuild,
   onDemolish,
   onCancel,
@@ -51,7 +53,7 @@ export function BuildingPanel({
     }
   }, [editingKey]);
 
-  const costPerBuilding = getBuildingCost(landTotal);
+  const costPerBuilding = getBuildingCost(landTotal, empire);
   const refundPerBuilding = getDemolishRefund(landTotal);
 
   const totalBuildings = useMemo(

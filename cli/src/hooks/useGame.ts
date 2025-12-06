@@ -25,6 +25,7 @@ import {
 
 interface GameState {
   gameId: string | null;
+  seed: number | null;
   round: GameRound | null;
   playerEmpire: Empire | null;
   botEmpires: BotSummary[];
@@ -54,6 +55,7 @@ export function useGame() {
 
   const [game, setGame] = useState<GameState>({
     gameId: null,
+    seed: null,
     round: null,
     playerEmpire: null,
     botEmpires: [],
@@ -108,6 +110,7 @@ export function useGame() {
       if (response.hasActiveGame && response.game) {
         setGame({
           gameId: response.game.id,
+          seed: response.game.seed,
           round: response.game.round,
           playerEmpire: response.game.playerEmpire,
           botEmpires: response.game.botEmpires,
@@ -132,16 +135,17 @@ export function useGame() {
     }
   }, []);
 
-  const newGame = useCallback(async (empireName: string, race: Race) => {
+  const newGame = useCallback(async (empireName: string, race: Race, seed?: number) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await client.newGame(empireName, race);
+      const response = await client.newGame(empireName, race, seed);
       // Fetch full game state
       const gameResponse = await client.getGame(response.gameId);
       if (gameResponse.game) {
         setGame({
           gameId: response.gameId,
+          seed: response.seed,
           round: gameResponse.game.round,
           playerEmpire: gameResponse.game.playerEmpire,
           botEmpires: gameResponse.game.botEmpires,
@@ -173,6 +177,7 @@ export function useGame() {
       // Reset game state
       setGame({
         gameId: null,
+        seed: null,
         round: null,
         playerEmpire: null,
         botEmpires: [],

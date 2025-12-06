@@ -10,3 +10,13 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "promisance-rogue"
 database_id = "b72a4e9d-fdd3-4b2c-984d-425205a42e41"
+
+# Environment variables
+[vars]
+# CORS_ORIGIN = "https://example.com,https://app.example.com"  # Set in production
+
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
