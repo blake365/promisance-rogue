@@ -52,6 +52,38 @@ export function getSpellCost(empire: Empire, spell: SpellType): number {
   return Math.ceil(Math.max(1, finalCost)); // Always cost at least 1 rune
 }
 
+export function calculateAllSpellCosts(empire: Empire): {
+  shield: number;
+  food: number;
+  cash: number;
+  runes: number;
+  blast: number;
+  steal: number;
+  storm: number;
+  struct: number;
+  advance: number;
+  regress: number;
+  gate: number;
+  spy: number;
+  fight: number;
+} {
+  return {
+    shield: getSpellCost(empire, 'shield'),
+    food: getSpellCost(empire, 'food'),
+    cash: getSpellCost(empire, 'cash'),
+    runes: getSpellCost(empire, 'runes'),
+    blast: getSpellCost(empire, 'blast'),
+    steal: getSpellCost(empire, 'steal'),
+    storm: getSpellCost(empire, 'storm'),
+    struct: getSpellCost(empire, 'struct'),
+    advance: getSpellCost(empire, 'advance'),
+    regress: getSpellCost(empire, 'regress'),
+    gate: getSpellCost(empire, 'gate'),
+    spy: getSpellCost(empire, 'spy'),
+    fight: getSpellCost(empire, 'fight'),
+  };
+}
+
 export function canCastSpell(
   empire: Empire,
   spell: SpellType,

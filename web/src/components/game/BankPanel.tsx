@@ -35,7 +35,7 @@ export function BankPanel({ empire, bankInfo, onTransaction, onClose }: BankPane
   const maxAmount = useMemo(() => {
     switch (selectedOp.operation) {
       case 'deposit':
-        return empire.resources.gold;
+        return Math.min(empire.resources.gold, bankInfo.availableSavings);
       case 'withdraw':
         return bankInfo.savings;
       case 'take_loan':
@@ -128,7 +128,7 @@ export function BankPanel({ empire, bankInfo, onTransaction, onClose }: BankPane
           let opMax = 0;
           switch (op.operation) {
             case 'deposit':
-              opMax = empire.resources.gold;
+              opMax = Math.min(empire.resources.gold, bankInfo.availableSavings);
               break;
             case 'withdraw':
               opMax = bankInfo.savings;

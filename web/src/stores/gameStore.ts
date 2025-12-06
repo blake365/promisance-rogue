@@ -76,6 +76,7 @@ interface GameStore {
   marketTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   fetchBankInfo: () => Promise<void>;
   bankTransaction: (transaction: BankTransaction) => Promise<boolean>;
+  updateSettings: (settings: { industryAllocation?: { trparm: number; trplnd: number; trpfly: number; trpsea: number }; taxRate?: number }) => Promise<boolean>;
   executeBotPhase: () => Promise<BotPhaseResponse | null>;
   resetGame: () => void;
 }
@@ -561,6 +562,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Bank transaction failed',
+        loading: false,
+      });
+      return false;
+    }
+  },
+
+  // Update empire settings (industry allocation, tax rate)
+  updateSettings: async (settings) => {
+    const { game } = get();
+    if (!game.gameId) return false;
+
+    set({ loading: true, error: null });
+    try {
+      const response = await client.updateSettings(game.gameId, settings);
+      if (response.success) {
+        set({
+          game: {
+            ...game,
+            playerEmpire: response.empire,
+          },
+          loading: false,
+        });
+        return true;
+      }
+      return false;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to save settings',
         loading: false,
       });
       return false;

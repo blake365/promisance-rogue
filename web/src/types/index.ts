@@ -57,6 +57,22 @@ export interface Advisor {
   effect: AdvisorEffect;
 }
 
+export interface SpellCosts {
+  shield: number;
+  food: number;
+  cash: number;
+  runes: number;
+  blast: number;
+  steal: number;
+  storm: number;
+  struct: number;
+  advance: number;
+  regress: number;
+  gate: number;
+  spy: number;
+  fight: number;
+}
+
 export interface Empire {
   id: string;
   name: string;
@@ -91,6 +107,7 @@ export interface Empire {
   policies: string[];
   bonusAdvisorSlots: number;
   bonusDraftOptions: number;
+  spellCosts?: SpellCosts;
 }
 
 export interface GameRound {
@@ -159,7 +176,7 @@ export interface SpyIntel {
 }
 
 export type NewsAction =
-  | { type: 'attack'; success: boolean; landTaken: number }
+  | { type: 'attack'; success: boolean; landTaken: number; attackType?: AttackType }
   | { type: 'spell'; spell: SpellType; success: boolean }
   | { type: 'eliminated'; eliminatedBy: string };
 

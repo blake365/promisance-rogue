@@ -92,6 +92,9 @@ export function processBotPhase(
   const shuffledBots = shuffleBots(bots, rng);
   rng = advanceRng(rng);
 
+  // Shared counter to limit combined bot attacks on player (prevents gang-ups)
+  const playerAttacksThisRound = { count: 0 };
+
   // Process each bot using strategy-based phases
   for (const bot of shuffledBots) {
     if (bot.health <= 0) continue; // Skip eliminated bots
@@ -120,6 +123,7 @@ export function processBotPhase(
       rng,
       news,
       marketPrices,
+      playerAttacksThisRound,
     };
 
     // Execute phases in order
@@ -166,7 +170,16 @@ interface BotPhaseContext {
   rng: number;
   news: NewsItem[];
   marketPrices: MarketPrices;
+  /** Shared counter for total bot attacks on player this round (prevents gang-ups) */
+  playerAttacksThisRound: { count: number };
 }
+
+/**
+ * Maximum combined bot attacks on the player per round.
+ * Prevents overwhelming gang-ups while still allowing some pressure.
+ * Player can send ~10 attacks per round, so 6 is a reasonable cap for bots.
+ */
+const MAX_PLAYER_ATTACKS_PER_ROUND = 6;
 
 // ============================================
 // PHASE 1: ERA CHECK (REMOVED)
@@ -445,7 +458,7 @@ function selectAttackTypeByOwnTroops(bot: BotEmpire, rng: number): AttackType {
 }
 
 function executeAttackPhase(ctx: BotPhaseContext): void {
-  const { bot, player, allBots, strategy, roundNumber } = ctx;
+  const { bot, player, allBots, strategy, roundNumber, playerAttacksThisRound } = ctx;
 
   // No attacks in round 1
   if (roundNumber === 1) {
@@ -458,12 +471,30 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
   while (ctx.turnsRemaining >= COMBAT.turnsPerAttack) {
     const botOffense = calculateOffensePower(bot);
 
-    // Find best target
-    const target = selectAttackTarget(bot, player, otherBots, roundNumber, ctx.rng);
+    // Find best target, but exclude player if they've been attacked too many times this round
+    const playerAtLimit = playerAttacksThisRound.count >= MAX_PLAYER_ATTACKS_PER_ROUND;
+    const targetPlayer = playerAtLimit ? null : player;
+    const target = selectAttackTarget(bot, targetPlayer ?? player, otherBots, roundNumber, ctx.rng);
     ctx.rng = advanceRng(ctx.rng);
+
+    // If target is player but limit reached, try to find a bot target instead
+    if (target && target.id === player.id && playerAtLimit) {
+      // Player is at attack limit, skip this attack or find another target
+      const botTarget = selectAttackTarget(bot, null as unknown as Empire, otherBots, roundNumber, ctx.rng);
+      ctx.rng = advanceRng(ctx.rng);
+      if (!botTarget || botTarget.id === player.id) {
+        break; // No valid non-player targets
+      }
+      // Continue with bot target below (reassign not allowed, so we handle inline)
+    }
 
     if (!target) {
       break; // No valid targets
+    }
+
+    // Final check: skip if targeting player at limit
+    if (target.id === player.id && playerAtLimit) {
+      break;
     }
 
     // Check power ratio against this target
@@ -507,6 +538,11 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
       bot.attacksThisRound++;
       const combatWon = result.combatResult.won;
       const landGained = combatWon ? (result.combatResult.landGained ?? 0) : 0;
+
+      // Track attacks on player to prevent gang-ups
+      if (target.id === player.id) {
+        playerAttacksThisRound.count++;
+      }
 
       // Record combat intel for tactical adaptation
       updateBotCombatIntel(bot, target.id, result.combatResult, attackType, roundNumber);
@@ -561,7 +597,7 @@ function executeAttackPhase(ctx: BotPhaseContext): void {
  * Archetypes like Archon Nyx focus on magical warfare.
  */
 function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
-  const { bot, player, allBots, strategy, roundNumber } = ctx;
+  const { bot, player, allBots, strategy, roundNumber, playerAttacksThisRound } = ctx;
 
   // No offensive spells in round 1
   if (roundNumber === 1) {
@@ -607,11 +643,17 @@ function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
       break;
     }
 
-    // Find a target for the spell
+    // Find a target for the spell (skip player if at attack limit)
+    const playerAtLimit = playerAttacksThisRound.count >= MAX_PLAYER_ATTACKS_PER_ROUND;
     const target = selectSpellTarget(bot, player, otherBots, roundNumber, ctx.rng);
     ctx.rng = advanceRng(ctx.rng);
 
     if (!target) {
+      break;
+    }
+
+    // Skip if targeting player at limit
+    if (target.id === player.id && playerAtLimit) {
       break;
     }
 
@@ -639,6 +681,11 @@ function executeOffensiveSpellPhase(ctx: BotPhaseContext): void {
 
     if (result.success) {
       bot.offensiveSpellsThisRound++;
+
+      // Track offensive actions on player to prevent gang-ups
+      if (target.id === player.id) {
+        playerAttacksThisRound.count++;
+      }
 
       // Update defender's memory if it's a bot
       if ('isBot' in target && target.isBot) {

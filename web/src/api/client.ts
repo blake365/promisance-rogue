@@ -127,6 +127,11 @@ interface BankResponse {
   bankInfo: BankInfo;
 }
 
+interface SettingsResponse {
+  success: boolean;
+  empire: Empire;
+}
+
 interface LeaderboardResponse {
   entries: LeaderboardEntry[];
 }
@@ -328,6 +333,21 @@ export class PromisanceClient {
       'POST',
       `/api/game/${gameId}/bank`,
       transaction
+    );
+  }
+
+  // Empire settings
+  async updateSettings(
+    gameId: string,
+    settings: {
+      industryAllocation?: { trparm: number; trplnd: number; trpfly: number; trpsea: number };
+      taxRate?: number;
+    }
+  ): Promise<SettingsResponse> {
+    return this.request<SettingsResponse>(
+      'POST',
+      `/api/game/${gameId}/settings`,
+      settings
     );
   }
 

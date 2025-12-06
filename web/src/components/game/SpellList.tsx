@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import type { SpellType, Era } from '@/types';
+import type { SpellType, Era, SpellCosts } from '@/types';
 import { formatNumber } from '@/utils/format';
 
 interface SpellInfo {
@@ -33,21 +33,14 @@ const SPELLS: SpellInfo[] = [
 const SELF_SPELLS = SPELLS.filter((s) => s.category === 'self');
 const OFFENSIVE_SPELLS = SPELLS.filter((s) => s.category === 'offensive');
 
-// Calculate spell cost: baseCost * multiplier
-// Base cost formula: land * 0.1 + 100 + wizardTowers * 0.2
-function calculateSpellCost(land: number, wizardTowers: number, multiplier: number): number {
-  const baseCost = land * 0.1 + 100 + wizardTowers * 0.2;
-  return Math.floor(baseCost * multiplier);
-}
-
 interface SpellListProps {
   runes: number;
   wizards: number;
-  land: number;
-  wizardTowers: number;
   era: Era;
   eraChangedRound: number;
   currentRound: number;
+  health: number;
+  spellCosts?: SpellCosts;
   mode: 'self' | 'offensive';
   onSelect: (spell: SpellType) => void;
   onCancel: () => void;
@@ -56,22 +49,28 @@ interface SpellListProps {
 export function SpellList({
   runes,
   wizards,
-  land,
-  wizardTowers,
   era,
   eraChangedRound,
   currentRound,
+  health,
+  spellCosts,
   mode,
   onSelect,
   onCancel,
 }: SpellListProps) {
   const canChangeEra = currentRound > eraChangedRound;
+  const MIN_HEALTH_TO_ACT = 20; // Must match server constant
 
   const getSpellCost = (spell: SpellInfo): number => {
-    return calculateSpellCost(land, wizardTowers, spell.costMultiplier);
+    // Use server-provided costs if available, otherwise return 0 (shouldn't happen)
+    if (spellCosts) {
+      return spellCosts[spell.type] ?? 0;
+    }
+    return 0;
   };
 
   const checkSpell = (spell: SpellInfo): { canCast: boolean; reason?: string } => {
+    if (health < MIN_HEALTH_TO_ACT) return { canCast: false, reason: 'Health too low' };
     if (wizards <= 0) return { canCast: false, reason: 'No wizards' };
     const cost = getSpellCost(spell);
     if (runes < cost) return { canCast: false, reason: 'Need more runes' };
@@ -107,7 +106,13 @@ export function SpellList({
         </div>
       </div>
 
-      {wizards === 0 && (
+      {health < MIN_HEALTH_TO_ACT && (
+        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+          ⚠️ Health too low to cast spells! Need at least {MIN_HEALTH_TO_ACT} health.
+        </div>
+      )}
+
+      {wizards === 0 && health >= MIN_HEALTH_TO_ACT && (
         <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
           ⚠️ You need wizards to cast spells! Build Wizard Towers to train wizards.
         </div>

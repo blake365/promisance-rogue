@@ -22,7 +22,17 @@ import {
 import { formatNumber } from '@/utils/format';
 import type { TurnAction, SpellType, AttackType, Buildings, IndustryAllocation } from '@/types';
 
-function TaxRateEditor({ value, onChange }: { value: number; onChange: (rate: number) => void }) {
+function TaxRateEditor({
+  value,
+  onChange,
+  onSave,
+  isSaving,
+}: {
+  value: number;
+  onChange: (rate: number) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
+}) {
   const taxEffect = value <= 20 ? 'Population grows faster'
     : value <= 40 ? 'Normal population growth'
     : value <= 60 ? 'Population grows slower'
@@ -78,6 +88,21 @@ function TaxRateEditor({ value, onChange }: { value: number; onChange: (rate: nu
         ))}
       </div>
 
+      {/* Save Tax Rate Button */}
+      {onSave && (
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className={`w-full py-2 rounded text-sm font-display uppercase tracking-wider transition-colors ${
+            !isSaving
+              ? 'bg-gold/80 hover:bg-gold text-black'
+              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {isSaving ? 'Saving...' : 'Save Tax Rate'}
+        </button>
+      )}
+
       {/* Effects */}
       <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t border-game-border">
         <div className="flex justify-between">
@@ -97,11 +122,15 @@ function TaxRateEditor({ value, onChange }: { value: number; onChange: (rate: nu
 function IndustryAllocationEditor({
   value,
   onChange,
-  troops
+  onSave,
+  troops,
+  isSaving,
 }: {
   value: IndustryAllocation;
   onChange: (allocation: IndustryAllocation) => void;
+  onSave?: () => void;
   troops: { trparm: number; trplnd: number; trpfly: number; trpsea: number };
+  isSaving?: boolean;
 }) {
   const total = value.trparm + value.trplnd + value.trpfly + value.trpsea;
   const isValid = total === 100;
@@ -194,6 +223,21 @@ function IndustryAllocationEditor({
         </button>
       </div>
 
+      {/* Save Allocation Button */}
+      {onSave && (
+        <button
+          onClick={onSave}
+          disabled={!isValid || isSaving}
+          className={`w-full py-2 rounded text-sm font-display uppercase tracking-wider transition-colors ${
+            isValid && !isSaving
+              ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
+              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {isSaving ? 'Saving...' : 'Save Allocation'}
+        </button>
+      )}
+
       {/* Current Troops */}
       <div className="text-xs text-gray-500 pt-2 border-t border-game-border">
         Current: {formatNumber(troops.trparm)} Inf, {formatNumber(troops.trplnd)} Cav, {formatNumber(troops.trpfly)} Air, {formatNumber(troops.trpsea)} Sea
@@ -243,6 +287,7 @@ export function GamePage() {
     marketTransaction,
     fetchBankInfo,
     bankTransaction,
+    updateSettings,
     executeBotPhase,
     resetGame,
     abandonGame,
@@ -252,6 +297,7 @@ export function GamePage() {
   const [pendingAction, setPendingAction] = useState<TurnAction | null>(null);
   const [pendingSpell, setPendingSpell] = useState<SpellType | null>(null);
   const [pendingAttackType, setPendingAttackType] = useState<AttackType | null>(null);
+  const [lastAttackType, setLastAttackType] = useState<AttackType | null>(null);
   const [editedTaxRate, setEditedTaxRate] = useState<number | null>(null);
   const [editedIndustryAllocation, setEditedIndustryAllocation] = useState<IndustryAllocation | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -395,6 +441,7 @@ export function GamePage() {
 
   const handleTargetSelect = async (targetId: string) => {
     if (pendingAttackType) {
+      setLastAttackType(pendingAttackType);
       await executeAction({
         action: 'attack',
         turns: 2,
@@ -479,12 +526,30 @@ export function GamePage() {
             description={getActionDescription(pendingAction)}
             extraInfo={
               pendingAction === 'cash' && editedTaxRate !== null ? (
-                <TaxRateEditor value={editedTaxRate} onChange={setEditedTaxRate} />
+                <TaxRateEditor
+                  value={editedTaxRate}
+                  onChange={setEditedTaxRate}
+                  onSave={async () => {
+                    if (editedTaxRate !== null) {
+                      await updateSettings({ taxRate: editedTaxRate });
+                    }
+                  }}
+                  isSaving={loading}
+                />
               ) : pendingAction === 'industry' && editedIndustryAllocation !== null ? (
                 <IndustryAllocationEditor
                   value={editedIndustryAllocation}
                   onChange={setEditedIndustryAllocation}
+                  onSave={async () => {
+                    if (editedIndustryAllocation) {
+                      const success = await updateSettings({ industryAllocation: editedIndustryAllocation });
+                      if (success) {
+                        // Update will persist even if user cancels turns
+                      }
+                    }
+                  }}
                   troops={playerEmpire.troops}
+                  isSaving={loading}
                 />
               ) : undefined
             }
@@ -555,11 +620,11 @@ export function GamePage() {
           <SpellList
             runes={playerEmpire.resources.runes}
             wizards={playerEmpire.troops.trpwiz}
-            land={playerEmpire.resources.land}
-            wizardTowers={playerEmpire.buildings.bldwiz}
             era={playerEmpire.era}
             eraChangedRound={playerEmpire.eraChangedRound}
             currentRound={round.number}
+            health={playerEmpire.health}
+            spellCosts={playerEmpire.spellCosts}
             mode="self"
             onSelect={handleSelfSpell}
             onCancel={() => setViewMode('main')}
@@ -571,11 +636,11 @@ export function GamePage() {
           <SpellList
             runes={playerEmpire.resources.runes}
             wizards={playerEmpire.troops.trpwiz}
-            land={playerEmpire.resources.land}
-            wizardTowers={playerEmpire.buildings.bldwiz}
             era={playerEmpire.era}
             eraChangedRound={playerEmpire.eraChangedRound}
             currentRound={round.number}
+            health={playerEmpire.health}
+            spellCosts={playerEmpire.spellCosts}
             mode="offensive"
             onSelect={handleOffensiveSpellSelect}
             onCancel={() => setViewMode('attack_type')}
@@ -751,6 +816,18 @@ export function GamePage() {
     clearLastResult();
   };
 
+  // Handle attack again from toast
+  const handleAttackAgain = () => {
+    setShowToast(false);
+    clearLastResult();
+    if (lastAttackType) {
+      setPendingAttackType(lastAttackType);
+      setViewMode('target_select');
+    } else {
+      setViewMode('attack_type');
+    }
+  };
+
   // Handle viewing full result details
   const handleViewDetails = () => {
     setShowToast(false);
@@ -784,6 +861,14 @@ export function GamePage() {
           action={lastActionType}
           onDismiss={handleToastDismiss}
           onViewDetails={handleViewDetails}
+          onAttackAgain={
+            lastActionType === 'attack' &&
+            round.turnsRemaining >= 2 &&
+            playerEmpire.attacksThisRound < (10 + playerEmpire.advisors.filter(a => a.effect.type === 'extra_attacks').reduce((sum, a) => sum + a.effect.modifier, 0))
+              ? handleAttackAgain
+              : undefined
+          }
+          autoHideMs={lastActionType === 'attack' || lastActionType === 'spell' ? 8000 : 3000}
         />
       )}
 
@@ -797,6 +882,7 @@ export function GamePage() {
               onClose={() => {
                 clearLastResult();
                 setShowFullResult(false);
+                setViewMode('main');
               }}
             />
           </div>

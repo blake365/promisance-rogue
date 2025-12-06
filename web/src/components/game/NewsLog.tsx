@@ -1,6 +1,18 @@
 import { clsx } from 'clsx';
-import type { NewsItem, BotStanding } from '@/types';
+import type { NewsItem, BotStanding, AttackType } from '@/types';
 import { formatNumber, formatChange } from '@/utils/format';
+
+/** Format attack type for display */
+function formatAttackType(attackType?: AttackType): string {
+  if (!attackType || attackType === 'standard') return '';
+  switch (attackType) {
+    case 'trparm': return ' (Infantry)';
+    case 'trplnd': return ' (Cavalry)';
+    case 'trpfly': return ' (Air)';
+    case 'trpsea': return ' (Naval)';
+    default: return '';
+  }
+}
 
 interface NewsLogProps {
   news: NewsItem[];
@@ -143,29 +155,30 @@ function NewsItemDisplay({
 
   if (item.action.type === 'attack') {
     icon = item.action.success ? '⚔️' : '🛡️';
+    const atkType = formatAttackType(item.action.attackType);
 
     if (isPlayerTarget) {
       if (item.action.success) {
-        message = `${item.actor} attacked you and took ${formatNumber(item.action.landTaken)} land!`;
+        message = `${item.actor} attacked${atkType} you and took ${formatNumber(item.action.landTaken)} land!`;
         color = 'text-red-400';
       } else {
-        message = `${item.actor} attacked you but was repelled!`;
+        message = `${item.actor} attacked${atkType} you but was repelled!`;
         color = 'text-green-400';
       }
     } else if (isPlayerActor) {
       if (item.action.success) {
-        message = `You attacked ${item.target} and took ${formatNumber(item.action.landTaken)} land!`;
+        message = `You attacked${atkType} ${item.target} and took ${formatNumber(item.action.landTaken)} land!`;
         color = 'text-green-400';
       } else {
-        message = `Your attack on ${item.target} failed!`;
+        message = `Your attack${atkType} on ${item.target} failed!`;
         color = 'text-red-400';
       }
     } else {
       // Bot vs bot
       if (item.action.success) {
-        message = `${item.actor} attacked ${item.target} and took ${formatNumber(item.action.landTaken)} land`;
+        message = `${item.actor} attacked${atkType} ${item.target} and took ${formatNumber(item.action.landTaken)} land`;
       } else {
-        message = `${item.actor} attacked ${item.target} but was repelled`;
+        message = `${item.actor} attacked${atkType} ${item.target} but was repelled`;
       }
     }
   } else if (item.action.type === 'spell') {

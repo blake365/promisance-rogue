@@ -13,13 +13,13 @@ interface ActionItem {
 }
 
 const ACTIONS: ActionItem[] = [
-  { action: 'explore', icon: '🗺️', label: 'Explore', description: 'Gain new land', color: 'text-green-400', turnsRequired: 1 },
-  { action: 'build', icon: '🏗️', label: 'Build', description: 'Construct buildings', color: 'text-blue-400', turnsRequired: 1 },
-  { action: 'farm', icon: '🌾', label: 'Farm', description: 'Produce food', color: 'text-food', turnsRequired: 1 },
-  { action: 'cash', icon: '💰', label: 'Cash', description: 'Collect taxes', color: 'text-gold', turnsRequired: 1 },
-  { action: 'industry', icon: '⚙️', label: 'Industry', description: 'Produce troops', color: 'text-yellow-400', turnsRequired: 1 },
-  { action: 'meditate', icon: '🔮', label: 'Meditate', description: 'Generate runes', color: 'text-runes', turnsRequired: 1 },
-  { action: 'attack', icon: '⚔️', label: 'Attack', description: 'Battle enemies', color: 'text-red-400', turnsRequired: 2 },
+  { action: 'explore', icon: '🗺️', label: 'Explore', description: 'Discover land', color: 'text-green-400', turnsRequired: 1 },
+  { action: 'build', icon: '🏗️', label: 'Build', description: 'Build structures', color: 'text-blue-400', turnsRequired: 1 },
+  { action: 'farm', icon: '🌾', label: 'Farm', description: '+25% food', color: 'text-food', turnsRequired: 1 },
+  { action: 'cash', icon: '💰', label: 'Cash', description: '+25% income', color: 'text-gold', turnsRequired: 1 },
+  { action: 'industry', icon: '⚙️', label: 'Industry', description: '+25% troops', color: 'text-yellow-400', turnsRequired: 1 },
+  { action: 'meditate', icon: '🔮', label: 'Meditate', description: '+25% runes', color: 'text-runes', turnsRequired: 1 },
+  { action: 'attack', icon: '⚔️', label: 'Attack', description: 'Battle & capture', color: 'text-red-400', turnsRequired: 2 },
   { action: 'spell', icon: '✨', label: 'Spell', description: 'Cast magic', color: 'text-runes', turnsRequired: 2 },
 ];
 
@@ -28,6 +28,7 @@ const SECONDARY_ACTIONS: ActionItem[] = [
   { action: 'bank', icon: '🏦', label: 'Bank', description: 'Savings & loans', color: 'text-green-400' },
   { action: 'overview', icon: '📊', label: 'Overview', description: 'Empire details', color: 'text-gray-400' },
   { action: 'enemies', icon: '👁️', label: 'Enemies', description: 'View opponents', color: 'text-red-400' },
+  { action: 'guide', icon: '📖', label: 'Guide', description: 'How to play', color: 'text-yellow-400' },
   { action: 'abandon', icon: '🏳️', label: 'Abandon', description: 'Quit game', color: 'text-gray-500' },
 ];
 
@@ -67,19 +68,20 @@ export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: A
                 <span className={clsx('text-sm font-display uppercase tracking-wider mt-1', item.color)}>
                   {item.label}
                 </span>
-                {item.turnsRequired && item.turnsRequired > 1 && (
-                  <span className="text-xs text-text-muted">{item.turnsRequired}T</span>
-                )}
+                <span className="text-xs text-text-muted">
+                  {item.description}
+                  {item.turnsRequired && item.turnsRequired > 1 && ` · ${item.turnsRequired}T`}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Secondary Actions - 4 columns */}
+      {/* Secondary Actions - 3 columns */}
       <div>
         <h3 className="text-label mb-2">Other</h3>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {SECONDARY_ACTIONS.map((item) => (
             <button
               key={item.action}

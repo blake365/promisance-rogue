@@ -145,6 +145,25 @@ export interface Empire {
   policies: string[];
   bonusAdvisorSlots: number;  // Extra advisor slots from edicts
   bonusDraftOptions: number;  // Extra draft options from edicts
+
+  // Pre-calculated spell costs (for accurate client display)
+  spellCosts?: SpellCosts;
+}
+
+export interface SpellCosts {
+  shield: number;
+  food: number;
+  cash: number;
+  runes: number;
+  blast: number;
+  steal: number;
+  storm: number;
+  struct: number;
+  advance: number;
+  regress: number;
+  gate: number;
+  spy: number;
+  fight: number;
 }
 
 // ============================================

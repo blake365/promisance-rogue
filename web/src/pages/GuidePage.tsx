@@ -487,8 +487,8 @@ export function GuidePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-display text-2xl text-gold">Game Guide</h1>
-        <button onClick={() => navigate('/')} className="btn-secondary btn-sm">
-          Back
+        <button onClick={() => navigate(-1)} className="btn-secondary btn-sm">
+          ← Back
         </button>
       </div>
 

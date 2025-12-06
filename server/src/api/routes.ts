@@ -4,6 +4,7 @@ import type { Env, Race, TurnActionRequest, ShopTransaction, BankTransaction, Bo
 import { createGameRun, executeTurn, endPlayerPhase, selectDraft, rerollDraft, getRerollInfo, endShopPhase, executeBotPhase, getGameSummary, isGameComplete } from '../game/run';
 import { executeMarketTransaction, dismissAdvisor, getAdvisorCapacity, getEffectiveTroopPrices } from '../game/shop';
 import { calculateNetworth } from '../game/empire';
+import { calculateAllSpellCosts } from '../game/spells';
 import { getCombatPreview } from '../game/combat';
 import { processBankTransaction, getBankInfo } from '../game/bank';
 import { rateLimit, getClientIP, getPlayerId } from '../middleware/rateLimit';
@@ -33,6 +34,17 @@ function mapBotToSummary(bot: BotEmpire): BotSummaryResponse {
     era: bot.era,
     networth: bot.networth,
     land: bot.resources.land,
+  };
+}
+
+// Helper to add spell costs to empire for accurate client display
+function withSpellCosts<T extends { playerEmpire: import('../types').Empire }>(data: T): T {
+  return {
+    ...data,
+    playerEmpire: {
+      ...data.playerEmpire,
+      spellCosts: calculateAllSpellCosts(data.playerEmpire),
+    },
   };
 }
 
@@ -281,7 +293,10 @@ app.get('/api/game/current', async (c) => {
       id: run.id,
       seed: run.seed,
       round: run.round,
-      playerEmpire: run.playerEmpire,
+      playerEmpire: {
+        ...run.playerEmpire,
+        spellCosts: calculateAllSpellCosts(run.playerEmpire),
+      },
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
@@ -316,7 +331,10 @@ app.get('/api/game/:id', async (c) => {
       id: run.id,
       seed: run.seed,
       round: run.round,
-      playerEmpire: run.playerEmpire,
+      playerEmpire: {
+        ...run.playerEmpire,
+        spellCosts: calculateAllSpellCosts(run.playerEmpire),
+      },
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
       marketPrices: run.marketPrices,
@@ -370,6 +388,59 @@ app.post('/api/game/:id/action', async (c) => {
     summary: getGameSummary(run),
     // Include updated bot data after attacks so client can reflect land changes
     botEmpires: run.botEmpires.map(mapBotToSummary),
+  });
+});
+
+// Update empire settings (industry allocation, tax rate)
+app.post('/api/game/:id/settings', async (c) => {
+  const playerId = requireAuth(c);
+  if (typeof playerId !== 'string') return playerId;
+
+  const gameId = c.req.param('id');
+  const run = await db.getGameRun(c.env.DB, gameId);
+
+  if (!run) {
+    return c.json({ error: 'Game not found' }, 404);
+  }
+
+  if (run.playerId !== playerId) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  const { industryAllocation, taxRate } = await c.req.json<{
+    industryAllocation?: { trparm: number; trplnd: number; trpfly: number; trpsea: number };
+    taxRate?: number;
+  }>();
+
+  // Validate and apply industry allocation
+  if (industryAllocation) {
+    const total = industryAllocation.trparm + industryAllocation.trplnd +
+                  industryAllocation.trpfly + industryAllocation.trpsea;
+    if (total !== 100) {
+      return c.json({ error: 'Industry allocation must sum to 100%' }, 400);
+    }
+    if (Object.values(industryAllocation).some(v => v < 0 || v > 100)) {
+      return c.json({ error: 'Allocation values must be between 0 and 100' }, 400);
+    }
+    run.playerEmpire.industryAllocation = industryAllocation;
+  }
+
+  // Validate and apply tax rate
+  if (taxRate !== undefined) {
+    if (taxRate < 0 || taxRate > 100) {
+      return c.json({ error: 'Tax rate must be between 0 and 100' }, 400);
+    }
+    run.playerEmpire.taxRate = taxRate;
+  }
+
+  const saved = await db.saveGameRun(c.env.DB, run);
+  if (!saved) {
+    return conflictResponse(c);
+  }
+
+  return c.json({
+    success: true,
+    empire: run.playerEmpire,
   });
 });
 
@@ -711,7 +782,10 @@ app.post('/api/game/:id/bot-phase', async (c) => {
     news: result.news,
     standings: result.standings,
     round: run.round,
-    playerEmpire: run.playerEmpire,
+    playerEmpire: {
+      ...run.playerEmpire,
+      spellCosts: calculateAllSpellCosts(run.playerEmpire),
+    },
     botEmpires: run.botEmpires.map(mapBotToSummary),
     intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
     isComplete: isGameComplete(run),
