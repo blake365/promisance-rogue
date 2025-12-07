@@ -1183,7 +1183,8 @@ function sellTroopsForGold(ctx: BotPhaseContext, goldNeeded: number): void {
     const canSell = Math.max(0, available - minKeep);
     if (canSell <= 0) continue;
 
-    const unitValue = Math.floor(UNIT_COSTS[troopType].buyPrice * marketPrices.troopSellMultiplier);
+    const sellMultiplier = marketPrices.troopSellMultipliers[troopType as keyof typeof marketPrices.troopSellMultipliers];
+    const unitValue = Math.floor(UNIT_COSTS[troopType].buyPrice * sellMultiplier);
     const unitsNeeded = Math.ceil(goldRemaining / unitValue);
     const toSell = Math.min(canSell, unitsNeeded);
 
@@ -1265,7 +1266,8 @@ function sellExcessTroops(ctx: BotPhaseContext, provisions: { consumption: numbe
 
     // Sell up to 20% of this troop type per round
     const maxSell = Math.floor(available * 0.2);
-    const unitValue = Math.floor(UNIT_COSTS[type].buyPrice * marketPrices.troopSellMultiplier);
+    const sellMultiplier = marketPrices.troopSellMultipliers[type as keyof typeof marketPrices.troopSellMultipliers];
+    const unitValue = Math.floor(UNIT_COSTS[type].buyPrice * sellMultiplier);
     const unitsNeeded = Math.ceil(goldRemaining / unitValue);
     const toSell = Math.min(maxSell, unitsNeeded);
 

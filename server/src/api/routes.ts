@@ -48,6 +48,12 @@ function withSpellCosts<T extends { playerEmpire: import('../types').Empire }>(d
   };
 }
 
+// Helper to get current market prices based on phase
+// Shop phase gets better deals, player phase uses standard QM Promisance prices
+function getCurrentMarketPrices(run: import('../types').GameRun): import('../types').MarketPrices {
+  return run.round.phase === 'shop' ? run.shopMarketPrices : run.playerMarketPrices;
+}
+
 // Helper to add spell costs to a single empire
 function empireWithSpellCosts(empire: import('../types').Empire) {
   return {
@@ -307,8 +313,8 @@ app.get('/api/game/current', async (c) => {
       },
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
-      marketPrices: run.marketPrices,
-      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
+      marketPrices: getCurrentMarketPrices(run),
+      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, getCurrentMarketPrices(run)),
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
       playerDefeated: run.playerDefeated,
@@ -334,6 +340,7 @@ app.get('/api/game/:id', async (c) => {
   }
 
   const hasFullIntel = run.playerEmpire.policies.includes('full_intel');
+  const currentPrices = getCurrentMarketPrices(run);
   return c.json({
     game: {
       id: run.id,
@@ -345,8 +352,8 @@ app.get('/api/game/:id', async (c) => {
       },
       botEmpires: run.botEmpires.map(mapBotToSummary),
       intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
-      marketPrices: run.marketPrices,
-      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
+      marketPrices: currentPrices,
+      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, currentPrices),
       shopStock: run.shopStock,
       draftOptions: run.draftOptions,
       isComplete: isGameComplete(run),
@@ -504,7 +511,7 @@ app.post('/api/game/:id/end-player-phase', async (c) => {
 
   return c.json({
     phase: run.round.phase,
-    marketPrices: run.marketPrices,
+    marketPrices: getCurrentMarketPrices(run),
     shopStock: run.shopStock,
     draftOptions: run.draftOptions,
     isComplete: isGameComplete(run),
@@ -536,11 +543,12 @@ app.post('/api/game/:id/market', async (c) => {
 
   const transaction = await c.req.json<ShopTransaction>();
   const isShopPhase = run.round.phase === 'shop';
+  const currentPrices = getCurrentMarketPrices(run);
 
   const result = executeMarketTransaction(
     run.playerEmpire,
     transaction,
-    run.marketPrices,
+    currentPrices,
     run.shopStock,
     isShopPhase
   );
@@ -558,7 +566,7 @@ app.post('/api/game/:id/market', async (c) => {
     result,
     empire: empireWithSpellCosts(run.playerEmpire),
     shopStock: run.shopStock,
-    effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
+    effectivePrices: getEffectiveTroopPrices(run.playerEmpire, currentPrices),
   });
 });
 

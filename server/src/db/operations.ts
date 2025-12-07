@@ -1,4 +1,4 @@
-import type { GameRun, LeaderboardEntry, Env, BotEmpire } from '../types';
+import type { GameRun, LeaderboardEntry, Env, BotEmpire, MarketPrices } from '../types';
 import { serializeGameRun, deserializeGameRun } from '../game/run';
 import { createEmptyMemory } from '../game/bot/memory';
 
@@ -134,7 +134,7 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<boolean
       run.round.phase,
       JSON.stringify(run.playerEmpire),
       JSON.stringify(run.botEmpires),
-      JSON.stringify(run.marketPrices),
+      JSON.stringify({ shop: run.shopMarketPrices, player: run.playerMarketPrices }),
       run.shopStock ? JSON.stringify(run.shopStock) : null,
       run.draftOptions ? JSON.stringify(run.draftOptions) : null,
       run.rerollCost ?? null,
@@ -183,7 +183,7 @@ export async function saveGameRun(db: D1Database, run: GameRun): Promise<boolean
           run.round.phase,
           JSON.stringify(run.playerEmpire),
           JSON.stringify(run.botEmpires),
-          JSON.stringify(run.marketPrices),
+          JSON.stringify({ shop: run.shopMarketPrices, player: run.playerMarketPrices }),
           run.shopStock ? JSON.stringify(run.shopStock) : null,
           run.draftOptions ? JSON.stringify(run.draftOptions) : null,
           run.rerollCost ?? null,
@@ -292,6 +292,25 @@ function createDefaultStats(): GameRun['stats'] {
   };
 }
 
+// Parse market prices from DB - handles both old single-price format and new dual-price format
+function parseMarketPrices(json: string): { shopMarketPrices: MarketPrices; playerMarketPrices: MarketPrices } {
+  const parsed = JSON.parse(json);
+
+  // New format: { shop: {...}, player: {...} }
+  if (parsed.shop && parsed.player) {
+    return {
+      shopMarketPrices: parsed.shop,
+      playerMarketPrices: parsed.player,
+    };
+  }
+
+  // Old format: single MarketPrices object - use same prices for both (backwards compatibility)
+  return {
+    shopMarketPrices: parsed,
+    playerMarketPrices: parsed,
+  };
+}
+
 function reconstructGameRun(row: Record<string, unknown>): GameRun {
   // Parse bot empires and ensure they have memory initialized
   const botEmpires = (JSON.parse(row.bot_empires as string) as BotEmpire[]).map(bot => ({
@@ -312,7 +331,7 @@ function reconstructGameRun(row: Record<string, unknown>): GameRun {
     },
     playerEmpire: JSON.parse(row.player_empire as string),
     botEmpires,
-    marketPrices: JSON.parse(row.market_prices as string),
+    ...parseMarketPrices(row.market_prices as string),
     shopStock: row.shop_stock ? JSON.parse(row.shop_stock as string) : null,
     draftOptions: row.draft_options ? JSON.parse(row.draft_options as string) : null,
     rerollCost: row.reroll_cost as number | null,

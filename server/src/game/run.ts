@@ -31,17 +31,19 @@ export function createGameRun(
   const botEmpires = generateBots(rngState.current);
   rngState = advanceRngBy(rngState, 100); // Advance state after bot generation
 
-  // Generate initial market prices
+  // Generate initial market prices (separate for shop and player phases)
   const marketResult = generateMarketPrices(rngState);
-  const marketPrices = marketResult.prices;
+  const shopMarketPrices = marketResult.shopPrices;
+  const playerMarketPrices = marketResult.playerPrices;
   rngState = marketResult.rngState;
 
   // Generate initial shop stock and draft options for the starting shop
-  const initialShopStock = generateShopStock(playerEmpire, marketPrices);
+  // Use shop prices since game starts in shop phase
+  const initialShopStock = generateShopStock(playerEmpire, shopMarketPrices);
   const initialDraftResult = generateDraftOptions(rngState, playerEmpire, []);
   rngState = initialDraftResult.rngState;
 
-  const initialRerollCost = calculateRerollCost(playerEmpire, marketPrices);
+  const initialRerollCost = calculateRerollCost(playerEmpire, shopMarketPrices);
 
   // Initialize stats and set initial peak values based on starting empire
   const stats = createInitialStats();
@@ -63,7 +65,8 @@ export function createGameRun(
     playerEmpire,
     botEmpires,
 
-    marketPrices,
+    shopMarketPrices,
+    playerMarketPrices,
     shopStock: initialShopStock,
     draftOptions: initialDraftResult.options,
 
@@ -569,10 +572,12 @@ export function endPlayerPhase(run: GameRun): void {
 
   // Generate market prices using current RNG state (Balatro-style: state flows from player actions)
   const marketResult = generateMarketPrices(run.rngState);
-  run.marketPrices = marketResult.prices;
+  run.shopMarketPrices = marketResult.shopPrices;
+  run.playerMarketPrices = marketResult.playerPrices;
   run.rngState = marketResult.rngState;
 
-  run.shopStock = generateShopStock(run.playerEmpire, run.marketPrices);
+  // Use shop prices for stock generation (better deals in shop phase)
+  run.shopStock = generateShopStock(run.playerEmpire, run.shopMarketPrices);
 
   // Generate draft options using updated RNG state
   const draftResult = generateDraftOptions(run.rngState, run.playerEmpire, run.offeredAdvisorIds);
@@ -586,7 +591,8 @@ export function endPlayerPhase(run: GameRun): void {
   run.playerEmpire.guaranteedRareDraft = false;
 
   // Lock reroll cost at 20% of liquidation value (paid in gold, prevents gaming by selling assets first)
-  run.rerollCost = calculateRerollCost(run.playerEmpire, run.marketPrices);
+  // Use shop prices for reroll cost calculation
+  run.rerollCost = calculateRerollCost(run.playerEmpire, run.shopMarketPrices);
   run.rerollCount = 0;
 
   run.updatedAt = Date.now();
@@ -725,12 +731,13 @@ export function executeBotPhase(run: GameRun): BotPhaseResult {
   }
 
   // Process all bot turns using current RNG state
+  // Bots use player phase prices (no shop discount for AI)
   const result = processBotPhase(
     run.botEmpires,
     run.playerEmpire,
     run.round.number,
     run.rngState.current,
-    run.marketPrices
+    run.playerMarketPrices
   );
 
   // Update run state with results

@@ -497,19 +497,42 @@ export const SHOP = {
     legendary: 3,
   },
 
-  // Base market prices (shop phase - better deals than player phase private market)
-  // Player phase: food buy $30/sell $6, troops buy 1.0x/sell 0.32-0.38x
-  // Shop phase: cheaper to buy, more when selling
-  baseMarketPrices: {
-    foodBuyPrice: 20,        // cheaper than player phase ($30)
-    foodSellPrice: 15,       // better than player phase ($6)
-    troopBuyMultiplier: 0.7, // 30% discount vs player phase (1.0x)
-    troopSellMultiplier: 0.5,// better than player phase (~0.32-0.38x)
+  // Player phase prices (from QM Promisance pvtmarketbuy.php / pvtmarketsell.php)
+  // Standard private market prices - worse deals than shop phase
+  playerMarketPrices: {
+    foodBuyPrice: PVTM_FOOD,           // $30 (from config.php PVTM_FOOD)
+    foodSellPrice: PVTM_FOOD * 0.20,   // $6 (20% of buy price)
+    troopBuyMultiplier: 1.0,           // Base prices, modified by buildings/race
+    // Per-type sell multipliers (from pvtmarketsell.php getCost)
+    troopSellMultipliers: {
+      trparm: 0.32,
+      trplnd: 0.34,
+      trpfly: 0.36,
+      trpsea: 0.38,
+    },
     runeBuyPrice: 150,
     runeSellPrice: 120,
   },
 
-  // Price fluctuation range
+  // Shop phase prices - better deals than player phase
+  // Lower buy prices, higher sell prices as reward for reaching shop
+  shopMarketPrices: {
+    foodBuyPrice: 20,                  // $20 (33% discount from $30)
+    foodSellPrice: 15,                 // $15 (2.5x better than $6)
+    troopBuyMultiplier: 0.7,           // 30% discount on troop purchases
+    // Better sell multipliers during shop phase
+    troopSellMultipliers: {
+      trparm: 0.50,                    // 50% vs 32%
+      trplnd: 0.50,                    // 50% vs 34%
+      trpfly: 0.50,                    // 50% vs 36%
+      trpsea: 0.50,                    // 50% vs 38%
+    },
+    runeBuyPrice: 120,                 // 20% discount from 150
+    runeSellPrice: 140,                // Better than 120
+  },
+
+  // Price fluctuation range for shop phase (±20% variation)
+  // Player phase prices remain fixed like original QM Promisance private market
   priceFluctuation: 0.2,
 };
 

@@ -23,13 +23,45 @@ import { nextRng, randomFloat } from './rng';
 // ============================================
 
 export interface MarketPriceResult {
-  prices: MarketPrices;
+  shopPrices: MarketPrices;    // Better deals during shop phase
+  playerPrices: MarketPrices;  // Standard QM Promisance prices during player phase
   rngState: RngState;
 }
 
+// Helper to generate a single price set from base config
+function generatePriceSet(
+  base: typeof SHOP.shopMarketPrices,
+  fluctuation: number,
+  nextRandom: () => number
+): MarketPrices {
+  const fluctuate = (basePrice: number) => {
+    if (fluctuation === 0) return Math.floor(basePrice);
+    const change = (nextRandom() - 0.5) * 2 * fluctuation;
+    return Math.floor(basePrice * (1 + change));
+  };
+
+  const fluctuateMultiplier = (baseMultiplier: number) => {
+    if (fluctuation === 0) return baseMultiplier;
+    return baseMultiplier * (1 + (nextRandom() - 0.5) * fluctuation);
+  };
+
+  return {
+    foodBuyPrice: fluctuate(base.foodBuyPrice),
+    foodSellPrice: fluctuate(base.foodSellPrice),
+    troopBuyMultiplier: fluctuateMultiplier(base.troopBuyMultiplier),
+    troopSellMultipliers: {
+      trparm: fluctuateMultiplier(base.troopSellMultipliers.trparm),
+      trplnd: fluctuateMultiplier(base.troopSellMultipliers.trplnd),
+      trpfly: fluctuateMultiplier(base.troopSellMultipliers.trpfly),
+      trpsea: fluctuateMultiplier(base.troopSellMultipliers.trpsea),
+    },
+    runeBuyPrice: fluctuate(base.runeBuyPrice),
+    runeSellPrice: fluctuate(base.runeSellPrice),
+  };
+}
+
 export function generateMarketPrices(rngState: RngState): MarketPriceResult {
-  const base = SHOP.baseMarketPrices;
-  const fluctuation = SHOP.priceFluctuation;
+  const shopFluctuation = SHOP.priceFluctuation;
 
   let state = rngState;
   const nextRandom = () => {
@@ -38,21 +70,13 @@ export function generateMarketPrices(rngState: RngState): MarketPriceResult {
     return result.value;
   };
 
-  const fluctuate = (basePrice: number) => {
-    const change = (nextRandom() - 0.5) * 2 * fluctuation;
-    return Math.floor(basePrice * (1 + change));
-  };
+  // Generate shop phase prices with variation (better deals, randomized)
+  const shopPrices = generatePriceSet(SHOP.shopMarketPrices, shopFluctuation, nextRandom);
 
-  const prices: MarketPrices = {
-    foodBuyPrice: fluctuate(base.foodBuyPrice),
-    foodSellPrice: fluctuate(base.foodSellPrice),
-    troopBuyMultiplier: base.troopBuyMultiplier * (1 + (nextRandom() - 0.5) * fluctuation),
-    troopSellMultiplier: base.troopSellMultiplier * (1 + (nextRandom() - 0.5) * fluctuation),
-    runeBuyPrice: fluctuate(base.runeBuyPrice),
-    runeSellPrice: fluctuate(base.runeSellPrice),
-  };
+  // Generate player phase prices (fixed QM Promisance private market, no variation)
+  const playerPrices = generatePriceSet(SHOP.playerMarketPrices, 0, nextRandom);
 
-  return { prices, rngState: state };
+  return { shopPrices, playerPrices, rngState: state };
 }
 
 // ============================================
@@ -60,7 +84,7 @@ export function generateMarketPrices(rngState: RngState): MarketPriceResult {
 // ============================================
 
 // Stock multiplier - what fraction of networth worth of each item is available
-const STOCK_MULTIPLIER = 0.50; // 50% of networth per item type
+const STOCK_MULTIPLIER = 5.0; // 500% of networth per item type
 
 export function generateShopStock(empire: Empire, prices: MarketPrices): ShopStock {
   const networth = empire.networth;
@@ -130,19 +154,19 @@ export function getEffectiveTroopPrices(empire: Empire, prices: MarketPrices): {
   return {
     trparm: {
       buy: getEffectiveTroopCost(empire, UNIT_COSTS.trparm.buyPrice, prices.troopBuyMultiplier),
-      sell: Math.floor(UNIT_COSTS.trparm.buyPrice * prices.troopSellMultiplier),
+      sell: Math.floor(UNIT_COSTS.trparm.buyPrice * prices.troopSellMultipliers.trparm),
     },
     trplnd: {
       buy: getEffectiveTroopCost(empire, UNIT_COSTS.trplnd.buyPrice, prices.troopBuyMultiplier),
-      sell: Math.floor(UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultiplier),
+      sell: Math.floor(UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultipliers.trplnd),
     },
     trpfly: {
       buy: getEffectiveTroopCost(empire, UNIT_COSTS.trpfly.buyPrice, prices.troopBuyMultiplier),
-      sell: Math.floor(UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultiplier),
+      sell: Math.floor(UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultipliers.trpfly),
     },
     trpsea: {
       buy: getEffectiveTroopCost(empire, UNIT_COSTS.trpsea.buyPrice, prices.troopBuyMultiplier),
-      sell: Math.floor(UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultiplier),
+      sell: Math.floor(UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultipliers.trpsea),
     },
   };
 }
@@ -275,7 +299,9 @@ export function executeMarketTransaction(
           return { success: false, goldChange: 0, error: 'Not enough troops' };
         }
         const baseCost = UNIT_COSTS[troopType].buyPrice;
-        const revenue = Math.floor(amount * baseCost * prices.troopSellMultiplier);
+        // Use per-type sell multiplier (from QM Promisance pvtmarketsell.php)
+        const sellMultiplier = prices.troopSellMultipliers[troopType as keyof typeof prices.troopSellMultipliers];
+        const revenue = Math.floor(amount * baseCost * sellMultiplier);
         empire.troops[troopType] -= amount;
         empire.resources.gold += revenue;
         return { success: true, goldChange: revenue };
@@ -563,11 +589,11 @@ export function calculateLiquidationValue(empire: Empire, prices: MarketPrices):
   // Runes sold at market price
   value += empire.resources.runes * prices.runeSellPrice;
 
-  // Troops sold at market price (base cost * sell multiplier)
-  value += empire.troops.trparm * UNIT_COSTS.trparm.buyPrice * prices.troopSellMultiplier;
-  value += empire.troops.trplnd * UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultiplier;
-  value += empire.troops.trpfly * UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultiplier;
-  value += empire.troops.trpsea * UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultiplier;
+  // Troops sold at market price (base cost * per-type sell multiplier)
+  value += empire.troops.trparm * UNIT_COSTS.trparm.buyPrice * prices.troopSellMultipliers.trparm;
+  value += empire.troops.trplnd * UNIT_COSTS.trplnd.buyPrice * prices.troopSellMultipliers.trplnd;
+  value += empire.troops.trpfly * UNIT_COSTS.trpfly.buyPrice * prices.troopSellMultipliers.trpfly;
+  value += empire.troops.trpsea * UNIT_COSTS.trpsea.buyPrice * prices.troopSellMultipliers.trpsea;
 
   return Math.max(0, Math.floor(value));
 }

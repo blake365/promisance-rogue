@@ -120,7 +120,13 @@ export interface MarketPrices {
   foodBuyPrice: number;
   foodSellPrice: number;
   troopBuyMultiplier: number;
-  troopSellMultiplier: number;
+  // Per-type sell multipliers (from QM Promisance pvtmarketsell.php)
+  troopSellMultipliers: {
+    trparm: number;  // 0.32
+    trplnd: number;  // 0.34
+    trpfly: number;  // 0.36
+    trpsea: number;  // 0.38
+  };
   runeBuyPrice: number;
   runeSellPrice: number;
 }
