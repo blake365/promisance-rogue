@@ -23,6 +23,7 @@ interface BuildingPanelProps {
   freeLand: number;
   gold: number;
   landTotal: number;
+  turnsRemaining: number;
   currentBuildings: Buildings;
   empire: Empire;
   onBuild: (allocation: Partial<Buildings>) => void;
@@ -34,6 +35,7 @@ export function BuildingPanel({
   freeLand,
   gold,
   landTotal,
+  turnsRemaining,
   currentBuildings,
   empire,
   onBuild,
@@ -65,10 +67,12 @@ export function BuildingPanel({
   const totalRefund = totalBuildings * refundPerBuilding;
   const buildRate = Math.max(1, Math.floor(landTotal / 20));
   const turnsNeeded = totalBuildings > 0 ? Math.max(1, Math.ceil(totalBuildings / buildRate)) : 0;
+  const maxBuildingsByTurns = turnsRemaining * buildRate;
 
   const canAfford = totalCost <= gold;
   const hasLand = totalBuildings <= freeLand;
-  const canBuild = mode === 'build' && canAfford && hasLand && totalBuildings > 0;
+  const hasTurns = turnsNeeded <= turnsRemaining;
+  const canBuild = mode === 'build' && canAfford && hasLand && hasTurns && totalBuildings > 0;
   const canDemolish = mode === 'demolish' && totalBuildings > 0;
 
   const adjustAllocation = (key: keyof Buildings, delta: number) => {
@@ -78,10 +82,10 @@ export function BuildingPanel({
 
       if (mode === 'build') {
         const otherTotal = totalBuildings - current;
-        const maxCanAdd = Math.min(
-          freeLand - otherTotal,
-          Math.floor((gold - otherTotal * costPerBuilding) / costPerBuilding)
-        );
+        const maxByLand = freeLand - otherTotal;
+        const maxByGold = Math.floor((gold - otherTotal * costPerBuilding) / costPerBuilding);
+        const maxByTurns = maxBuildingsByTurns - otherTotal;
+        const maxCanAdd = Math.min(maxByLand, maxByGold, maxByTurns);
         newValue = Math.max(0, Math.min(maxCanAdd, newValue));
       } else {
         const maxCanDemolish = currentBuildings[key] || 0;
@@ -92,16 +96,25 @@ export function BuildingPanel({
     });
   };
 
-  const setMax = (key: keyof Buildings) => {
+  const getMaxForKey = (key: keyof Buildings) => {
     if (mode === 'build') {
       const otherTotal = totalBuildings - (allocation[key] || 0);
       const maxByLand = freeLand - otherTotal;
       const maxByGold = Math.floor((gold - otherTotal * costPerBuilding) / costPerBuilding);
-      const max = Math.max(0, Math.min(maxByLand, maxByGold));
-      setAllocation((prev) => ({ ...prev, [key]: max }));
+      const maxByTurns = maxBuildingsByTurns - otherTotal;
+      return Math.max(0, Math.min(maxByLand, maxByGold, maxByTurns));
     } else {
-      setAllocation((prev) => ({ ...prev, [key]: currentBuildings[key] || 0 }));
+      return currentBuildings[key] || 0;
     }
+  };
+
+  const setMax = (key: keyof Buildings) => {
+    setAllocation((prev) => ({ ...prev, [key]: getMaxForKey(key) }));
+  };
+
+  const setHalf = (key: keyof Buildings) => {
+    const max = getMaxForKey(key);
+    setAllocation((prev) => ({ ...prev, [key]: Math.floor(max / 2) }));
   };
 
   const clearAll = () => {
@@ -185,7 +198,10 @@ export function BuildingPanel({
         {mode === 'build' ? (
           <>
             <span className="text-gray-400">
-              Free Land: <span className="text-green-400">{formatNumber(freeLand)}</span>
+              Land: <span className="text-green-400">{formatNumber(freeLand)}</span>
+            </span>
+            <span className="text-gray-400">
+              Turns: <span className={turnsRemaining > 0 ? 'text-cyan-400' : 'text-red-400'}>{turnsRemaining}</span>
             </span>
             <span className="text-gray-400">
               Cost: <span className="text-gold">{formatNumber(costPerBuilding)}</span>/bld
@@ -289,6 +305,12 @@ export function BuildingPanel({
                 </div>
 
                 <button
+                  onClick={() => setHalf(type.key)}
+                  className="btn-secondary btn-md min-h-[44px]"
+                >
+                  50%
+                </button>
+                <button
                   onClick={() => setMax(type.key)}
                   className="btn-secondary btn-md min-h-[44px]"
                 >
@@ -321,6 +343,9 @@ export function BuildingPanel({
             )}
             {!canAfford && totalBuildings > 0 && (
               <p className="text-red-400 text-xs">Not enough gold!</p>
+            )}
+            {!hasTurns && totalBuildings > 0 && (
+              <p className="text-red-400 text-xs">Not enough turns! (need {turnsNeeded}, have {turnsRemaining})</p>
             )}
           </>
         ) : (

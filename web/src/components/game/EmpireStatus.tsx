@@ -22,27 +22,60 @@ const MASTERY_NAMES: Record<string, string> = {
 export function EmpireStatus({ empire, round, expanded = false, onClose }: EmpireStatusProps) {
   const [isExpanded, setIsExpanded] = useState(expanded);
 
-  // Calculate estimates (per-turn values) - matching CLI
+  // Calculate estimates (per-turn values) - matching server constants
   const usedLand = empire.resources.land - empire.resources.freeland;
+  const land = Math.max(empire.resources.land, 1);
 
-  // Food estimates
-  const foodProduction = empire.buildings.bldfood * 50;
-  const foodConsumption = Math.round(empire.peasants * 0.1 +
-    (empire.troops.trparm + empire.troops.trplnd + empire.troops.trpfly + empire.troops.trpsea) * 0.2);
+  // Food estimates (from server calcProvisions)
+  // Production = freeland * 10 + farms * 85 * sqrt(1 - 0.75 * farmRatio)
+  const freelandFood = empire.resources.freeland * 10;
+  const farmRatio = empire.buildings.bldfood / land;
+  const farmEfficiency = Math.sqrt(Math.max(0, 1 - 0.75 * farmRatio));
+  const farmFood = empire.buildings.bldfood * 85 * farmEfficiency;
+  const foodProduction = Math.round(freelandFood + farmFood);
+
+  // Consumption rates from server: peasant=0.01, trparm=0.05, trplnd=0.03, trpfly=0.02, trpsea=0.01, trpwiz=0.25
+  const foodConsumption = Math.round(
+    empire.peasants * 0.01 +
+    empire.troops.trparm * 0.05 +
+    empire.troops.trplnd * 0.03 +
+    empire.troops.trpfly * 0.02 +
+    empire.troops.trpsea * 0.01 +
+    empire.troops.trpwiz * 0.25
+  );
   const foodNet = foodProduction - foodConsumption;
 
-  // Income estimates
-  const marketIncome = empire.buildings.bldcash * 100;
-  const taxIncome = Math.round(empire.peasants * (empire.taxRate / 100) * 0.5);
-  const estIncome = marketIncome + taxIncome;
+  // Income estimates (from server calcFinances)
+  // PCI = 25 * (1 + bldcash/land)
+  // Income = (PCI * taxRate * health * peasants + bldcash * 500) / sizeBonus
+  const pci = 25 * (1 + empire.buildings.bldcash / land);
+  const taxFactor = empire.taxRate / 100;
+  const healthFactor = empire.health / 100;
+  const peasantIncome = pci * taxFactor * healthFactor * empire.peasants;
+  const marketIncome = empire.buildings.bldcash * 500;
+  // Simplified size bonus (based on networth)
+  const sizeBonus = empire.networth <= 10000 ? 1.0 :
+    empire.networth <= 100000 ? 1.05 :
+    empire.networth <= 1000000 ? 1.10 : 1.15;
+  const estIncome = Math.round((peasantIncome + marketIncome) / sizeBonus);
 
-  // Expense estimates
-  const troopExpenses = Math.round(
-    (empire.troops.trparm * 0.5 + empire.troops.trplnd * 1 +
-     empire.troops.trpfly * 1.5 + empire.troops.trpsea * 2) * 0.1
-  );
-  const estExpenses = troopExpenses;
-  const financeNet = estIncome - estExpenses;
+  // Expense estimates (from server calcFinances)
+  // Base = trparm*1 + trplnd*2.5 + trpfly*4 + trpsea*7 + trpwiz*0.5 + land*8
+  const baseExpenses =
+    empire.troops.trparm * 1 +
+    empire.troops.trplnd * 2.5 +
+    empire.troops.trpfly * 4 +
+    empire.troops.trpsea * 7 +
+    empire.troops.trpwiz * 0.5 +
+    empire.resources.land * 8;
+  // Exchange buildings reduce expenses (up to 50%)
+  const exchangeRatio = empire.buildings.bldcost / land;
+  const expenseReduction = Math.min(0.5, exchangeRatio);
+  const estExpenses = Math.round(baseExpenses * (1 - expenseReduction));
+
+  // Loan payment = loan / 200
+  const loanPayment = Math.round(empire.loan / 200);
+  const financeNet = estIncome - estExpenses - loanPayment;
 
   // Combat success rates
   const offSuccessRate = empire.offTotal > 0

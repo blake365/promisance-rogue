@@ -48,6 +48,14 @@ function withSpellCosts<T extends { playerEmpire: import('../types').Empire }>(d
   };
 }
 
+// Helper to add spell costs to a single empire
+function empireWithSpellCosts(empire: import('../types').Empire) {
+  return {
+    ...empire,
+    spellCosts: calculateAllSpellCosts(empire),
+  };
+}
+
 // Generate intel for a bot (used for full_intel policy)
 function generateBotIntel(bot: BotEmpire, round: number): SpyIntel {
   return {
@@ -440,7 +448,7 @@ app.post('/api/game/:id/settings', async (c) => {
 
   return c.json({
     success: true,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
   });
 });
 
@@ -548,7 +556,7 @@ app.post('/api/game/:id/market', async (c) => {
 
   return c.json({
     result,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
     shopStock: run.shopStock,
     effectivePrices: getEffectiveTroopPrices(run.playerEmpire, run.marketPrices),
   });
@@ -604,7 +612,7 @@ app.post('/api/game/:id/bank', async (c) => {
 
   return c.json({
     result,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
     bankInfo: getBankInfo(run.playerEmpire),
   });
 });
@@ -643,7 +651,7 @@ app.post('/api/game/:id/draft', async (c) => {
   return c.json({
     success: result.success,
     error: result.error,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
     draftOptions: run.draftOptions,
     edictResult: result.edictResult,
   });
@@ -697,7 +705,7 @@ app.post('/api/game/:id/reroll', async (c) => {
 
   return c.json({
     ...result,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
     draftOptions: run.draftOptions,
     rerollInfo: getRerollInfo(run),
   });
@@ -725,7 +733,7 @@ app.post('/api/game/:id/dismiss-advisor', async (c) => {
 
   return c.json({
     ...result,
-    empire: run.playerEmpire,
+    empire: empireWithSpellCosts(run.playerEmpire),
     advisorCapacity: getAdvisorCapacity(run.playerEmpire),
   });
 });

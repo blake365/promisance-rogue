@@ -27,6 +27,7 @@ interface MarketPanelProps {
   shopStock: ShopStock | null;
   onTransaction: (transaction: ShopTransaction) => Promise<boolean>;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 export function MarketPanel({
@@ -37,6 +38,7 @@ export function MarketPanel({
   shopStock,
   onTransaction,
   onClose,
+  embedded = false,
 }: MarketPanelProps) {
   const [mode, setMode] = useState<'buy' | 'sell'>('buy');
   const [selectedItem, setSelectedItem] = useState<MarketItem>(MARKET_ITEMS[0]);
@@ -238,13 +240,15 @@ export function MarketPanel({
 
       {/* Action Buttons */}
       <div className="flex gap-2">
-        <button onClick={onClose} className="btn-secondary btn-lg flex-1">
-          Close
-        </button>
+        {!embedded && (
+          <button onClick={onClose} className="btn-secondary btn-lg flex-1">
+            Close
+          </button>
+        )}
         <button
           onClick={handleTransaction}
           disabled={amount === 0 || processing}
-          className={clsx('btn-lg flex-1', mode === 'buy' ? 'btn-primary' : 'btn-gold')}
+          className={clsx('btn-lg', embedded ? 'w-full' : 'flex-1', mode === 'buy' ? 'btn-primary' : 'btn-gold')}
         >
           {processing ? 'Processing...' : mode === 'buy' ? 'Buy' : 'Sell'}
         </button>

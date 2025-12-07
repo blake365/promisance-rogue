@@ -215,10 +215,6 @@ export function GamePage() {
   // Handle draft
   const handleSelectDraft = async (index: number) => {
     await selectDraft(index);
-    // If no more draft options, end shop phase
-    if (!game.draftOptions || game.draftOptions.length === 0) {
-      setViewMode('main');
-    }
   };
 
   const handleAdvanceToBotPhase = async () => {
@@ -254,6 +250,7 @@ export function GamePage() {
             freeLand={playerEmpire.resources.freeland}
             gold={playerEmpire.resources.gold}
             landTotal={playerEmpire.resources.land}
+            turnsRemaining={round.turnsRemaining}
             currentBuildings={playerEmpire.buildings}
             empire={playerEmpire}
             onBuild={handleBuild}
@@ -416,34 +413,52 @@ export function GamePage() {
               </div>
             )}
 
-            {draftOptions ? (
-              <DraftCarousel
-                options={draftOptions}
-                rerollInfo={rerollInfo}
-                masteryLevels={playerEmpire.techs}
-                extraPicks={playerEmpire.extraDraftPicks}
-                quickBuyInfo={shopStock && effectivePrices && marketPrices ? {
-                  gold: playerEmpire.resources.gold,
-                  food: playerEmpire.resources.food,
-                  shopStock,
-                  effectivePrices,
-                  foodBuyPrice: marketPrices.foodBuyPrice,
-                } : undefined}
-                onSelect={handleSelectDraft}
-                onReroll={rerollDraft}
-                onAdvance={handleAdvanceToBotPhase}
-                onMarket={() => setViewMode('market')}
-                onAdvisors={() => setViewMode('advisors')}
-                onQuickBuy={marketTransaction}
-              />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-400 mb-4">Shop phase complete</p>
-                <button onClick={handleAdvanceToBotPhase} className="btn-primary btn-lg">
-                  Continue to Bot Phase
-                </button>
+            <div className="space-y-6">
+              {/* Draft Options (if available) */}
+              {draftOptions && draftOptions.length > 0 && (
+                <DraftCarousel
+                  options={draftOptions}
+                  rerollInfo={rerollInfo}
+                  masteryLevels={playerEmpire.techs}
+                  extraPicks={playerEmpire.extraDraftPicks}
+                  onSelect={handleSelectDraft}
+                  onReroll={rerollDraft}
+                  onAdvisors={() => setViewMode('advisors')}
+                />
+              )}
+
+              {/* No more draft picks message */}
+              {(!draftOptions || draftOptions.length === 0) && (
+                <div className="bg-game-card rounded-lg p-4 border border-game-border text-center">
+                  <p className="text-gray-400">No more draft picks available</p>
+                  <button
+                    onClick={() => setViewMode('advisors')}
+                    className="btn-secondary btn-sm mt-2"
+                  >
+                    👤 Manage Advisors
+                  </button>
+                </div>
+              )}
+
+              {/* Embedded Market */}
+              <div className="border-t border-game-border pt-4">
+                <MarketPanel
+                  empire={playerEmpire}
+                  phase={round.phase}
+                  marketPrices={marketPrices}
+                  effectivePrices={effectivePrices}
+                  shopStock={shopStock}
+                  onTransaction={marketTransaction}
+                  onClose={() => {}} // No-op since it's embedded
+                  embedded
+                />
               </div>
-            )}
+
+              {/* Advance Button */}
+              <button onClick={handleAdvanceToBotPhase} className="btn-secondary btn-lg w-full">
+                ⏩ Advance to Bot Phase
+              </button>
+            </div>
           </>
         );
 
@@ -592,7 +607,7 @@ export function GamePage() {
             onViewDetails={handleViewDetails}
             onAttackSameTarget={canAttackAgain && targetStillAlive ? handleAttackSameTarget : undefined}
             onAttackNewTarget={canAttackAgain ? handleAttackNewTarget : undefined}
-            autoHideMs={lastActionType === 'attack' || lastActionType === 'spell' ? 6000 : 1500}
+            autoHideMs={lastActionType === 'attack' || lastActionType === 'spell' ? 10000 : 5000}
           />
         );
       })()}

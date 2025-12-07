@@ -175,14 +175,111 @@ export function ActionToast({
           </div>
         )}
 
-        {/* Economy summary for resource-generating actions */}
-        {['farm', 'cash', 'meditate'].includes(action) && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {summary.map((item, i) => (
-              <span key={i} className={item.color}>
-                {item.prefix}{formatNumber(item.value)} {item.label}
-              </span>
-            ))}
+        {/* Detailed Farm Results */}
+        {action === 'farm' && (
+          <div className="space-y-1">
+            <div className="text-sm font-display text-food mb-1">🌾 Farming Results</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Produced:</span>
+                <span className="text-green-400">+{formatNumber(result.foodProduction)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Consumed:</span>
+                <span className="text-red-400">-{formatNumber(result.foodConsumption)}</span>
+              </div>
+              <div className="flex justify-between col-span-2 border-t border-game-border pt-1 mt-1">
+                <span className="text-gray-300">Net Food:</span>
+                <span className={result.foodProduction - result.foodConsumption >= 0 ? 'text-food font-semibold' : 'text-red-400 font-semibold'}>
+                  {result.foodProduction - result.foodConsumption >= 0 ? '+' : ''}{formatNumber(result.foodProduction - result.foodConsumption)}
+                </span>
+              </div>
+            </div>
+            {/* Also show gold changes */}
+            {(result.income > 0 || result.expenses > 0) && (
+              <div className="text-xs text-gray-400 mt-2">
+                Gold: <span className={result.income - result.expenses >= 0 ? 'text-gold' : 'text-red-400'}>
+                  {result.income - result.expenses >= 0 ? '+' : ''}{formatNumber(result.income - result.expenses)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Detailed Cash Results */}
+        {action === 'cash' && (
+          <div className="space-y-1">
+            <div className="text-sm font-display text-gold mb-1">💰 Commerce Results</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Income:</span>
+                <span className="text-green-400">+{formatNumber(result.income)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Expenses:</span>
+                <span className="text-red-400">-{formatNumber(result.expenses)}</span>
+              </div>
+              {result.bankInterest > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Bank Interest:</span>
+                  <span className="text-green-400">+{formatNumber(result.bankInterest)}</span>
+                </div>
+              )}
+              {result.loanInterest > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Loan Interest:</span>
+                  <span className="text-red-400">-{formatNumber(result.loanInterest)}</span>
+                </div>
+              )}
+              {result.loanPayment > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Loan Payment:</span>
+                  <span className="text-yellow-400">-{formatNumber(result.loanPayment)}</span>
+                </div>
+              )}
+              <div className="flex justify-between col-span-2 border-t border-game-border pt-1 mt-1">
+                <span className="text-gray-300">Net Gold:</span>
+                <span className={(() => {
+                  const net = result.income - result.expenses + (result.bankInterest || 0) - (result.loanInterest || 0);
+                  return net >= 0 ? 'text-gold font-semibold' : 'text-red-400 font-semibold';
+                })()}>
+                  {(() => {
+                    const net = result.income - result.expenses + (result.bankInterest || 0) - (result.loanInterest || 0);
+                    return `${net >= 0 ? '+' : ''}${formatNumber(net)}`;
+                  })()}
+                </span>
+              </div>
+            </div>
+            {/* Also show food changes */}
+            {(result.foodProduction > 0 || result.foodConsumption > 0) && (
+              <div className="text-xs text-gray-400 mt-2">
+                Food: <span className={result.foodProduction - result.foodConsumption >= 0 ? 'text-food' : 'text-red-400'}>
+                  {result.foodProduction - result.foodConsumption >= 0 ? '+' : ''}{formatNumber(result.foodProduction - result.foodConsumption)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Detailed Meditate Results */}
+        {action === 'meditate' && (
+          <div className="space-y-1">
+            <div className="text-sm font-display text-runes mb-1">🧘 Meditation Results</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+              <div className="flex justify-between col-span-2">
+                <span className="text-gray-400">Runes Gained:</span>
+                <span className="text-runes font-semibold">+{formatNumber(result.runeChange)}</span>
+              </div>
+            </div>
+            {/* Also show gold and food changes */}
+            <div className="text-xs text-gray-400 mt-2 flex gap-3">
+              <span>Gold: <span className={result.income - result.expenses >= 0 ? 'text-gold' : 'text-red-400'}>
+                {result.income - result.expenses >= 0 ? '+' : ''}{formatNumber(result.income - result.expenses)}
+              </span></span>
+              <span>Food: <span className={result.foodProduction - result.foodConsumption >= 0 ? 'text-food' : 'text-red-400'}>
+                {result.foodProduction - result.foodConsumption >= 0 ? '+' : ''}{formatNumber(result.foodProduction - result.foodConsumption)}
+              </span></span>
+            </div>
           </div>
         )}
 

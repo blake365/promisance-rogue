@@ -122,7 +122,11 @@ export function ActionPanel({
 
     setIsExecuting(true);
     try {
-      await onExecute(action, quickTurns);
+      // Pass settings for cash and industry actions
+      await onExecute(action, quickTurns, {
+        taxRate: action === 'cash' ? taxRate : undefined,
+        industryAllocation: action === 'industry' ? industryAllocation : undefined,
+      });
     } finally {
       setIsExecuting(false);
     }
@@ -362,18 +366,36 @@ export function ActionPanel({
                 </div>
               );
             })}
-            <div className="flex gap-2">
+            <div className="flex gap-1 flex-wrap">
               <button
                 onClick={() => setIndustryAllocation({ trparm: 25, trplnd: 25, trpfly: 25, trpsea: 25 })}
-                className="flex-1 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
+                className="px-2 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
               >
-                Equal (25%)
+                Equal
               </button>
               <button
                 onClick={() => setIndustryAllocation({ trparm: 100, trplnd: 0, trpfly: 0, trpsea: 0 })}
-                className="flex-1 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
+                className="px-2 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
               >
-                All Infantry
+                All Inf
+              </button>
+              <button
+                onClick={() => setIndustryAllocation({ trparm: 0, trplnd: 100, trpfly: 0, trpsea: 0 })}
+                className="px-2 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
+              >
+                All Cav
+              </button>
+              <button
+                onClick={() => setIndustryAllocation({ trparm: 0, trplnd: 0, trpfly: 100, trpsea: 0 })}
+                className="px-2 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
+              >
+                All Air
+              </button>
+              <button
+                onClick={() => setIndustryAllocation({ trparm: 0, trplnd: 0, trpfly: 0, trpsea: 100 })}
+                className="px-2 py-1 rounded text-xs border border-game-border bg-game-dark text-gray-400 hover:text-cyan-400"
+              >
+                All Navy
               </button>
             </div>
             <div className="text-xs text-gray-500">
