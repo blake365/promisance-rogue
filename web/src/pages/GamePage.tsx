@@ -4,8 +4,7 @@ import { useGameStore } from '@/stores/gameStore';
 import { Panel } from '@/components/ui';
 import {
   EmpireStatus,
-  ActionGrid,
-  TurnSlider,
+  ActionPanel,
   BuildingPanel,
   MarketPanel,
   BankPanel,
@@ -19,236 +18,10 @@ import {
   GameSummary,
   AdvisorPanel,
 } from '@/components/game';
-import { formatNumber } from '@/utils/format';
 import type { TurnAction, SpellType, AttackType, Buildings, IndustryAllocation } from '@/types';
-
-function TaxRateEditor({
-  value,
-  onChange,
-  onSave,
-  isSaving,
-}: {
-  value: number;
-  onChange: (rate: number) => void;
-  onSave?: () => void;
-  isSaving?: boolean;
-}) {
-  const taxEffect = value <= 20 ? 'Population grows faster'
-    : value <= 40 ? 'Normal population growth'
-    : value <= 60 ? 'Population grows slower'
-    : 'Population is leaving!';
-
-  const taxColor = value <= 20 ? 'text-green-400'
-    : value <= 40 ? 'text-yellow-400'
-    : 'text-red-400';
-
-  const presets = [
-    { label: 'Low', value: 20, color: 'text-green-400' },
-    { label: 'Med', value: 40, color: 'text-yellow-400' },
-    { label: 'High', value: 60, color: 'text-orange-400' },
-    { label: 'Max', value: 80, color: 'text-red-400' },
-  ];
-
-  return (
-    <div className="space-y-3">
-      {/* Tax Rate Slider */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-gray-400">Tax Rate:</span>
-          <span className="font-stats text-gold text-xl">{value}%</span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={value}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          className="w-full h-2 rounded-full appearance-none cursor-pointer bg-game-dark border border-game-border
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:border-2
-            [&::-webkit-slider-thumb]:border-yellow-300"
-        />
-      </div>
-
-      {/* Presets */}
-      <div className="flex gap-2">
-        {presets.map((preset) => (
-          <button
-            key={preset.value}
-            onClick={() => onChange(preset.value)}
-            className={`flex-1 py-1 px-2 rounded text-sm border ${
-              value === preset.value
-                ? 'border-gold bg-gold/20 text-gold'
-                : 'border-game-border bg-game-card text-gray-400 hover:border-gray-500'
-            }`}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Save Tax Rate Button */}
-      {onSave && (
-        <button
-          onClick={onSave}
-          disabled={isSaving}
-          className={`w-full py-2 rounded text-sm font-display uppercase tracking-wider transition-colors ${
-            !isSaving
-              ? 'bg-gold/80 hover:bg-gold text-black'
-              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isSaving ? 'Saving...' : 'Save Tax Rate'}
-        </button>
-      )}
-
-      {/* Effects */}
-      <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t border-game-border">
-        <div className="flex justify-between">
-          <span className="text-gray-500">Income:</span>
-          <span className="font-stats text-green-400">{value}%</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-500">Effect:</span>
-          <span className={`${taxColor}`}>{value <= 40 ? '👍' : value <= 60 ? '👎' : '💀'}</span>
-        </div>
-      </div>
-      <div className={`text-xs ${taxColor} text-center`}>{taxEffect}</div>
-    </div>
-  );
-}
-
-function IndustryAllocationEditor({
-  value,
-  onChange,
-  onSave,
-  troops,
-  isSaving,
-}: {
-  value: IndustryAllocation;
-  onChange: (allocation: IndustryAllocation) => void;
-  onSave?: () => void;
-  troops: { trparm: number; trplnd: number; trpfly: number; trpsea: number };
-  isSaving?: boolean;
-}) {
-  const total = value.trparm + value.trplnd + value.trpfly + value.trpsea;
-  const isValid = total === 100;
-
-  const troopTypes: Array<{ key: keyof IndustryAllocation; name: string }> = [
-    { key: 'trparm', name: 'Infantry' },
-    { key: 'trplnd', name: 'Cavalry' },
-    { key: 'trpfly', name: 'Aircraft' },
-    { key: 'trpsea', name: 'Navy' },
-  ];
-
-  const adjustValue = (key: keyof IndustryAllocation, delta: number) => {
-    const newVal = Math.max(0, Math.min(100, value[key] + delta));
-    onChange({ ...value, [key]: newVal });
-  };
-
-  const setEqual = () => {
-    onChange({ trparm: 25, trplnd: 25, trpfly: 25, trpsea: 25 });
-  };
-
-  const fillRemainder = (key: keyof IndustryAllocation) => {
-    const others = Object.entries(value)
-      .filter(([k]) => k !== key)
-      .reduce((sum, [, v]) => sum + v, 0);
-    const remainder = Math.max(0, 100 - others);
-    onChange({ ...value, [key]: remainder });
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-500 uppercase tracking-wider">Troop Allocation</span>
-        <span className={`font-stats text-sm ${isValid ? 'text-green-400' : 'text-red-400'}`}>
-          {total}% {!isValid && `(need ${100 - total > 0 ? '+' : ''}${100 - total}%)`}
-        </span>
-      </div>
-
-      {/* Allocation Controls */}
-      <div className="space-y-2">
-        {troopTypes.map(({ key, name }) => (
-          <div key={key} className="flex items-center gap-2">
-            <span className="text-gray-400 w-16 text-sm">{name}</span>
-            <button
-              onClick={() => adjustValue(key, -10)}
-              className="w-8 h-8 rounded bg-game-card border border-game-border text-red-400 hover:bg-red-500/20"
-            >
-              -
-            </button>
-            <div className="flex-1 relative">
-              <div className="h-6 bg-game-dark rounded border border-game-border overflow-hidden">
-                <div
-                  className="h-full bg-cyan-500/30 transition-all"
-                  style={{ width: `${value[key]}%` }}
-                />
-              </div>
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-stats text-white">
-                {value[key]}%
-              </span>
-            </div>
-            <button
-              onClick={() => adjustValue(key, 10)}
-              className="w-8 h-8 rounded bg-game-card border border-game-border text-green-400 hover:bg-green-500/20"
-            >
-              +
-            </button>
-            <button
-              onClick={() => fillRemainder(key)}
-              className="text-xs text-gray-500 hover:text-cyan-400 px-1"
-              title="Fill remainder"
-            >
-              Fill
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="flex gap-2">
-        <button
-          onClick={setEqual}
-          className="flex-1 py-1 px-2 rounded text-sm border border-game-border bg-game-card text-gray-400 hover:border-cyan-500 hover:text-cyan-400"
-        >
-          Equal (25% each)
-        </button>
-        <button
-          onClick={() => onChange({ trparm: 100, trplnd: 0, trpfly: 0, trpsea: 0 })}
-          className="flex-1 py-1 px-2 rounded text-sm border border-game-border bg-game-card text-gray-400 hover:border-cyan-500 hover:text-cyan-400"
-        >
-          All Infantry
-        </button>
-      </div>
-
-      {/* Save Allocation Button */}
-      {onSave && (
-        <button
-          onClick={onSave}
-          disabled={!isValid || isSaving}
-          className={`w-full py-2 rounded text-sm font-display uppercase tracking-wider transition-colors ${
-            isValid && !isSaving
-              ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isSaving ? 'Saving...' : 'Save Allocation'}
-        </button>
-      )}
-
-      {/* Current Troops */}
-      <div className="text-xs text-gray-500 pt-2 border-t border-game-border">
-        Current: {formatNumber(troops.trparm)} Inf, {formatNumber(troops.trplnd)} Cav, {formatNumber(troops.trpfly)} Air, {formatNumber(troops.trpsea)} Sea
-      </div>
-    </div>
-  );
-}
 
 type ViewMode =
   | 'main'
-  | 'turns_input'
   | 'building'
   | 'market'
   | 'bank'
@@ -287,19 +60,16 @@ export function GamePage() {
     marketTransaction,
     fetchBankInfo,
     bankTransaction,
-    updateSettings,
     executeBotPhase,
     resetGame,
     abandonGame,
   } = useGameStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>('main');
-  const [pendingAction, setPendingAction] = useState<TurnAction | null>(null);
   const [pendingSpell, setPendingSpell] = useState<SpellType | null>(null);
   const [pendingAttackType, setPendingAttackType] = useState<AttackType | null>(null);
   const [lastAttackType, setLastAttackType] = useState<AttackType | null>(null);
-  const [editedTaxRate, setEditedTaxRate] = useState<number | null>(null);
-  const [editedIndustryAllocation, setEditedIndustryAllocation] = useState<IndustryAllocation | null>(null);
+  const [lastTargetId, setLastTargetId] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [showFullResult, setShowFullResult] = useState(false);
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
@@ -359,59 +129,18 @@ export function GamePage() {
 
   const { playerEmpire, round, botEmpires, intel, marketPrices, effectivePrices, shopStock, draftOptions, rerollInfo } = game;
 
-  // Handle action selection
-  const handleAction = (action: TurnAction | 'market' | 'bank' | 'overview' | 'enemies' | 'guide' | 'end_phase' | 'abandon') => {
-    clearError();
-
-    if (action === 'abandon') {
-      setShowAbandonConfirm(true);
-    } else if (action === 'market') {
-      setViewMode('market');
-    } else if (action === 'bank') {
-      // Refresh bank info to ensure it's current (e.g., after forced loans from negative gold)
-      fetchBankInfo();
-      setViewMode('bank');
-    } else if (action === 'overview') {
-      navigate('/overview');
-    } else if (action === 'enemies') {
-      setViewMode('enemies');
-    } else if (action === 'guide') {
-      navigate('/guide');
-    } else if (action === 'end_phase') {
-      handleEndPhase();
-    } else if (action === 'build' || action === 'demolish') {
-      setViewMode('building');
-    } else if (action === 'attack') {
-      setViewMode('attack_type');
-    } else if (action === 'spell') {
-      setViewMode('spell_select');
-    } else {
-      // Simple turn actions: explore, farm, cash, meditate, industry
-      setPendingAction(action);
-      // Initialize editable values for cash and industry
-      if (action === 'cash') {
-        setEditedTaxRate(playerEmpire.taxRate);
-      } else if (action === 'industry') {
-        setEditedIndustryAllocation({ ...playerEmpire.industryAllocation });
-      }
-      setViewMode('turns_input');
-    }
-  };
-
-  // Execute turn action
-  const handleExecuteAction = async (turns: number) => {
-    if (!pendingAction) return;
-
+  // Handle unified action execution from ActionPanel
+  const handleUnifiedAction = async (
+    action: TurnAction,
+    turns: number,
+    options?: { taxRate?: number; industryAllocation?: IndustryAllocation }
+  ) => {
     await executeAction({
-      action: pendingAction,
+      action,
       turns,
-      taxRate: pendingAction === 'cash' ? editedTaxRate ?? undefined : undefined,
-      industryAllocation: pendingAction === 'industry' ? editedIndustryAllocation ?? undefined : undefined,
+      taxRate: options?.taxRate,
+      industryAllocation: options?.industryAllocation,
     });
-
-    setPendingAction(null);
-    setEditedTaxRate(null);
-    setEditedIndustryAllocation(null);
   };
 
   // Handle building
@@ -442,6 +171,7 @@ export function GamePage() {
   const handleTargetSelect = async (targetId: string) => {
     if (pendingAttackType) {
       setLastAttackType(pendingAttackType);
+      setLastTargetId(targetId);
       await executeAction({
         action: 'attack',
         turns: 2,
@@ -518,52 +248,6 @@ export function GamePage() {
   // Render current view
   const renderContent = () => {
     switch (viewMode) {
-      case 'turns_input':
-        return (
-          <TurnSlider
-            maxTurns={round.turnsRemaining}
-            label={getActionLabel(pendingAction)}
-            description={getActionDescription(pendingAction)}
-            extraInfo={
-              pendingAction === 'cash' && editedTaxRate !== null ? (
-                <TaxRateEditor
-                  value={editedTaxRate}
-                  onChange={setEditedTaxRate}
-                  onSave={async () => {
-                    if (editedTaxRate !== null) {
-                      await updateSettings({ taxRate: editedTaxRate });
-                    }
-                  }}
-                  isSaving={loading}
-                />
-              ) : pendingAction === 'industry' && editedIndustryAllocation !== null ? (
-                <IndustryAllocationEditor
-                  value={editedIndustryAllocation}
-                  onChange={setEditedIndustryAllocation}
-                  onSave={async () => {
-                    if (editedIndustryAllocation) {
-                      const success = await updateSettings({ industryAllocation: editedIndustryAllocation });
-                      if (success) {
-                        // Update will persist even if user cancels turns
-                      }
-                    }
-                  }}
-                  troops={playerEmpire.troops}
-                  isSaving={loading}
-                />
-              ) : undefined
-            }
-            onConfirm={handleExecuteAction}
-            onCancel={() => {
-              setPendingAction(null);
-              setEditedTaxRate(null);
-              setEditedIndustryAllocation(null);
-              setViewMode('main');
-            }}
-            disabled={loading}
-          />
-        );
-
       case 'building':
         return (
           <BuildingPanel
@@ -738,11 +422,19 @@ export function GamePage() {
                 rerollInfo={rerollInfo}
                 masteryLevels={playerEmpire.techs}
                 extraPicks={playerEmpire.extraDraftPicks}
+                quickBuyInfo={shopStock && effectivePrices && marketPrices ? {
+                  gold: playerEmpire.resources.gold,
+                  food: playerEmpire.resources.food,
+                  shopStock,
+                  effectivePrices,
+                  foodBuyPrice: marketPrices.foodBuyPrice,
+                } : undefined}
                 onSelect={handleSelectDraft}
                 onReroll={rerollDraft}
                 onAdvance={handleAdvanceToBotPhase}
                 onMarket={() => setViewMode('market')}
                 onAdvisors={() => setViewMode('advisors')}
+                onQuickBuy={marketTransaction}
               />
             ) : (
               <div className="text-center py-8">
@@ -797,11 +489,28 @@ export function GamePage() {
 
             {round.phase === 'player' && (
               <div className="mt-4">
-                <ActionGrid
+                <ActionPanel
                   turnsRemaining={round.turnsRemaining}
-                  onAction={handleAction}
-                  onEndPhase={handleEndPhase}
+                  health={playerEmpire.health}
+                  taxRate={playerEmpire.taxRate}
+                  industryAllocation={playerEmpire.industryAllocation}
+                  troops={playerEmpire.troops}
+                  buildings={playerEmpire.buildings}
                   disabled={loading}
+                  onExecute={handleUnifiedAction}
+                  onBuild={() => setViewMode('building')}
+                  onAttack={() => setViewMode('attack_type')}
+                  onSpell={() => setViewMode('spell_select')}
+                  onMarket={() => setViewMode('market')}
+                  onBank={() => {
+                    fetchBankInfo();
+                    setViewMode('bank');
+                  }}
+                  onEnemies={() => setViewMode('enemies')}
+                  onOverview={() => navigate('/overview')}
+                  onGuide={() => navigate('/guide')}
+                  onEndPhase={handleEndPhase}
+                  onAbandon={() => setShowAbandonConfirm(true)}
                 />
               </div>
             )}
@@ -816,8 +525,22 @@ export function GamePage() {
     clearLastResult();
   };
 
-  // Handle attack again from toast
-  const handleAttackAgain = () => {
+  // Handle attack again from toast - same target
+  const handleAttackSameTarget = async () => {
+    if (lastAttackType && lastTargetId) {
+      setShowToast(false);
+      clearLastResult();
+      await executeAction({
+        action: 'attack',
+        turns: 2,
+        targetId: lastTargetId,
+        attackType: lastAttackType,
+      });
+    }
+  };
+
+  // Handle attack again from toast - new target
+  const handleAttackNewTarget = () => {
     setShowToast(false);
     clearLastResult();
     if (lastAttackType) {
@@ -855,22 +578,24 @@ export function GamePage() {
       )}
 
       {/* Action Result Toast */}
-      {showToast && lastActionResult && lastActionType && (
-        <ActionToast
-          result={lastActionResult}
-          action={lastActionType}
-          onDismiss={handleToastDismiss}
-          onViewDetails={handleViewDetails}
-          onAttackAgain={
-            lastActionType === 'attack' &&
-            round.turnsRemaining >= 2 &&
-            playerEmpire.attacksThisRound < (10 + playerEmpire.advisors.filter(a => a.effect.type === 'extra_attacks').reduce((sum, a) => sum + a.effect.modifier, 0))
-              ? handleAttackAgain
-              : undefined
-          }
-          autoHideMs={lastActionType === 'attack' || lastActionType === 'spell' ? 8000 : 3000}
-        />
-      )}
+      {showToast && lastActionResult && lastActionType && (() => {
+        const canAttackAgain = lastActionType === 'attack' &&
+          round.turnsRemaining >= 2 &&
+          playerEmpire.attacksThisRound < (10 + playerEmpire.advisors.filter(a => a.effect.type === 'extra_attacks').reduce((sum, a) => sum + a.effect.modifier, 0));
+        const targetStillAlive = lastTargetId && botEmpires.some(b => b.id === lastTargetId && b.land > 0);
+
+        return (
+          <ActionToast
+            result={lastActionResult}
+            action={lastActionType}
+            onDismiss={handleToastDismiss}
+            onViewDetails={handleViewDetails}
+            onAttackSameTarget={canAttackAgain && targetStillAlive ? handleAttackSameTarget : undefined}
+            onAttackNewTarget={canAttackAgain ? handleAttackNewTarget : undefined}
+            autoHideMs={lastActionType === 'attack' || lastActionType === 'spell' ? 6000 : 1500}
+          />
+        );
+      })()}
 
       {/* Full Result Modal (for combat/spell details) */}
       {showFullResult && lastActionResult && lastActionType && (
@@ -931,35 +656,4 @@ export function GamePage() {
       </main>
     </div>
   );
-}
-
-// Helper functions
-function getActionLabel(action: TurnAction | null): string {
-  const labels: Record<TurnAction, string> = {
-    explore: 'Explore',
-    farm: 'Farm',
-    cash: 'Collect Taxes',
-    meditate: 'Meditate',
-    industry: 'Industry',
-    build: 'Build',
-    demolish: 'Demolish',
-    attack: 'Attack',
-    spell: 'Cast Spell',
-  };
-  return action ? labels[action] : 'Action';
-}
-
-function getActionDescription(action: TurnAction | null): string {
-  const descriptions: Record<TurnAction, string> = {
-    explore: 'Gain new land for your empire',
-    farm: 'Boost food production this turn',
-    cash: 'Collect taxes and generate income',
-    meditate: 'Generate magical runes',
-    industry: 'Produce military troops',
-    build: 'Construct buildings',
-    demolish: 'Tear down buildings for refund',
-    attack: 'Attack enemy empire',
-    spell: 'Cast a spell',
-  };
-  return action ? descriptions[action] : '';
 }

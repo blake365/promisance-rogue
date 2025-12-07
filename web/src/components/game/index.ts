@@ -1,6 +1,7 @@
 // Game component exports
 export { EmpireStatus } from './EmpireStatus';
 export { ActionGrid } from './ActionGrid';
+export { ActionPanel } from './ActionPanel';
 export { TurnSlider, TurnInput } from './TurnSlider';
 export { BuildingPanel } from './BuildingPanel';
 export { MarketPanel } from './MarketPanel';

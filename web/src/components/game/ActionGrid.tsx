@@ -34,14 +34,110 @@ const SECONDARY_ACTIONS: ActionItem[] = [
 
 interface ActionGridProps {
   turnsRemaining: number;
+  health: number;
   onAction: (action: ActionType) => void;
+  onQuickAction: (action: TurnAction, turns: number) => void;
   onEndPhase: () => void;
   disabled?: boolean;
 }
 
-export function ActionGrid({ turnsRemaining, onAction, onEndPhase, disabled }: ActionGridProps) {
+export function ActionGrid({ turnsRemaining, health, onAction, onQuickAction, onEndPhase, disabled }: ActionGridProps) {
+  // Smart defaults for quick actions
+  const turnsToHeal = Math.min(100 - health, turnsRemaining);
+  const exploreQuickTurns = health < 100 && turnsToHeal > 0 ? turnsToHeal : Math.min(10, turnsRemaining);
+  const economyQuickTurns = Math.min(turnsRemaining, 10);
+
   return (
     <div className="space-y-3">
+      {/* Quick Actions Bar - one-tap common actions */}
+      {turnsRemaining > 0 && (
+        <div>
+          <h3 className="text-label mb-2">Quick Actions</h3>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* Explore quick action - health-aware */}
+            <button
+              onClick={() => onQuickAction('explore', exploreQuickTurns)}
+              disabled={disabled || turnsRemaining < 1}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-lg',
+                'bg-green-600/20 border border-green-500/50',
+                'text-green-400 text-sm font-display',
+                'transition-all duration-150',
+                !disabled && 'active:scale-95 hover:bg-green-600/30',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              🗺️ Explore {exploreQuickTurns}
+              {health < 100 && <span className="text-xs ml-1 text-green-300">(heal)</span>}
+            </button>
+
+            {/* Farm quick */}
+            <button
+              onClick={() => onQuickAction('farm', economyQuickTurns)}
+              disabled={disabled || turnsRemaining < 1}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-lg',
+                'bg-food/20 border border-food/50',
+                'text-food text-sm font-display',
+                'transition-all duration-150',
+                !disabled && 'active:scale-95 hover:bg-food/30',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              🌾 Farm {economyQuickTurns}
+            </button>
+
+            {/* Cash quick */}
+            <button
+              onClick={() => onQuickAction('cash', economyQuickTurns)}
+              disabled={disabled || turnsRemaining < 1}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-lg',
+                'bg-gold/20 border border-gold/50',
+                'text-gold text-sm font-display',
+                'transition-all duration-150',
+                !disabled && 'active:scale-95 hover:bg-gold/30',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              💰 Cash {economyQuickTurns}
+            </button>
+
+            {/* Industry quick */}
+            <button
+              onClick={() => onQuickAction('industry', economyQuickTurns)}
+              disabled={disabled || turnsRemaining < 1}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-lg',
+                'bg-cyan-600/20 border border-cyan-500/50',
+                'text-cyan-400 text-sm font-display',
+                'transition-all duration-150',
+                !disabled && 'active:scale-95 hover:bg-cyan-600/30',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              ⚙️ Industry {economyQuickTurns}
+            </button>
+
+            {/* All turns button */}
+            <button
+              onClick={() => onQuickAction('explore', turnsRemaining)}
+              disabled={disabled || turnsRemaining < 1}
+              className={clsx(
+                'flex-shrink-0 px-3 py-2 rounded-lg',
+                'bg-purple-600/20 border border-purple-500/50',
+                'text-purple-400 text-sm font-display',
+                'transition-all duration-150',
+                !disabled && 'active:scale-95 hover:bg-purple-600/30',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              🗺️ Explore All
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Primary Actions - 2x4 grid on mobile */}
       <div>
         <h3 className="text-label mb-2">Turn Actions</h3>

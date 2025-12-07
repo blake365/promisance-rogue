@@ -42,7 +42,8 @@ interface ActionToastProps {
   action: TurnAction;
   onDismiss: () => void;
   onViewDetails?: () => void;
-  onAttackAgain?: () => void;
+  onAttackSameTarget?: () => void;
+  onAttackNewTarget?: () => void;
   autoHideMs?: number;
 }
 
@@ -51,7 +52,8 @@ export function ActionToast({
   action,
   onDismiss,
   onViewDetails,
-  onAttackAgain,
+  onAttackSameTarget,
+  onAttackNewTarget,
   autoHideMs = 3000,
 }: ActionToastProps) {
   const [isVisible, setIsVisible] = useState(true);
@@ -320,22 +322,35 @@ export function ActionToast({
         )}
 
         {/* View Details Link */}
-        {hasDetails && !onAttackAgain && (
+        {hasDetails && !onAttackSameTarget && !onAttackNewTarget && (
           <p className="text-xs text-cyan-400 mt-2">Tap to view details →</p>
         )}
 
-        {/* Attack Again / View Details buttons for combat */}
-        {onAttackAgain && (
+        {/* Attack Again buttons for combat */}
+        {(onAttackSameTarget || onAttackNewTarget) && (
           <div className="flex gap-2 mt-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAttackAgain();
-              }}
-              className="flex-1 py-2 px-3 rounded bg-red-600/80 hover:bg-red-500 text-white text-sm font-display uppercase tracking-wider transition-colors"
-            >
-              ⚔️ Attack Again
-            </button>
+            {onAttackSameTarget && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAttackSameTarget();
+                }}
+                className="flex-1 py-2 px-3 rounded bg-red-600/80 hover:bg-red-500 text-white text-sm font-display uppercase tracking-wider transition-colors"
+              >
+                ⚔️ Same
+              </button>
+            )}
+            {onAttackNewTarget && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAttackNewTarget();
+                }}
+                className="flex-1 py-2 px-3 rounded bg-orange-600/80 hover:bg-orange-500 text-white text-sm font-display uppercase tracking-wider transition-colors"
+              >
+                🎯 New
+              </button>
+            )}
             {hasDetails && (
               <button
                 onClick={(e) => {
@@ -344,7 +359,7 @@ export function ActionToast({
                 }}
                 className="py-2 px-3 rounded bg-game-border hover:bg-gray-600 text-gray-300 text-sm transition-colors"
               >
-                Details
+                Info
               </button>
             )}
           </div>

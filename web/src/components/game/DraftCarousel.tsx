@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
-import type { DraftOption, Advisor, AdvisorEffect, RerollInfo } from '@/types';
+import type { DraftOption, Advisor, AdvisorEffect, RerollInfo, ShopStock, EffectiveTroopPrices, ShopTransaction } from '@/types';
 import { formatNumber, toRomanNumeral } from '@/utils/format';
 import { RarityBadge } from '@/components/ui';
+
+interface QuickBuyInfo {
+  gold: number;
+  food: number;
+  shopStock: ShopStock;
+  effectivePrices: EffectiveTroopPrices;
+  foodBuyPrice: number;
+}
 
 interface DraftCarouselProps {
   options: DraftOption[];
   rerollInfo: RerollInfo | null;
   masteryLevels?: Record<string, number>;
   extraPicks?: number;
+  quickBuyInfo?: QuickBuyInfo;
   onSelect: (index: number) => void;
   onReroll: () => void;
   onAdvance: () => void;
   onMarket?: () => void;
   onAdvisors?: () => void;
+  onQuickBuy?: (transaction: ShopTransaction) => Promise<boolean>;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -65,13 +75,16 @@ export function DraftCarousel({
   rerollInfo,
   masteryLevels = {},
   extraPicks = 0,
+  quickBuyInfo,
   onSelect,
   onReroll,
   onAdvance,
   onMarket,
   onAdvisors,
+  onQuickBuy,
 }: DraftCarouselProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [buyingItem, setBuyingItem] = useState<string | null>(null);
 
   const advisorCapacity = rerollInfo?.advisorCapacity;
   const isAtAdvisorCapacity = advisorCapacity && advisorCapacity.current >= advisorCapacity.max;
@@ -264,11 +277,113 @@ export function DraftCarousel({
         </button>
       )}
 
+      {/* Quick Buy Section */}
+      {quickBuyInfo && onQuickBuy && (
+        <div className="bg-game-card rounded-lg p-3 border border-game-border space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-500 uppercase tracking-wider">Quick Buy</span>
+            <span className="text-sm text-gold font-stats">{formatNumber(quickBuyInfo.gold)} gold</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* Food quick buy */}
+            {quickBuyInfo.shopStock.food > 0 && (() => {
+              const foodToBuy = Math.min(
+                quickBuyInfo.shopStock.food,
+                Math.floor(quickBuyInfo.gold / quickBuyInfo.foodBuyPrice),
+                1000 // Cap at 1000
+              );
+              const cost = foodToBuy * quickBuyInfo.foodBuyPrice;
+              if (foodToBuy <= 0) return null;
+              return (
+                <button
+                  onClick={async () => {
+                    setBuyingItem('food');
+                    await onQuickBuy({ type: 'buy', resource: 'food', amount: foodToBuy });
+                    setBuyingItem(null);
+                  }}
+                  disabled={buyingItem !== null}
+                  className={clsx(
+                    'flex-shrink-0 px-3 py-2 rounded-lg text-sm',
+                    'bg-food/20 border border-food/50 text-food',
+                    'transition-all duration-150',
+                    buyingItem === null ? 'active:scale-95 hover:bg-food/30' : 'opacity-50'
+                  )}
+                >
+                  🍞 +{formatNumber(foodToBuy)}
+                  <span className="text-xs ml-1 text-food/70">({formatNumber(cost)}g)</span>
+                </button>
+              );
+            })()}
+
+            {/* Infantry quick buy */}
+            {quickBuyInfo.shopStock.trparm > 0 && (() => {
+              const troopsToBuy = Math.min(
+                quickBuyInfo.shopStock.trparm,
+                Math.floor(quickBuyInfo.gold / quickBuyInfo.effectivePrices.trparm.buy),
+                100 // Cap at 100
+              );
+              const cost = troopsToBuy * quickBuyInfo.effectivePrices.trparm.buy;
+              if (troopsToBuy <= 0) return null;
+              return (
+                <button
+                  onClick={async () => {
+                    setBuyingItem('trparm');
+                    await onQuickBuy({ type: 'buy', resource: 'troops', amount: troopsToBuy, troopType: 'trparm' });
+                    setBuyingItem(null);
+                  }}
+                  disabled={buyingItem !== null}
+                  className={clsx(
+                    'flex-shrink-0 px-3 py-2 rounded-lg text-sm',
+                    'bg-cyan-600/20 border border-cyan-500/50 text-cyan-400',
+                    'transition-all duration-150',
+                    buyingItem === null ? 'active:scale-95 hover:bg-cyan-600/30' : 'opacity-50'
+                  )}
+                >
+                  ⚔️ +{troopsToBuy} Inf
+                  <span className="text-xs ml-1 text-cyan-400/70">({formatNumber(cost)}g)</span>
+                </button>
+              );
+            })()}
+
+            {/* Cavalry quick buy */}
+            {quickBuyInfo.shopStock.trplnd > 0 && (() => {
+              const troopsToBuy = Math.min(
+                quickBuyInfo.shopStock.trplnd,
+                Math.floor(quickBuyInfo.gold / quickBuyInfo.effectivePrices.trplnd.buy),
+                50
+              );
+              const cost = troopsToBuy * quickBuyInfo.effectivePrices.trplnd.buy;
+              if (troopsToBuy <= 0) return null;
+              return (
+                <button
+                  onClick={async () => {
+                    setBuyingItem('trplnd');
+                    await onQuickBuy({ type: 'buy', resource: 'troops', amount: troopsToBuy, troopType: 'trplnd' });
+                    setBuyingItem(null);
+                  }}
+                  disabled={buyingItem !== null}
+                  className={clsx(
+                    'flex-shrink-0 px-3 py-2 rounded-lg text-sm',
+                    'bg-yellow-600/20 border border-yellow-500/50 text-yellow-400',
+                    'transition-all duration-150',
+                    buyingItem === null ? 'active:scale-95 hover:bg-yellow-600/30' : 'opacity-50'
+                  )}
+                >
+                  🐴 +{troopsToBuy} Cav
+                  <span className="text-xs ml-1 text-yellow-400/70">({formatNumber(cost)}g)</span>
+                </button>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
         {onMarket && (
           <button onClick={onMarket} className="btn-secondary btn-md">
-            🏪 Market
+            🏪 Full Market
           </button>
         )}
         {onAdvisors && (
