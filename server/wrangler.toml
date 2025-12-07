@@ -13,7 +13,7 @@ database_id = "b72a4e9d-fdd3-4b2c-984d-425205a42e41"
 
 # Environment variables
 [vars]
-CORS_ORIGIN = "https://rogue.neopromisance.com,https://promisance-rogue.blake365morgan.workers.dev"
+CORS_ORIGIN = "https://rogue.neopromisance.com,https://promisance-rogue.blake365morgan.workers.dev,http://localhost:3000"
 
 [observability]
 [observability.logs]

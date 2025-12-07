@@ -380,4 +380,5 @@ export class PromisanceClient {
 }
 
 // Singleton instance for app-wide use
-export const client = new PromisanceClient();
+// Uses VITE_API_URL env var if set, otherwise uses relative URLs (for proxy/production)
+export const client = new PromisanceClient(import.meta.env.VITE_API_URL || '');
