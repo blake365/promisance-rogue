@@ -790,7 +790,50 @@ app.post('/api/game/:id/bot-phase', async (c) => {
     return c.json({ error: 'Not in bot phase' }, 400);
   }
 
-  const result = executeBotPhase(run);
+  let result;
+  try {
+    result = executeBotPhase(run);
+  } catch (error) {
+    // Log the error for debugging
+    console.error('Bot phase error:', error);
+
+    // Recovery: Skip bot phase and advance to next round to prevent stuck state
+    // This ensures the player can continue even if bot processing fails
+    const TURNS_PER_ROUND = 50;
+    const TOTAL_ROUNDS = 10;
+
+    if (run.round.number >= TOTAL_ROUNDS) {
+      run.round.phase = 'complete';
+    } else {
+      run.round.number++;
+      run.round.turnsRemaining = TURNS_PER_ROUND;
+      run.round.phase = 'player';
+      run.playerEmpire.attacksThisRound = 0;
+      run.playerEmpire.offensiveSpellsThisRound = 0;
+    }
+
+    // Save the recovered state
+    await db.saveGameRun(c.env.DB, run);
+
+    // Return error with recovered state so client can continue
+    return c.json({
+      error: 'Bot phase encountered an error and was skipped',
+      recovered: true,
+      news: [],
+      standings: [],
+      round: run.round,
+      playerEmpire: {
+        ...run.playerEmpire,
+        spellCosts: calculateAllSpellCosts(run.playerEmpire),
+      },
+      botEmpires: run.botEmpires.map(mapBotToSummary),
+      intel: getIntelWithPolicy(run.intel, run.botEmpires, run.playerEmpire.policies.includes('full_intel'), run.round.number),
+      isComplete: run.round.phase === 'complete',
+      playerDefeated: run.playerDefeated,
+      stats: run.stats,
+    }, 200); // Return 200 so client handles it gracefully
+  }
+
   await db.saveGameRun(c.env.DB, run);
 
   // If game is complete, record to leaderboard

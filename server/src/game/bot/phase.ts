@@ -99,46 +99,59 @@ export function processBotPhase(
   for (const bot of shuffledBots) {
     if (bot.health <= 0) continue; // Skip eliminated bots
 
-    // Reset attack and spell counters for this round
-    bot.attacksThisRound = 0;
-    bot.offensiveSpellsThisRound = 0;
+    try {
+      // Reset attack and spell counters for this round
+      bot.attacksThisRound = 0;
+      bot.offensiveSpellsThisRound = 0;
 
-    // Small chance to shift industry allocation each round (10% chance)
-    // Use unique seed per bot per round
-    const shiftSeed = rng + bot.id.charCodeAt(0) * 1000 + roundNumber * 100;
-    const newAllocation = maybeShiftIndustryAllocation(bot.industryAllocation, shiftSeed);
-    if (newAllocation) {
-      bot.industryAllocation = newAllocation;
+      // Small chance to shift industry allocation each round (10% chance)
+      // Use unique seed per bot per round
+      const shiftSeed = rng + bot.id.charCodeAt(0) * 1000 + roundNumber * 100;
+      const newAllocation = maybeShiftIndustryAllocation(bot.industryAllocation, shiftSeed);
+      if (newAllocation) {
+        bot.industryAllocation = newAllocation;
+      }
+      rng = advanceRng(rng);
+
+      const strategy = getStrategy(bot.personality.archetype);
+      const context: BotPhaseContext = {
+        bot,
+        player,
+        allBots: bots,
+        strategy,
+        roundNumber,
+        turnsRemaining: TURNS_PER_ROUND,
+        rng,
+        news,
+        marketPrices,
+        playerAttacksThisRound,
+      };
+
+      // Execute phases in order
+      executeEraPhase(context);
+      executeLandAcquisitionPhase(context);
+      executeBuildPhase(context);
+      executeProductionPhase(context);
+      executeEconomicPhase(context);  // Buy/sell resources after production
+      executeDefensePhase(context);
+
+      // Update RNG for next bot
+      rng = context.rng;
+
+      // Recalculate networth after all turns
+      bot.networth = calculateNetworth(bot);
+    } catch (error) {
+      // Log error but continue processing other bots
+      console.error(`Bot phase error for ${bot.personality.name} (${bot.id}):`, error);
+      // Advance RNG anyway to maintain determinism for other bots
+      rng = advanceRng(rng);
+      // Ensure bot networth is still valid
+      try {
+        bot.networth = calculateNetworth(bot);
+      } catch {
+        // If even networth calc fails, leave it as-is
+      }
     }
-    rng = advanceRng(rng);
-
-    const strategy = getStrategy(bot.personality.archetype);
-    const context: BotPhaseContext = {
-      bot,
-      player,
-      allBots: bots,
-      strategy,
-      roundNumber,
-      turnsRemaining: TURNS_PER_ROUND,
-      rng,
-      news,
-      marketPrices,
-      playerAttacksThisRound,
-    };
-
-    // Execute phases in order
-    executeEraPhase(context);
-    executeLandAcquisitionPhase(context);
-    executeBuildPhase(context);
-    executeProductionPhase(context);
-    executeEconomicPhase(context);  // Buy/sell resources after production
-    executeDefensePhase(context);
-
-    // Update RNG for next bot
-    rng = context.rng;
-
-    // Recalculate networth after all turns
-    bot.networth = calculateNetworth(bot);
   }
 
   // Recalculate player networth (may have been attacked)
