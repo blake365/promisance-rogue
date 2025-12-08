@@ -398,8 +398,14 @@ app.post('/api/game/:id/action', async (c) => {
     }
   }
 
+  // Add spell costs to the empire in the result
+  const resultWithSpellCosts = {
+    ...result,
+    empire: empireWithSpellCosts(result.empire),
+  };
+
   return c.json({
-    result,
+    result: resultWithSpellCosts,
     summary: getGameSummary(run),
     // Include updated bot data after attacks so client can reflect land changes
     botEmpires: run.botEmpires.map(mapBotToSummary),
