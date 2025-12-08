@@ -110,29 +110,29 @@ export function EmpireStatus({ empire, round, expanded = false, onClose }: Empir
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full text-left"
       >
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="font-display text-lg text-gold">{empire.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-gray-400 text-sm capitalize">{empire.race}</span>
+        <div className="flex justify-between items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-base sm:text-lg text-gold truncate">{empire.name}</h2>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-gray-400 text-xs capitalize">{empire.race}</span>
               <EraBadge era={empire.era} />
             </div>
           </div>
-          <div className="text-right">
-            <div className="font-stats text-cyan-400">
-              Round {round.number}/10
+          <div className="text-right flex-shrink-0">
+            <div className="font-stats text-sm text-cyan-400">
+              R{round.number}/10
             </div>
             <div className={clsx(
-              'font-stats text-sm',
+              'font-stats text-xs',
               round.turnsRemaining > 10 ? 'text-green-400' : 'text-red-400'
             )}>
-              {round.turnsRemaining} turns
+              {round.turnsRemaining}T
             </div>
           </div>
         </div>
 
         {/* Resource Bar - Always Visible */}
-        <div className="grid grid-cols-5 gap-1 mt-3">
+        <div className="grid grid-cols-5 gap-0.5 mt-2">
           <ResourceItem label="Gold" value={empire.resources.gold} color="text-gold" icon="💰" />
           <ResourceItem label="Food" value={empire.resources.food} color="text-food" icon="🌾" />
           <ResourceItem label="Runes" value={empire.resources.runes} color="text-runes" icon="✨" />
@@ -353,12 +353,12 @@ function ResourceItem({
   icon?: string;
 }) {
   return (
-    <div className="text-center">
-      <div className="text-sm text-text-muted">
-        {icon && <span className="mr-1">{icon}</span>}
-        {label}
+    <div className="text-center min-w-0">
+      <div className="text-xs text-text-muted truncate">
+        {icon && <span className="mr-0.5">{icon}</span>}
+        <span className="hidden sm:inline">{label}</span>
       </div>
-      <div className={clsx('font-stats', color)}>{formatNumber(value)}</div>
+      <div className={clsx('font-stats text-sm', color)}>{formatNumber(value)}</div>
     </div>
   );
 }

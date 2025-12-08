@@ -668,7 +668,7 @@ export function GamePage() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 p-4 overflow-auto">
+      <main className="flex-1 p-2 sm:p-4 overflow-auto">
         {renderContent()}
       </main>
     </div>

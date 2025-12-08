@@ -39,7 +39,7 @@ export function Panel({
           {title}
         </div>
       )}
-      <div className="p-3">{children}</div>
+      <div className="p-2 sm:p-3">{children}</div>
     </div>
   );
 }
