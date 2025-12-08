@@ -55,8 +55,12 @@ function getUnitSpecialistBonuses(empire: Empire): {
 export function calculateOffensePower(empire: Empire, unitType?: UnitType): number {
   const era = empire.era;
   const stats = UNIT_STATS[era];
-  const offenseModifier = getModifier(empire, 'offense');
-  const healthModifier = empire.health / 100;
+  if (!stats) {
+    console.error(`Invalid era "${era}" for empire, using default stats`);
+    return 0;
+  }
+  const offenseModifier = getModifier(empire, 'offense') || 1;
+  const healthModifier = Math.max(0, (empire.health || 0)) / 100;
 
   // Martin the Warrior: dynamic_offense scales with attacks this round
   // +5% offense per attack already made this round
@@ -109,8 +113,12 @@ export function calculateOffensePower(empire: Empire, unitType?: UnitType): numb
 export function calculateDefensePower(empire: Empire, unitType?: UnitType): number {
   const era = empire.era;
   const stats = UNIT_STATS[era];
-  const defenseModifier = getModifier(empire, 'defense');
-  const healthModifier = empire.health / 100;
+  if (!stats) {
+    console.error(`Invalid era "${era}" for empire, using default stats`);
+    return 0;
+  }
+  const defenseModifier = getModifier(empire, 'defense') || 1;
+  const healthModifier = Math.max(0, (empire.health || 0)) / 100;
 
   // Unit specialist penalties (flat per-unit subtractions)
   const specialist = getUnitSpecialistBonuses(empire);
@@ -597,8 +605,9 @@ export function getCombatPreview(
   const attackerPower = calculateOffensePower(attacker, unitTypeFilter);
   const defenderPower = calculateDefensePower(defender, unitTypeFilter);
 
-  // Calculate win probability based on power ratio
-  const ratio = attackerPower / (defenderPower * COMBAT.winThreshold);
+  // Calculate win probability based on power ratio (guard against division by zero)
+  const denominator = Math.max(1, defenderPower * COMBAT.winThreshold);
+  const ratio = attackerPower / denominator;
   const winChance = ratio >= 1 ? Math.min(0.95, 0.5 + (ratio - 1) * 0.5) : Math.max(0.05, ratio * 0.5);
 
   // Estimate land gain (roughly 10% of total building destruction)

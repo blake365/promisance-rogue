@@ -795,7 +795,7 @@ function executeBuildPhase(ctx: BotPhaseContext): void {
   // Check if we have enough gold (simplified - build action handles cost)
   // Each building costs ~500 gold base
   const estimatedCost = totalToBuild * 500;
-  if (bot.resources.gold < estimatedCost) {
+  if (estimatedCost > 0 && bot.resources.gold < estimatedCost) {
     // Build what we can afford
     const affordableRatio = bot.resources.gold / estimatedCost;
     for (const key of Object.keys(toBuild) as (keyof typeof toBuild)[]) {
@@ -891,7 +891,8 @@ function executeEconomicPhase(ctx: BotPhaseContext): void {
     // Buy enough food for 30 turns
     const targetFood = provisions.consumption * 30;
     const foodNeeded = Math.max(0, targetFood - bot.resources.food);
-    const maxAffordable = Math.floor(bot.resources.gold / marketPrices.foodBuyPrice);
+    const foodBuyPrice = Math.max(1, marketPrices.foodBuyPrice);
+    const maxAffordable = Math.floor(bot.resources.gold / foodBuyPrice);
     const toBuy = Math.min(foodNeeded, maxAffordable);
 
     if (toBuy > 0) {
@@ -915,7 +916,8 @@ function executeEconomicPhase(ctx: BotPhaseContext): void {
     const foodNeeded = Math.max(0, targetFood - bot.resources.food);
     // Spend up to 30% of gold on food
     const goldBudget = Math.floor(bot.resources.gold * 0.3);
-    const maxAffordable = Math.floor(goldBudget / marketPrices.foodBuyPrice);
+    const foodBuyPrice = Math.max(1, marketPrices.foodBuyPrice);
+    const maxAffordable = Math.floor(goldBudget / foodBuyPrice);
     const toBuy = Math.min(foodNeeded, maxAffordable);
 
     if (toBuy > 1000) {
@@ -963,7 +965,8 @@ function executeEconomicPhase(ctx: BotPhaseContext): void {
     const foodToKeep = provisions.consumption * MIN_FOOD_RESERVE_TURNS;
     const foodToSell = Math.max(0, bot.resources.food - foodToKeep);
     const goldNeeded = estimatedBuildCost - bot.resources.gold;
-    const foodForGold = Math.ceil(goldNeeded / marketPrices.foodSellPrice);
+    const foodSellPrice = Math.max(1, marketPrices.foodSellPrice);
+    const foodForGold = Math.ceil(goldNeeded / foodSellPrice);
     const toSell = Math.min(foodToSell, foodForGold);
 
     if (toSell > 1000) {
@@ -1072,7 +1075,7 @@ function buyTroopsWithExcessGold(ctx: BotPhaseContext, provisions: { consumption
     const budgetForType = Math.floor(spendingBudget * (pct / 100));
     const actualBudget = Math.min(budgetForType, remainingBudget);
 
-    const unitCost = Math.floor(UNIT_COSTS[type].buyPrice * marketPrices.troopBuyMultiplier);
+    const unitCost = Math.max(1, Math.floor(UNIT_COSTS[type].buyPrice * marketPrices.troopBuyMultiplier));
     const unitsByGold = Math.floor(actualBudget / unitCost);
 
     // Also limit by upkeep capacity (if we care about sustainability)
@@ -1196,8 +1199,8 @@ function sellTroopsForGold(ctx: BotPhaseContext, goldNeeded: number): void {
     const canSell = Math.max(0, available - minKeep);
     if (canSell <= 0) continue;
 
-    const sellMultiplier = marketPrices.troopSellMultipliers[troopType as keyof typeof marketPrices.troopSellMultipliers];
-    const unitValue = Math.floor(UNIT_COSTS[troopType].buyPrice * sellMultiplier);
+    const sellMultiplier = marketPrices.troopSellMultipliers[troopType as keyof typeof marketPrices.troopSellMultipliers] || 0.5;
+    const unitValue = Math.max(1, Math.floor(UNIT_COSTS[troopType].buyPrice * sellMultiplier));
     const unitsNeeded = Math.ceil(goldRemaining / unitValue);
     const toSell = Math.min(canSell, unitsNeeded);
 
@@ -1279,8 +1282,8 @@ function sellExcessTroops(ctx: BotPhaseContext, provisions: { consumption: numbe
 
     // Sell up to 20% of this troop type per round
     const maxSell = Math.floor(available * 0.2);
-    const sellMultiplier = marketPrices.troopSellMultipliers[type as keyof typeof marketPrices.troopSellMultipliers];
-    const unitValue = Math.floor(UNIT_COSTS[type].buyPrice * sellMultiplier);
+    const sellMultiplier = marketPrices.troopSellMultipliers[type as keyof typeof marketPrices.troopSellMultipliers] || 0.5;
+    const unitValue = Math.max(1, Math.floor(UNIT_COSTS[type].buyPrice * sellMultiplier));
     const unitsNeeded = Math.ceil(goldRemaining / unitValue);
     const toSell = Math.min(maxSell, unitsNeeded);
 

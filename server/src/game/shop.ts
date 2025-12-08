@@ -87,19 +87,20 @@ export function generateMarketPrices(rngState: RngState): MarketPriceResult {
 const STOCK_MULTIPLIER = 5.0; // 500% of networth per item type
 
 export function generateShopStock(empire: Empire, prices: MarketPrices): ShopStock {
-  const networth = empire.networth;
+  const networth = Math.max(1, empire.networth);
   const stockBudget = networth * STOCK_MULTIPLIER;
 
-  // Calculate stock for each item based on buy price
-  const foodPrice = prices.foodBuyPrice;
-  const runePrice = prices.runeBuyPrice;
+  // Calculate stock for each item based on buy price (guard against zero prices)
+  const foodPrice = Math.max(1, prices.foodBuyPrice);
+  const runePrice = Math.max(1, prices.runeBuyPrice);
+  const troopMultiplier = Math.max(0.1, prices.troopBuyMultiplier);
 
   return {
     food: Math.floor(stockBudget / foodPrice),
-    trparm: Math.floor(stockBudget / (UNIT_COSTS.trparm.buyPrice * prices.troopBuyMultiplier)),
-    trplnd: Math.floor(stockBudget / (UNIT_COSTS.trplnd.buyPrice * prices.troopBuyMultiplier)),
-    trpfly: Math.floor(stockBudget / (UNIT_COSTS.trpfly.buyPrice * prices.troopBuyMultiplier)),
-    trpsea: Math.floor(stockBudget / (UNIT_COSTS.trpsea.buyPrice * prices.troopBuyMultiplier)),
+    trparm: Math.floor(stockBudget / Math.max(1, UNIT_COSTS.trparm.buyPrice * troopMultiplier)),
+    trplnd: Math.floor(stockBudget / Math.max(1, UNIT_COSTS.trplnd.buyPrice * troopMultiplier)),
+    trpfly: Math.floor(stockBudget / Math.max(1, UNIT_COSTS.trpfly.buyPrice * troopMultiplier)),
+    trpsea: Math.floor(stockBudget / Math.max(1, UNIT_COSTS.trpsea.buyPrice * troopMultiplier)),
     runes: Math.floor(stockBudget / runePrice),
   };
 }
@@ -180,28 +181,32 @@ export function executeMarketTransaction(
 ): { success: boolean; goldChange: number; error?: string } {
   const { type, resource, amount, troopType } = transaction;
 
-  if (amount <= 0) {
+  // Validate amount is a valid positive number
+  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
     return { success: false, goldChange: 0, error: 'Invalid amount' };
   }
+
+  // Sanitize amount to integer
+  const safeAmount = Math.floor(amount);
 
   if (type === 'buy') {
     // Shop phase has stock limits
     if (isShopPhase && shopStock) {
       switch (resource) {
         case 'food':
-          if (amount > shopStock.food) {
+          if (safeAmount > shopStock.food) {
             return { success: false, goldChange: 0, error: `Only ${shopStock.food} food in stock` };
           }
           break;
         case 'runes':
-          if (amount > shopStock.runes) {
+          if (safeAmount > shopStock.runes) {
             return { success: false, goldChange: 0, error: `Only ${shopStock.runes} runes in stock` };
           }
           break;
         case 'troops':
           if (troopType && troopType !== 'trpwiz') {
             const stock = shopStock[troopType as keyof ShopStock] as number;
-            if (amount > stock) {
+            if (safeAmount > stock) {
               return { success: false, goldChange: 0, error: `Only ${stock} units in stock` };
             }
           }
@@ -211,29 +216,29 @@ export function executeMarketTransaction(
 
     switch (resource) {
       case 'food': {
-        const cost = amount * prices.foodBuyPrice;
+        const cost = safeAmount * Math.max(1, prices.foodBuyPrice);
         if (empire.resources.gold < cost) {
           return { success: false, goldChange: 0, error: 'Not enough gold' };
         }
         empire.resources.gold -= cost;
-        empire.resources.food += amount;
+        empire.resources.food += safeAmount;
         // Reduce shop stock
         if (isShopPhase && shopStock) {
-          shopStock.food -= amount;
+          shopStock.food -= safeAmount;
         }
         return { success: true, goldChange: -cost };
       }
 
       case 'runes': {
-        const cost = amount * prices.runeBuyPrice;
+        const cost = safeAmount * Math.max(1, prices.runeBuyPrice);
         if (empire.resources.gold < cost) {
           return { success: false, goldChange: 0, error: 'Not enough gold' };
         }
         empire.resources.gold -= cost;
-        empire.resources.runes += amount;
+        empire.resources.runes += safeAmount;
         // Reduce shop stock
         if (isShopPhase && shopStock) {
-          shopStock.runes -= amount;
+          shopStock.runes -= safeAmount;
         }
         return { success: true, goldChange: -cost };
       }
@@ -244,16 +249,16 @@ export function executeMarketTransaction(
         }
         const baseCost = UNIT_COSTS[troopType].buyPrice;
         // Apply race/building modifiers to get effective per-unit cost
-        const perUnitCost = getEffectiveTroopCost(empire, baseCost, prices.troopBuyMultiplier);
-        const cost = amount * perUnitCost;
+        const perUnitCost = Math.max(1, getEffectiveTroopCost(empire, baseCost, prices.troopBuyMultiplier));
+        const cost = safeAmount * perUnitCost;
         if (empire.resources.gold < cost) {
           return { success: false, goldChange: 0, error: 'Not enough gold' };
         }
         empire.resources.gold -= cost;
-        empire.troops = addTroops(empire.troops, { [troopType]: amount });
+        empire.troops = addTroops(empire.troops, { [troopType]: safeAmount });
         // Reduce shop stock
         if (isShopPhase && shopStock) {
-          (shopStock as any)[troopType] -= amount;
+          (shopStock as any)[troopType] -= safeAmount;
         }
         return { success: true, goldChange: -cost };
       }
@@ -265,28 +270,28 @@ export function executeMarketTransaction(
     // Sell - shop phase has sell limits for troops (50%), unlimited food
     if (isShopPhase && resource === 'troops' && troopType && troopType !== 'trpwiz') {
       const maxSellable = Math.floor(empire.troops[troopType] * TROOP_SELL_LIMIT);
-      if (amount > maxSellable) {
+      if (safeAmount > maxSellable) {
         return { success: false, goldChange: 0, error: `Can only sell ${maxSellable} (50% of owned)` };
       }
     }
 
     switch (resource) {
       case 'food': {
-        if (empire.resources.food < amount) {
+        if (empire.resources.food < safeAmount) {
           return { success: false, goldChange: 0, error: 'Not enough food' };
         }
-        const revenue = amount * prices.foodSellPrice;
-        empire.resources.food -= amount;
+        const revenue = safeAmount * Math.max(1, prices.foodSellPrice);
+        empire.resources.food -= safeAmount;
         empire.resources.gold += revenue;
         return { success: true, goldChange: revenue };
       }
 
       case 'runes': {
-        if (empire.resources.runes < amount) {
+        if (empire.resources.runes < safeAmount) {
           return { success: false, goldChange: 0, error: 'Not enough runes' };
         }
-        const revenue = amount * prices.runeSellPrice;
-        empire.resources.runes -= amount;
+        const revenue = safeAmount * Math.max(1, prices.runeSellPrice);
+        empire.resources.runes -= safeAmount;
         empire.resources.gold += revenue;
         return { success: true, goldChange: revenue };
       }
@@ -295,14 +300,14 @@ export function executeMarketTransaction(
         if (!troopType || troopType === 'trpwiz') {
           return { success: false, goldChange: 0, error: 'Invalid troop type' };
         }
-        if (empire.troops[troopType] < amount) {
+        if (empire.troops[troopType] < safeAmount) {
           return { success: false, goldChange: 0, error: 'Not enough troops' };
         }
         const baseCost = UNIT_COSTS[troopType].buyPrice;
         // Use per-type sell multiplier (from QM Promisance pvtmarketsell.php)
-        const sellMultiplier = prices.troopSellMultipliers[troopType as keyof typeof prices.troopSellMultipliers];
-        const revenue = Math.floor(amount * baseCost * sellMultiplier);
-        empire.troops[troopType] -= amount;
+        const sellMultiplier = prices.troopSellMultipliers[troopType as keyof typeof prices.troopSellMultipliers] || 0.5;
+        const revenue = Math.floor(safeAmount * baseCost * sellMultiplier);
+        empire.troops[troopType] -= safeAmount;
         empire.resources.gold += revenue;
         return { success: true, goldChange: revenue };
       }
