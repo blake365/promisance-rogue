@@ -440,23 +440,25 @@ export function GamePage() {
                 </div>
               )}
 
-              {/* Embedded Market */}
-              <div className="border-t border-game-border pt-4">
-                <MarketPanel
-                  empire={playerEmpire}
-                  phase={round.phase}
-                  marketPrices={marketPrices}
-                  effectivePrices={effectivePrices}
-                  shopStock={shopStock}
-                  onTransaction={marketTransaction}
-                  onClose={() => {}} // No-op since it's embedded
-                  embedded
-                />
-              </div>
+              {/* Embedded Market - hide during initial shop (round 0) when turnsRemaining > 0 */}
+              {round.turnsRemaining === 0 && (
+                <div className="border-t border-game-border pt-4">
+                  <MarketPanel
+                    empire={playerEmpire}
+                    phase={round.phase}
+                    marketPrices={marketPrices}
+                    effectivePrices={effectivePrices}
+                    shopStock={shopStock}
+                    onTransaction={marketTransaction}
+                    onClose={() => {}} // No-op since it's embedded
+                    embedded
+                  />
+                </div>
+              )}
 
-              {/* Advance Button */}
+              {/* Advance Button - different text for initial shop vs later shops */}
               <button onClick={handleAdvanceToBotPhase} className="btn-secondary btn-lg w-full">
-                ⏩ Advance to Bot Phase
+                {round.turnsRemaining > 0 ? '⏩ Start Player Phase' : '⏩ Advance to Bot Phase'}
               </button>
             </div>
           </>
