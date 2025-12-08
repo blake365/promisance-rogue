@@ -52,11 +52,15 @@ function getUnitSpecialistBonuses(empire: Empire): {
   return { offenseBonus, defensePenalty };
 }
 
-export function calculateOffensePower(empire: Empire): number {
+export function calculateOffensePower(empire: Empire, unitType?: UnitType): number {
   const era = empire.era;
   const stats = UNIT_STATS[era];
-  const offenseModifier = getModifier(empire, 'offense');
-  const healthModifier = empire.health / 100;
+  if (!stats) {
+    console.error(`Invalid era "${era}" for empire, using default stats`);
+    return 0;
+  }
+  const offenseModifier = getModifier(empire, 'offense') || 1;
+  const healthModifier = Math.max(0, (empire.health || 0)) / 100;
 
   // Martin the Warrior: dynamic_offense scales with attacks this round
   // +5% offense per attack already made this round
@@ -67,11 +71,18 @@ export function calculateOffensePower(empire: Empire): number {
   const specialist = getUnitSpecialistBonuses(empire);
 
   let power = 0;
-  power += empire.troops.trparm * (stats.trparm[0] + specialist.offenseBonus.trparm);
-  power += empire.troops.trplnd * (stats.trplnd[0] + specialist.offenseBonus.trplnd);
-  power += empire.troops.trpfly * (stats.trpfly[0] + specialist.offenseBonus.trpfly);
-  power += empire.troops.trpsea * (stats.trpsea[0] + specialist.offenseBonus.trpsea);
-  power += empire.troops.trpwiz * WIZARD_POWER;
+
+  // If unitType is specified, only calculate power from that unit type (single-line attack)
+  if (unitType) {
+    power += empire.troops[unitType] * (stats[unitType][0] + specialist.offenseBonus[unitType]);
+  } else {
+    // Standard attack: use all unit types
+    power += empire.troops.trparm * (stats.trparm[0] + specialist.offenseBonus.trparm);
+    power += empire.troops.trplnd * (stats.trplnd[0] + specialist.offenseBonus.trplnd);
+    power += empire.troops.trpfly * (stats.trpfly[0] + specialist.offenseBonus.trpfly);
+    power += empire.troops.trpsea * (stats.trpsea[0] + specialist.offenseBonus.trpsea);
+    power += empire.troops.trpwiz * WIZARD_POWER;
+  }
 
   // Building offense bonus from building-based offense advisors
   // Each advisor grants % offense per building of a specific type
@@ -99,21 +110,32 @@ export function calculateOffensePower(empire: Empire): number {
   return Math.round(power * offenseModifier * healthModifier * dynamicOffenseBonus * (1 + buildingOffenseBonus + peasantBonus + secondWindBonus + botOffenseBonus));
 }
 
-export function calculateDefensePower(empire: Empire): number {
+export function calculateDefensePower(empire: Empire, unitType?: UnitType): number {
   const era = empire.era;
   const stats = UNIT_STATS[era];
-  const defenseModifier = getModifier(empire, 'defense');
-  const healthModifier = empire.health / 100;
+  if (!stats) {
+    console.error(`Invalid era "${era}" for empire, using default stats`);
+    return 0;
+  }
+  const defenseModifier = getModifier(empire, 'defense') || 1;
+  const healthModifier = Math.max(0, (empire.health || 0)) / 100;
 
   // Unit specialist penalties (flat per-unit subtractions)
   const specialist = getUnitSpecialistBonuses(empire);
 
   let power = 0;
-  power += empire.troops.trparm * Math.max(0, stats.trparm[1] - specialist.defensePenalty.trparm);
-  power += empire.troops.trplnd * Math.max(0, stats.trplnd[1] - specialist.defensePenalty.trplnd);
-  power += empire.troops.trpfly * Math.max(0, stats.trpfly[1] - specialist.defensePenalty.trpfly);
-  power += empire.troops.trpsea * Math.max(0, stats.trpsea[1] - specialist.defensePenalty.trpsea);
-  power += empire.troops.trpwiz * WIZARD_POWER;
+
+  // If unitType is specified, only calculate power from that unit type (single-line attack)
+  if (unitType) {
+    power += empire.troops[unitType] * Math.max(0, stats[unitType][1] - specialist.defensePenalty[unitType]);
+  } else {
+    // Standard attack: use all unit types
+    power += empire.troops.trparm * Math.max(0, stats.trparm[1] - specialist.defensePenalty.trparm);
+    power += empire.troops.trplnd * Math.max(0, stats.trplnd[1] - specialist.defensePenalty.trplnd);
+    power += empire.troops.trpfly * Math.max(0, stats.trpfly[1] - specialist.defensePenalty.trpfly);
+    power += empire.troops.trpsea * Math.max(0, stats.trpsea[1] - specialist.defensePenalty.trpsea);
+    power += empire.troops.trpwiz * WIZARD_POWER;
+  }
 
   // Building defense bonus from guard tower advisors
   // Each advisor grants % defense per building of a specific type
@@ -205,14 +227,15 @@ export function resolveCombat(
   rngState: RngState
 ): { result: CombatResult; rngState: RngState } {
   let rng = rngState;
-  const offpower = calculateOffensePower(attacker);
-  const defpower = calculateDefensePower(defender);
 
-  // Tower defense: REMOVED - blddef no longer used
-  // const { blddef } = defender.buildings;
-  // const towerDef = blddef > 0
-  //   ? blddef * COMBAT.towerDefensePerBuilding * Math.min(1, defender.troops.trparm / (COMBAT.soldiersPerTower * blddef))
-  //   : 0;
+  // Determine which unit types to use based on attack type
+  const singleUnitTypes: UnitType[] = ['trparm', 'trplnd', 'trpfly', 'trpsea'];
+  const isSingleLineAttack = singleUnitTypes.includes(attackType as UnitType);
+  const unitTypeFilter = isSingleLineAttack ? (attackType as UnitType) : undefined;
+
+  // Calculate power using only the single unit type for single-line attacks
+  const offpower = calculateOffensePower(attacker, unitTypeFilter);
+  const defpower = calculateDefensePower(defender, unitTypeFilter);
 
   // Modification factors for losses
   // omod = sqrt(defpower / offpower)
@@ -227,13 +250,9 @@ export function resolveCombat(
   const attackerLosses: Partial<Troops> = {};
   const defenderLosses: Partial<Troops> = {};
 
-  // Determine which unit types and loss rates to use based on attack type
-  // From military.php lines 143-167
-  const singleUnitTypes: UnitType[] = ['trparm', 'trplnd', 'trpfly', 'trpsea'];
-
-  if (singleUnitTypes.includes(attackType as UnitType)) {
+  if (isSingleLineAttack) {
     // Single-unit attack: only uses that unit type with lower loss rates
-    const unitType = attackType as UnitType;
+    const unitType = unitTypeFilter!;
     const [attackRate, defendRate] = COMBAT.singleUnitLossRates[unitType];
     const lossResult = calcUnitLoss(
       attacker.troops[unitType],
@@ -575,13 +594,20 @@ export interface CombatPreview {
 export function getCombatPreview(
   attacker: Empire,
   defender: Empire,
-  turnsRemaining: number
+  turnsRemaining: number,
+  attackType: AttackType = 'standard'
 ): CombatPreview {
-  const attackerPower = calculateOffensePower(attacker);
-  const defenderPower = calculateDefensePower(defender);
+  // Determine unit type filter for single-line attacks
+  const singleUnitTypes: UnitType[] = ['trparm', 'trplnd', 'trpfly', 'trpsea'];
+  const isSingleLineAttack = singleUnitTypes.includes(attackType as UnitType);
+  const unitTypeFilter = isSingleLineAttack ? (attackType as UnitType) : undefined;
 
-  // Calculate win probability based on power ratio
-  const ratio = attackerPower / (defenderPower * COMBAT.winThreshold);
+  const attackerPower = calculateOffensePower(attacker, unitTypeFilter);
+  const defenderPower = calculateDefensePower(defender, unitTypeFilter);
+
+  // Calculate win probability based on power ratio (guard against division by zero)
+  const denominator = Math.max(1, defenderPower * COMBAT.winThreshold);
+  const ratio = attackerPower / denominator;
   const winChance = ratio >= 1 ? Math.min(0.95, 0.5 + (ratio - 1) * 0.5) : Math.max(0.05, ratio * 0.5);
 
   // Estimate land gain (roughly 10% of total building destruction)
