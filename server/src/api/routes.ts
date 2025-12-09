@@ -294,33 +294,43 @@ app.get('/api/game/current', async (c) => {
   const playerId = requireAuth(c);
   if (typeof playerId !== 'string') return playerId;
 
-  const run = await db.getActiveGameRun(c.env.DB, playerId);
+  try {
+    const run = await db.getActiveGameRun(c.env.DB, playerId);
 
-  if (!run) {
-    return c.json({ hasActiveGame: false });
-  }
+    if (!run) {
+      return c.json({ hasActiveGame: false });
+    }
 
-  const hasFullIntel = run.playerEmpire.policies.includes('full_intel');
-  return c.json({
-    hasActiveGame: true,
-    game: {
-      id: run.id,
-      seed: run.seed,
-      round: run.round,
-      playerEmpire: {
-        ...run.playerEmpire,
-        spellCosts: calculateAllSpellCosts(run.playerEmpire),
+    const hasFullIntel = run.playerEmpire.policies?.includes('full_intel') ?? false;
+    return c.json({
+      hasActiveGame: true,
+      game: {
+        id: run.id,
+        seed: run.seed,
+        round: run.round,
+        playerEmpire: {
+          ...run.playerEmpire,
+          spellCosts: calculateAllSpellCosts(run.playerEmpire),
+        },
+        botEmpires: run.botEmpires.map(mapBotToSummary),
+        intel: getIntelWithPolicy(run.intel ?? {}, run.botEmpires, hasFullIntel, run.round.number),
+        marketPrices: getCurrentMarketPrices(run),
+        effectivePrices: getEffectiveTroopPrices(run.playerEmpire, getCurrentMarketPrices(run)),
+        shopStock: run.shopStock,
+        draftOptions: run.draftOptions,
+        playerDefeated: run.playerDefeated,
+        stats: run.stats,
       },
-      botEmpires: run.botEmpires.map(mapBotToSummary),
-      intel: getIntelWithPolicy(run.intel, run.botEmpires, hasFullIntel, run.round.number),
-      marketPrices: getCurrentMarketPrices(run),
-      effectivePrices: getEffectiveTroopPrices(run.playerEmpire, getCurrentMarketPrices(run)),
-      shopStock: run.shopStock,
-      draftOptions: run.draftOptions,
-      playerDefeated: run.playerDefeated,
-      stats: run.stats,
-    },
-  });
+    });
+  } catch (error) {
+    console.error('Error loading current game:', error);
+    // Return a user-friendly error that allows them to start fresh
+    return c.json({
+      error: 'Your saved game appears to be corrupted. You can start a new game.',
+      hasActiveGame: false,
+      corrupted: true,
+    }, 200); // Return 200 so the UI can handle it gracefully
+  }
 });
 
 // Get specific game

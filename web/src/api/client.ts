@@ -51,6 +51,8 @@ interface GameSummary {
 
 interface CurrentGameResponse {
   hasActiveGame: boolean;
+  corrupted?: boolean;
+  error?: string;
   game?: {
     id: string;
     seed: number;

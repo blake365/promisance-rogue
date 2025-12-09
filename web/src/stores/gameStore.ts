@@ -177,6 +177,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await client.getCurrentGame();
+
+      // Handle corrupted save gracefully
+      if ('corrupted' in response && response.corrupted) {
+        set({
+          error: response.error || 'Your saved game was corrupted. Please start a new game.',
+          loading: false,
+        });
+        return false;
+      }
+
       if (response.hasActiveGame && response.game) {
         set({
           game: {
