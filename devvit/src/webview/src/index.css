@@ -1,0 +1,673 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =================================================================
+   PROMISANCE ROGUE - Theme System
+   ================================================================= */
+
+/* Theme CSS Variables */
+:root,
+[data-theme='retro-dark'] {
+  /* Backgrounds */
+  --color-bg-primary: #0a0a12;
+  --color-bg-panel: #1a1a2e;
+  --color-bg-card: #16213e;
+  --color-border: #0f3460;
+  --color-highlight: #e94560;
+
+  /* Text */
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #b8b8c0;
+  --color-text-muted: #8a8a96;
+
+  /* Accent */
+  --color-accent: #00ced1;
+
+  /* Game semantic colors - bright for dark backgrounds */
+  --color-gold: #ffd700;
+  --color-food: #7cfc00;
+  --color-runes: #da70d6;
+  --color-land: #00bfff;
+  --color-positive: #4ade80;
+  --color-negative: #f87171;
+  --color-info: #22d3ee;
+  --color-warning: #fbbf24;
+
+  /* Gray scale for muted text */
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+
+  /* Shadows */
+  --shadow-panel: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(15, 52, 96, 0.3);
+  --shadow-btn-inset: inset -2px -2px 0 rgba(0, 0, 0, 0.3), inset 2px 2px 0 rgba(255, 255, 255, 0.2);
+  --shadow-btn-pressed: inset 2px 2px 0 rgba(0, 0, 0, 0.3), inset -2px -2px 0 rgba(255, 255, 255, 0.1);
+  --shadow-card-hover: 0 0 15px rgba(233, 69, 96, 0.2);
+  --shadow-card-selected: 0 0 20px rgba(0, 206, 209, 0.3);
+
+  /* Typography */
+  --font-display: 'MedievalSharp', serif;
+  --font-body: 'IBM Plex Mono', 'Menlo', 'Monaco', monospace;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* Scrollbar */
+  --scrollbar-track: #1a1a2e;
+  --scrollbar-thumb: #0f3460;
+  --scrollbar-thumb-hover: #1e90ff;
+}
+
+[data-theme='vercel-light'] {
+  /* Backgrounds */
+  --color-bg-primary: #ffffff;
+  --color-bg-panel: #fafafa;
+  --color-bg-card: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-highlight: #0070f3;
+
+  /* Text */
+  --color-text-primary: #000000;
+  --color-text-secondary: #525252;
+  --color-text-muted: #737373;
+
+  /* Accent */
+  --color-accent: #0070f3;
+
+  /* Game semantic colors - darker for light backgrounds */
+  --color-gold: #b8860b;
+  --color-food: #22c55e;
+  --color-runes: #a855f7;
+  --color-land: #0284c7;
+  --color-positive: #16a34a;
+  --color-negative: #dc2626;
+  --color-info: #0891b2;
+  --color-warning: #d97706;
+
+  /* Gray scale for muted text */
+  --color-gray-400: #737373;
+  --color-gray-500: #525252;
+
+  /* Shadows */
+  --shadow-panel: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+  --shadow-btn-inset: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-btn-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-card-selected: 0 0 0 2px #0070f3;
+
+  /* Typography */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Scrollbar */
+  --scrollbar-track: #f5f5f5;
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
+}
+
+[data-theme='vercel-dark'] {
+  /* Backgrounds */
+  --color-bg-primary: #000000;
+  --color-bg-panel: #111111;
+  --color-bg-card: #1a1a1a;
+  --color-border: #333333;
+  --color-highlight: #0070f3;
+
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1a1;
+  --color-text-muted: #737373;
+
+  /* Accent */
+  --color-accent: #0070f3;
+
+  /* Game semantic colors - bright for dark backgrounds */
+  --color-gold: #fbbf24;
+  --color-food: #4ade80;
+  --color-runes: #c084fc;
+  --color-land: #38bdf8;
+  --color-positive: #4ade80;
+  --color-negative: #f87171;
+  --color-info: #22d3ee;
+  --color-warning: #fbbf24;
+
+  /* Gray scale for muted text */
+  --color-gray-400: #a1a1a1;
+  --color-gray-500: #737373;
+
+  /* Shadows */
+  --shadow-panel: 0 4px 14px 0 rgba(0, 0, 0, 0.25);
+  --shadow-btn-inset: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-btn-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --shadow-card-selected: 0 0 0 2px #0070f3;
+
+  /* Typography */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Border radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Scrollbar */
+  --scrollbar-track: #111111;
+  --scrollbar-thumb: #333333;
+  --scrollbar-thumb-hover: #555555;
+}
+
+/* Vercel Light - Override Tailwind color utilities for better contrast */
+[data-theme='vercel-light'] .text-green-400,
+[data-theme='vercel-light'] .text-green-300 { color: #16a34a; }
+[data-theme='vercel-light'] .text-red-400,
+[data-theme='vercel-light'] .text-red-300 { color: #dc2626; }
+[data-theme='vercel-light'] .text-cyan-400 { color: #0891b2; }
+[data-theme='vercel-light'] .text-blue-400 { color: #2563eb; }
+[data-theme='vercel-light'] .text-yellow-400 { color: #ca8a04; }
+[data-theme='vercel-light'] .text-orange-400 { color: #ea580c; }
+[data-theme='vercel-light'] .text-purple-400 { color: #9333ea; }
+[data-theme='vercel-light'] .text-lime-400 { color: #65a30d; }
+[data-theme='vercel-light'] .text-amber-400,
+[data-theme='vercel-light'] .text-amber-500,
+[data-theme='vercel-light'] .text-amber-600 { color: #b45309; }
+[data-theme='vercel-light'] .text-gray-100 { color: #404040; }
+[data-theme='vercel-light'] .text-gray-300 { color: #525252; }
+[data-theme='vercel-light'] .text-gray-400 { color: #525252; }
+[data-theme='vercel-light'] .text-gray-500 { color: #404040; }
+
+/* Background color overrides for light theme */
+[data-theme='vercel-light'] .bg-green-600 { background-color: #16a34a; }
+[data-theme='vercel-light'] .bg-red-600 { background-color: #dc2626; }
+[data-theme='vercel-light'] .bg-cyan-600 { background-color: #0891b2; }
+
+/* Border color overrides for light theme */
+[data-theme='vercel-light'] .border-cyan-400 { border-color: #0891b2; }
+[data-theme='vercel-light'] .border-green-400 { border-color: #16a34a; }
+[data-theme='vercel-light'] .border-red-400 { border-color: #dc2626; }
+[data-theme='vercel-light'] .border-gold { border-color: #b8860b; }
+
+/* Base layer - global styles */
+@layer base {
+  html {
+    font-family: var(--font-body);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport for mobile */
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Remove tap highlight on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    outline: 2px solid var(--color-highlight);
+    outline-offset: 2px;
+  }
+}
+
+/* Component layer - reusable patterns */
+@layer components {
+  /* Panel with theme-aware styling */
+  .panel-retro {
+    background-color: var(--color-bg-panel);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-panel);
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .panel-retro-header {
+    @apply px-3 py-2;
+    border-bottom: 2px solid var(--color-border);
+    font-family: var(--font-display);
+    @apply text-sm uppercase tracking-wider;
+    color: var(--color-accent);
+  }
+
+  /* Button base */
+  .btn-retro {
+    font-family: var(--font-display);
+    @apply uppercase tracking-wider font-bold
+           border-2 transition-all duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: var(--shadow-btn-inset);
+    border-radius: var(--radius-md);
+  }
+
+  .btn-retro:active:not(:disabled) {
+    box-shadow: var(--shadow-btn-pressed);
+    transform: translateY(1px);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply btn-retro bg-gradient-to-b from-blue-500 to-blue-700
+           border-blue-400 text-white;
+  }
+
+  [data-theme='vercel-light'] .btn-primary,
+  [data-theme='vercel-dark'] .btn-primary {
+    @apply bg-[#0070f3] from-[#0070f3] to-[#0070f3] border-[#0070f3];
+  }
+
+  .btn-secondary {
+    @apply btn-retro bg-gradient-to-b from-gray-600 to-gray-800
+           border-gray-500 text-gray-100;
+  }
+
+  [data-theme='vercel-light'] .btn-secondary {
+    @apply bg-white from-white to-white border-[#eaeaea] text-black;
+  }
+
+  [data-theme='vercel-dark'] .btn-secondary {
+    @apply bg-[#1a1a1a] from-[#1a1a1a] to-[#1a1a1a] border-[#333] text-white;
+  }
+
+  .btn-danger {
+    @apply btn-retro bg-gradient-to-b from-red-500 to-red-700
+           border-red-400 text-white;
+  }
+
+  .btn-gold {
+    @apply btn-retro bg-gradient-to-b from-yellow-500 to-yellow-700
+           border-yellow-400 text-black;
+  }
+
+  /* Button sizes - compact on mobile, larger on desktop */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm min-h-[40px];
+  }
+
+  .btn-lg {
+    @apply px-5 py-2.5 text-base min-h-[44px];
+  }
+
+  @media (min-width: 640px) {
+    .btn-sm {
+      @apply px-4 py-2 text-sm;
+    }
+
+    .btn-md {
+      @apply px-5 py-3 text-base min-h-[44px];
+    }
+
+    .btn-lg {
+      @apply px-6 py-4 text-lg min-h-[52px];
+    }
+  }
+
+  /* Stat table */
+  .table-retro {
+    @apply w-full text-base;
+  }
+
+  .table-retro th {
+    background-color: var(--color-border);
+    color: var(--color-accent);
+    @apply px-4 py-3 text-left text-sm uppercase tracking-wider;
+    font-family: var(--font-display);
+  }
+
+  .table-retro td {
+    @apply px-4 py-3;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .table-retro tr:nth-child(even) td {
+    background-color: color-mix(in srgb, var(--color-bg-card) 50%, transparent);
+  }
+
+  .table-retro tr:hover td {
+    background-color: color-mix(in srgb, var(--color-border) 30%, transparent);
+  }
+
+  /* Resource display with icon */
+  .resource-display {
+    @apply flex items-center gap-1;
+  }
+
+  .resource-icon {
+    @apply w-4 h-4 flex-shrink-0;
+  }
+
+  .resource-value {
+    @apply font-stats font-bold;
+  }
+
+  /* Era badges */
+  .era-badge {
+    @apply px-2 py-0.5 text-xs font-bold uppercase tracking-wider;
+    border-radius: var(--radius-sm);
+  }
+
+  .era-past {
+    @apply bg-era-past/20 text-era-past border border-era-past/50;
+  }
+
+  .era-present {
+    @apply bg-era-present/20 text-era-present border border-era-present/50;
+  }
+
+  .era-future {
+    @apply bg-era-future/20 text-era-future border border-era-future/50;
+  }
+
+  /* Rarity text colors */
+  .rarity-common {
+    @apply text-common;
+  }
+
+  .rarity-uncommon {
+    @apply text-uncommon;
+  }
+
+  .rarity-rare {
+    @apply text-rare;
+  }
+
+  .rarity-legendary {
+    @apply text-legendary;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-4 overflow-hidden;
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+
+  .progress-bar-fill {
+    @apply h-full transition-all duration-300;
+  }
+
+  /* Glowing text effect - subtle for readability */
+  .text-glow-gold {
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 8px rgba(30, 144, 255, 0.4);
+  }
+
+  .text-glow-purple {
+    text-shadow: 0 0 8px rgba(153, 50, 204, 0.4);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+  }
+
+  /* Disable glow effects in Vercel themes for cleaner look */
+  [data-theme^='vercel'] .text-glow-gold,
+  [data-theme^='vercel'] .text-glow-blue,
+  [data-theme^='vercel'] .text-glow-purple,
+  [data-theme^='vercel'] .text-glow-red {
+    text-shadow: none;
+  }
+
+  /* Card for items/advisors/etc */
+  .card-retro {
+    background-color: var(--color-bg-card);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+  }
+
+  .card-retro:hover {
+    border-color: var(--color-highlight);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .card-retro.selected {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-card-selected);
+  }
+
+  /* Mobile touch-friendly action button */
+  .action-btn {
+    @apply flex flex-col items-center justify-center
+           min-h-[80px] p-3
+           transition-all duration-150
+           active:scale-95;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .action-btn:active {
+    background-color: var(--color-border);
+  }
+
+  .action-btn-icon {
+    @apply text-3xl mb-2;
+  }
+
+  .action-btn-label {
+    @apply text-sm uppercase tracking-wider;
+  }
+
+  /* Mobile navigation bar */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0
+           flex justify-around items-center
+           h-16 px-2 z-50;
+    background-color: var(--color-bg-panel);
+    border-top: 2px solid var(--color-border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    background-color: var(--color-bg-panel);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    @apply max-w-lg w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  /* Number input with increment buttons */
+  .number-input-group {
+    @apply flex items-center gap-2;
+  }
+
+  .number-input {
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    @apply px-4 py-3 text-center font-stats text-lg w-28;
+    color: var(--color-text-primary);
+  }
+
+  .number-input:focus {
+    border-color: var(--color-accent);
+    outline: none;
+  }
+
+  .number-btn {
+    @apply flex items-center justify-center font-bold;
+    min-width: 48px;
+    min-height: 48px;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .number-btn:hover:not(:disabled) {
+    background-color: var(--color-border);
+  }
+
+  .number-btn:active:not(:disabled) {
+    background-color: var(--color-border);
+    transform: scale(0.95);
+  }
+
+  .number-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Semantic label classes for improved contrast */
+  .text-label {
+    color: var(--color-text-muted);
+    @apply text-sm uppercase tracking-wider;
+  }
+
+  .text-sublabel {
+    color: var(--color-text-secondary);
+    @apply text-sm;
+  }
+
+  .text-value {
+    color: var(--color-text-primary);
+    @apply font-stats;
+  }
+}
+
+/* Utility layer - custom utilities */
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Text stroke for headings */
+  .text-stroke {
+    -webkit-text-stroke: 1px currentColor;
+    paint-order: stroke fill;
+  }
+
+  /* Gradient text */
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-yellow-400 to-yellow-600
+           bg-clip-text text-transparent;
+  }
+
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-cyan-400 to-blue-500
+           bg-clip-text text-transparent;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Loading skeleton */
+.skeleton {
+  background-color: color-mix(in srgb, var(--color-border) 50%, transparent);
+  border-radius: var(--radius-md);
+  @apply animate-pulse;
+}
+
+/* Pixel art rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Toast notifications */
+@keyframes toast-slide-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.3s ease-out forwards;
+}
+
+.toast-exit {
+  animation: toast-slide-out 0.2s ease-in forwards;
+}

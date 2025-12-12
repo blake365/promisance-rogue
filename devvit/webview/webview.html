@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0a0a12" />
+    <meta name="description" content="Promisance Rogue - A roguelike turn-based strategy game" />
+
+    <!-- Fonts: IBM Plex Mono (retro body), MedievalSharp (retro display), Orbitron (stats), Inter (modern) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=MedievalSharp&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+    <title>Promisance Rogue</title>
+
+    <!-- Devvit Bridge Script - must be loaded before React -->
+    <script>
+      // Initialize Devvit bridge
+      window.devvit = {
+        postMessage: (message) => {
+          window.parent.postMessage(message, '*');
+        },
+        addEventListener: (event, handler) => {
+          window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'devvit-message') {
+              handler(e.data.data);
+            }
+          });
+        },
+      };
+
+      // Listen for messages from Devvit
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'devvit-response') {
+          const messageEvent = new CustomEvent('message', { detail: event.data.data });
+          window.dispatchEvent(messageEvent);
+        }
+      });
+    </script>
+    <script type="module" crossorigin src="./index.js"></script>
+    <link rel="stylesheet" crossorigin href="./index.css">
+  </head>
+  <body class="bg-game-dark text-gray-100 antialiased">
+    <div id="root"></div>
+  </body>
+</html>

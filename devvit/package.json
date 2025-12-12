@@ -4,10 +4,11 @@
   "description": "Promisance Rogue - Native Devvit port for Reddit",
   "main": "src/main.tsx",
   "scripts": {
-    "dev": "devvit upload --bump-version",
-    "build": "devvit upload",
-    "playtest": "devvit playtest",
-    "typecheck": "tsc --noEmit"
+    "build:webview": "cd src/webview && npm install && npm run build",
+    "dev": "npm run build:webview && devvit upload --bump-version",
+    "build": "npm run build:webview && devvit upload",
+    "playtest": "npm run build:webview && devvit playtest",
+    "typecheck": "tsc --noEmit && cd src/webview && npm run typecheck"
   },
   "dependencies": {
     "@devvit/public-api": "latest",
