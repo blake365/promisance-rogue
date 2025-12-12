@@ -1,0 +1,25 @@
+name: promisance-rogue
+version: 0.1.0
+description: A roguelike turn-based strategy game for Reddit
+
+# Permissions required
+permissions:
+  - redis
+  - identity
+
+# Configuration options
+settings:
+  - name: daily_challenge_time
+    type: string
+    default: "00:00"
+    description: Time for daily challenge posts (UTC)
+
+  - name: leaderboard_size
+    type: number
+    default: 100
+    description: Maximum entries in leaderboards
+
+# App capabilities
+capabilities:
+  - webview
+  - scheduler
