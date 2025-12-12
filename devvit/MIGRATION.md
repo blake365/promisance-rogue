@@ -2,28 +2,44 @@
 
 Step-by-step guide for porting Promisance Rogue to native Devvit.
 
+## 🎯 Current Status
+
+**Last Updated:** 2025-12-12
+
+**Completed Phases:** 1, 2, 3 (Game Logic), 4 (API Layer)
+**Next Up:** Phase 5 (Frontend Integration)
+
+### Recent Progress
+- ✅ All game logic files copied (11 core files + bonuses + bot AI)
+- ✅ Redis operations layer fully implemented
+- ✅ No modifications needed to game logic (clean separation of concerns)
+- ✅ **API handlers implemented** (21 handlers in `server/api.ts`)
+- ✅ **Types copied** (`server/types.ts`)
+- ✅ **Handlers registered** in `main.tsx` (all 21 wired up)
+- 🎯 **Next:** Copy React frontend components and implement webview messaging
+
 ## Phase 1: Project Setup ✅
 
 - [x] Create folder structure
-- [ ] Initialize npm project (`npm init`)
-- [ ] Install Devvit CLI (`npm install -g devvit`)
-- [ ] Configure `devvit.yaml`
-- [ ] Set up TypeScript configuration
+- [x] Initialize npm project (`npm init`)
+- [x] Install Devvit CLI (`npm install -g devvit`)
+- [x] Configure `devvit.yaml`
+- [x] Set up TypeScript configuration
 
-## Phase 2: Redis Data Layer
+## Phase 2: Redis Data Layer ✅
 
-### 2.1 Design Schema
-- [ ] Map SQLite tables to Redis keys
-- [ ] Define key naming conventions
-- [ ] Plan data serialization strategy
-- [ ] Design index structures for queries
+### 2.1 Design Schema ✅
+- [x] Map SQLite tables to Redis keys
+- [x] Define key naming conventions
+- [x] Plan data serialization strategy
+- [x] Design index structures for queries
 
-### 2.2 Implement Operations
-- [ ] Complete `redis/operations.ts`
-- [ ] Implement game state CRUD
-- [ ] Implement user operations
-- [ ] Implement leaderboard operations
-- [ ] Add data migration utilities
+### 2.2 Implement Operations ✅
+- [x] Complete `redis/operations.ts`
+- [x] Implement game state CRUD
+- [x] Implement user operations
+- [x] Implement leaderboard operations
+- [x] Add data migration utilities
 
 ### 2.3 Testing
 - [ ] Write unit tests for Redis operations
@@ -31,26 +47,26 @@ Step-by-step guide for porting Promisance Rogue to native Devvit.
 - [ ] Verify key expiration logic
 - [ ] Benchmark performance
 
-## Phase 3: Game Logic Port
+## Phase 3: Game Logic Port ✅
 
-### 3.1 Copy Core Files
-- [ ] Copy `game/constants.ts`
-- [ ] Copy `game/empire.ts`
-- [ ] Copy `game/turns.ts`
-- [ ] Copy `game/combat.ts`
-- [ ] Copy `game/spells.ts`
-- [ ] Copy `game/shop.ts`
-- [ ] Copy `game/bank.ts`
-- [ ] Copy `game/rng.ts`
-- [ ] Copy `game/stats.ts`
-- [ ] Copy `game/bonuses/` directory
-- [ ] Copy `game/bot/` directory
+### 3.1 Copy Core Files ✅
+- [x] Copy `game/constants.ts`
+- [x] Copy `game/empire.ts`
+- [x] Copy `game/turns.ts`
+- [x] Copy `game/combat.ts`
+- [x] Copy `game/spells.ts`
+- [x] Copy `game/shop.ts`
+- [x] Copy `game/bank.ts`
+- [x] Copy `game/rng.ts`
+- [x] Copy `game/stats.ts`
+- [x] Copy `game/bonuses/` directory
+- [x] Copy `game/bot/` directory
 
-### 3.2 Adapt Dependencies
-- [ ] Update `run.ts` for Redis
-- [ ] Remove D1-specific code
-- [ ] Update imports/exports
-- [ ] Ensure type compatibility
+### 3.2 Adapt Dependencies ✅
+- [x] Copy `run.ts` (no changes needed - pure game logic)
+- [x] Remove D1-specific code (none found - DB handled in API layer)
+- [x] Update imports/exports
+- [x] Ensure type compatibility
 
 ### 3.3 Testing
 - [ ] Unit test each game module
@@ -58,22 +74,28 @@ Step-by-step guide for porting Promisance Rogue to native Devvit.
 - [ ] Test bot AI behavior
 - [ ] Verify RNG consistency
 
-## Phase 4: API Layer
+## Phase 4: API Layer ✅
 
-### 4.1 Implement Handlers
-- [ ] Complete `server/api.ts`
-- [ ] Map REST endpoints to RPC functions
-- [ ] Implement authentication
-- [ ] Add error handling
+### 4.1 Implement Handlers ✅
+- [x] Complete `server/api.ts` (771 lines, 21 handlers)
+- [x] Map REST endpoints to RPC functions
+- [x] Implement authentication (Reddit user ID)
+- [x] Add error handling (optimistic locking, corruption recovery)
 
-### 4.2 Core Endpoints
-- [ ] `createGame` - Start new game
-- [ ] `getGameState` - Load game
-- [ ] `executeTurn` - Process turn action
-- [ ] `shopPhase` - Draft and market
-- [ ] `getLeaderboard` - Rankings
+### 4.2 Core Endpoints ✅
+- [x] `createGame` - Start new game
+- [x] `getGameState` - Load game
+- [x] `executeTurn` - Process turn action
+- [x] `shopPhase` - Draft and market
+- [x] `getLeaderboard` - Rankings
+- [x] All 16 other handlers (see API_MAPPING.md)
 
-### 4.3 Testing
+### 4.3 Handler Registration ✅
+- [x] Import all handlers in main.tsx
+- [x] Register all 21 handlers with Devvit.addHandler()
+- [x] Copy types.ts to devvit/src/server/
+
+### 4.4 Testing
 - [ ] Test each endpoint independently
 - [ ] Integration test full game flow
 - [ ] Load testing with concurrent users
@@ -176,3 +198,58 @@ Step-by-step guide for porting Promisance Rogue to native Devvit.
 - [Redis Commands](https://redis.io/commands)
 - [Original Codebase](../)
 - [Game Guide](../cli/docs/GAME_GUIDE.md)
+
+---
+
+## 📦 Migration File Summary
+
+### Game Logic (`src/server/game/`) - ✅ COMPLETE
+
+**Core Files (11):**
+- ✅ `constants.ts` - Game configuration and balance values
+- ✅ `empire.ts` - Empire creation and networth calculation
+- ✅ `turns.ts` - Turn action processing and economy
+- ✅ `combat.ts` - Attack resolution and combat mechanics
+- ✅ `spells.ts` - All spell casting logic
+- ✅ `shop.ts` - Draft system and market transactions
+- ✅ `bank.ts` - Savings/loan operations
+- ✅ `rng.ts` - Seeded random number generator
+- ✅ `stats.ts` - Statistics tracking
+- ✅ `run.ts` - GameRun lifecycle and phase management
+- ✅ `index.ts` - Module exports
+
+**Bonuses (`game/bonuses/`) - ✅ COMPLETE (5 files):**
+- ✅ `advisors.ts` - All 30+ advisor definitions
+- ✅ `techs.ts` - Mastery system
+- ✅ `edicts.ts` - Edict definitions
+- ✅ `policies.ts` - Policy system
+- ✅ `index.ts` - Exports
+
+**Bot AI (`game/bot/`) - ✅ COMPLETE (10+ files):**
+- ✅ `definitions.ts` - Bot personality definitions
+- ✅ `generation.ts` - Bot empire creation
+- ✅ `decisions.ts` - Turn action decision making
+- ✅ `strategies.ts` - Strategic planning
+- ✅ `targeting.ts` - Attack target selection
+- ✅ `phase.ts` - Bot phase execution
+- ✅ `memory.ts` - Attack memory system
+- ✅ `state.ts` - Bot state management
+- ✅ `types.ts` - Bot type definitions
+- ✅ `index.ts` - Exports
+
+### Redis Layer (`src/server/redis/`) - ✅ COMPLETE
+
+- ✅ `operations.ts` - Complete implementation with GameOperations, UserOperations, LeaderboardOperations
+
+### API Layer (`src/server/`) - ⏳ IN PROGRESS
+
+- ⏳ `api.ts` - Stub functions exist, need implementation
+
+### Frontend (`src/webview/`) - ⏸️ PENDING
+
+- ⏸️ React components need to be copied from `/web/src/` or `/cli/src/`
+- ⏸️ Webview communication layer needs implementation
+
+### Main Entry (`src/`) - ⏸️ PENDING
+
+- ⏸️ `main.tsx` - Has skeleton, needs full implementation

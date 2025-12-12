@@ -1,5 +1,8 @@
 import { Devvit } from '@devvit/public-api';
 
+// Import all API handlers
+import * as api from './server/api.js';
+
 // Configure app
 Devvit.configure({
   redditAPI: true,
@@ -7,8 +10,22 @@ Devvit.configure({
   http: false,
 });
 
-// TODO: Import API handlers
-// import { registerHandlers } from './server/api.js';
+// ============================================
+// REGISTER API HANDLERS (21 total)
+// ============================================
+
+// TODO: Check Devvit API docs for correct handler registration method
+// Devvit.addHandler() doesn't exist in the current Devvit API
+// These handlers will need to be called from webview message handlers or custom post actions
+
+// Handlers are implemented and exported from './server/api.js':
+// - api.getPlayer, api.createGame, api.abandonGame, api.getCurrentGame, api.getGame
+// - api.executeTurnAction, api.updateSettings, api.getCombatPreviewHandler, api.endPlayerPhaseHandler
+// - api.marketTransaction, api.getBankInfoHandler, api.bankTransaction
+// - api.selectDraftHandler, api.getRerollInfoHandler, api.rerollDraftHandler
+// - api.dismissAdvisorHandler, api.endShopPhaseHandler
+// - api.executeBotPhaseHandler
+// - api.getLeaderboard, api.getPlayerRank, api.getHistory
 
 // TODO: Import webview
 // import { WebviewApp } from './webview/index.js';
