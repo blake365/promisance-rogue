@@ -1,0 +1,23 @@
+{
+  "name": "promisance-rogue-devvit",
+  "version": "0.1.0",
+  "description": "Promisance Rogue - Native Devvit port for Reddit",
+  "main": "src/main.tsx",
+  "scripts": {
+    "dev": "devvit upload --bump-version",
+    "build": "devvit upload",
+    "playtest": "devvit playtest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@devvit/public-api": "latest",
+    "@devvit/kit": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "devvit": {
+    "entry": "src/main.tsx"
+  }
+}
